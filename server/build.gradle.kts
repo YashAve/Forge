@@ -18,9 +18,13 @@ dependencies {
     implementation(libs.ktor.server.status.pages)
     implementation(libs.logback.classic)
 
+    implementation(libs.koin.ktor)
+    implementation(libs.koin.logger.slf4j)
+
     testImplementation(kotlin("test"))
     testImplementation(libs.ktor.server.tests)
     testImplementation(libs.ktor.client.content.negotiation)
+    testImplementation(libs.koin.test)
 }
 
 kotlin {

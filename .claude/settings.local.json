@@ -4,7 +4,10 @@
       "Bash(mkdir -p /home/yash/project/forge/server/src/main/kotlin/com/development/forge/server)",
       "Bash(mkdir -p /home/yash/project/forge/server/src/test/kotlin/com/development/forge/server)",
       "Bash(./gradlew :server:dependencies --configuration runtimeClasspath)",
-      "Bash(./gradlew :server:compileKotlin)"
+      "Bash(./gradlew :server:compileKotlin)",
+      "Bash(./gradlew :app:dependencies --configuration releaseRuntimeClasspath)",
+      "Bash(./gradlew :app:assembleDebug)",
+      "Bash(./gradlew :server:compileKotlin :app:compileDebugKotlin)"
     ]
   }
 }
