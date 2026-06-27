@@ -8,6 +8,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -23,14 +26,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            CalendarGrid()
+            CalendarGrid(modifier = Modifier
+                .imePadding()
+                .navigationBarsPadding()
+                .statusBarsPadding())
         }
     }
 }
 
 @Composable
 private fun CalendarGrid(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier.fillMaxSize().background(color = Color.White)) {
+    Canvas(modifier = modifier
+        .fillMaxSize()
+        .background(color = Color.White)) {
         val (boxWidth, boxHeight) = arrayOf(80f, 80f)
         val gap = 5f
         var (coveredWidth, coveredHeight) = arrayOf(50f, 50f)
