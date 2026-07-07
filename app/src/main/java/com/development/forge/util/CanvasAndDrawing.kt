@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -195,6 +196,53 @@ fun CanvasText(modifier: Modifier = Modifier) {
         drawText(
             heatUpResult,
             topLeft = Offset((size.width - heatUpResult.size.width) / 2f, size.height * 0.80f)
+        )
+    }
+}
+
+@Preview
+@Composable
+fun UselessProgressBar(modifier: Modifier = Modifier) {
+    Canvas(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFF14110C))
+    ) {
+        drawRect(
+            topLeft = Offset(0f, 0f),
+            size = Size(size.width, size.height),
+            brush = Brush.radialGradient(
+                listOf(Color(0xFFF58A00).copy(alpha = 0.10f), Color.Transparent),
+                center = Offset(size.width * 0.18f, size.height * 0.12f),
+                radius = 420f
+            )
+        )
+        val start = size.width * 0.10f
+        drawRoundRect(
+            topLeft = Offset(start, size.height * 0.35f),
+            size = Size(size.width * 0.80f, 30f),
+            cornerRadius = CornerRadius(25f, 25f),
+            brush = Brush.linearGradient(
+                0f to Color.Black,
+                (size.width * 0.50f) to Color(0xFFF58A00),
+                (size.width * 0.90f) to Color.DarkGray.copy(alpha = 0.3f),
+                start = Offset(size.width * 0.10f, (size.height * 0.35f) + 30f),
+                end = Offset(size.width * 0.70f, (size.height * 0.35f) + 30f)
+            )
+        )
+        drawCircle(
+            center = Offset(size.width * 0.70f, (size.height * 0.35f + 15f)),
+            radius = 27f,
+            color = Color.Black
+        )
+        drawCircle(
+            center = Offset(size.width * 0.70f, (size.height * 0.35f + 15f)),
+            radius = 25f,
+            brush = Brush.radialGradient(
+                listOf(Color(0xFFF58A00), Color.Transparent),
+                Offset(size.width * 0.70f, (size.height * 0.35f + 15f)),
+                radius = 150f
+            )
         )
     }
 }

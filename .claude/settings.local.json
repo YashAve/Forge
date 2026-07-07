@@ -130,7 +130,9 @@
       "Read(//home/yash/software/android-studio-otter/**)",
       "Read(//home/yash/**)",
       "Read(//opt/**)",
-      "Bash(git rev-list *)"
+      "Bash(git rev-list *)",
+      "Bash(echo \"commit exit: $?\")",
+      "Bash(echo \"push exit: $?\")"
     ]
   }
 }
