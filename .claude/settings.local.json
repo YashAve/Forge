@@ -124,7 +124,8 @@
       "Bash(grep -aoiE \"PGADMIN_[A-Z_]+.{0,60}\" /home/yash/.claude/projects/-home-yash-project-forge/93163a88-915b-4a91-8ecf-e78fc800605a.jsonl)",
       "Bash(git check-ignore *)",
       "Bash(echo \"exit: $?\")",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(echo \"=== EXIT $? ===\")"
     ]
   }
 }

@@ -2,6 +2,7 @@ package com.development.forge.util
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -11,8 +12,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.development.forge.ui.theme.ForgeFonts
 
 @Preview
 @Composable
@@ -101,6 +107,38 @@ fun RadiantGradientCircle(modifier: Modifier = Modifier) {
                 listOf(Color(0xFFFF7A18), Color.Transparent),
                 center = Offset(150f, 150f),
                 radius = 80f
+            )
+        )
+    }
+}
+
+@Preview
+@Composable
+fun CanvasText(modifier: Modifier = Modifier) {
+    /*Draw the word "Forge" in black,
+      fontSize 60.sp, at a fixed topLeft = Offset(40f, 120f)
+      — no centering yet.
+      Give me the full thing: the rememberTextMeasurer() line (in the right place),
+      the .measure(...), and the drawText(...)*/
+    val measurer = rememberTextMeasurer()
+    Canvas(
+        modifier = modifier
+            .fillMaxSize()
+            .background(color = Color.Black)
+    ) {
+        val result = measurer.measure(
+            text = "Forge",
+            style = TextStyle(
+                fontSize = 72.sp,
+                color = Color(0xFFF2E9DC),
+                fontFamily = ForgeFonts.quicksand
+            )
+        )
+        drawText(
+            result,
+            topLeft = Offset(
+                (size.width - result.size.width) / 2f,
+                (size.height - result.size.height) / 2f
             )
         )
     }
