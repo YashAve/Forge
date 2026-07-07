@@ -125,7 +125,12 @@
       "Bash(git check-ignore *)",
       "Bash(echo \"exit: $?\")",
       "Bash(git commit *)",
-      "Bash(echo \"=== EXIT $? ===\")"
+      "Bash(echo \"=== EXIT $? ===\")",
+      "Read(//home/yash/.gradle/**)",
+      "Read(//home/yash/software/android-studio-otter/**)",
+      "Read(//home/yash/**)",
+      "Read(//opt/**)",
+      "Bash(git rev-list *)"
     ]
   }
 }

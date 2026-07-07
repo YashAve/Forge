@@ -12,7 +12,7 @@ import com.development.forge.R
  * Fonts are fetched at runtime from the Google Play Services font provider, so
  * no font files are bundled in the APK. Use the family directly in a text style:
  *
- *     TextStyle(fontFamily = ForgeFonts.quicksand, fontWeight = FontWeight.Bold)
+ *     TextStyle(fontFamily = ForgeFonts.spaceGrotesk, fontWeight = FontWeight.Bold)
  */
 object ForgeFonts {
 
@@ -23,11 +23,11 @@ object ForgeFonts {
         certificates = R.array.com_google_android_gms_fonts_certs
     )
 
-    private val quicksandName = GoogleFont("Quicksand")
+    private val spaceGroteskName = GoogleFont("Space Grotesk")
 
     /** Soft, rounded geometric sans — the Forge branding typeface. */
-    val quicksand: FontFamily = FontFamily(
-        Font(googleFont = quicksandName, fontProvider = provider, weight = FontWeight.Medium),
-        Font(googleFont = quicksandName, fontProvider = provider, weight = FontWeight.Bold)
+    val spaceGrotesk: FontFamily = FontFamily(
+        Font(googleFont = spaceGroteskName, fontProvider = provider, weight = FontWeight.Medium),
+        Font(googleFont = spaceGroteskName, fontProvider = provider, weight = FontWeight.W700)
     )
 }
