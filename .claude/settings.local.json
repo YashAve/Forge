@@ -118,7 +118,13 @@
       "Bash(bash -n /home/yash/.local/bin/emu-open)",
       "Bash(awk '{printf \"%.1f MB\\\\t%s\\\\n\", $1/1048576, $2}')",
       "Bash(./gradlew :codelabs:assembleDebug --console=plain)",
-      "Bash(./gradlew assembleDebug -m --console=plain)"
+      "Bash(./gradlew assembleDebug -m --console=plain)",
+      "Bash(grep -aoiE \"pgAdmin[^\\\\\\\\\\\\\\\\\\\\\"]{0,220}\" /home/yash/.claude/projects/-home-yash-project-forge/93163a88-915b-4a91-8ecf-e78fc800605a.jsonl)",
+      "Bash(grep -aoiE \"\\(setup-web|pgadmin\\).{0,140}\\(email|@[a-z]|password|admin@|login\\)\" /home/yash/.claude/projects/-home-yash-project-forge/93163a88-915b-4a91-8ecf-e78fc800605a.jsonl)",
+      "Bash(grep -aoiE \"PGADMIN_[A-Z_]+.{0,60}\" /home/yash/.claude/projects/-home-yash-project-forge/93163a88-915b-4a91-8ecf-e78fc800605a.jsonl)",
+      "Bash(git check-ignore *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(git commit *)"
     ]
   }
 }
