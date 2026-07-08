@@ -24,7 +24,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.development.forge.ui.theme.ForgeFonts
+import com.development.forge.core.designsystem.ForgeFonts
 import kotlinx.coroutines.delay
 
 @Preview

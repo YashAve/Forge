@@ -1,4 +1,4 @@
-package com.development.forge.ui.theme
+package com.development.forge.core.designsystem
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

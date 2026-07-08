@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -36,12 +38,24 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
     buildFeatures {
         compose = true
     }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_11
+    }
+}
+
+hilt {
+    // Do Hilt component aggregation inside the KSP processor instead of the separate
+    // `hiltJavaCompileDebug` javac task. That javac task reads Kotlin metadata through
+    // Dagger's bundled kotlin-metadata-jvm, which maxes out at metadata 2.2.0 and cannot
+    // parse Kotlin 2.3.x (metadata 2.3.0). KSP reads metadata via the Kotlin compiler and
+    // handles 2.3.0 fine, so this keeps Hilt working on the modern Kotlin toolchain.
+    enableAggregatingTask = false
 }
 
 dependencies {
@@ -67,6 +81,15 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
 
     implementation(libs.androidx.navigation.compose)
+
+    // Navigation 3 — app-owned back stack rendered by NavDisplay + entryProvider.
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.navigation3.ui)
+    // NOTE: the stable lifecycle-viewmodel-navigation3 (per-NavEntry ViewModel scoping)
+    // lives in lifecycle 2.11.0, which requires AGP 9.1.0 + compileSdk 37. Deferred until
+    // this project moves to AGP 9 — see docs/CROSS-MACHINE-SETUP.md.
+    // @Serializable Nav3 keys (kotlin-serialization plugin is applied above).
+    implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

@@ -132,7 +132,14 @@
       "Read(//opt/**)",
       "Bash(git rev-list *)",
       "Bash(echo \"commit exit: $?\")",
-      "Bash(echo \"push exit: $?\")"
+      "Bash(echo \"push exit: $?\")",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs",
+      "WebFetch(domain:mvnrepository.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(mkdir -p __TRACKED_VAR__/core/components __TRACKED_VAR__/data/remote)",
+      "Bash(touch __TRACKED_VAR__/core/components/.gitkeep __TRACKED_VAR__/data/remote/.gitkeep)",
+      "Bash(git rm *)"
     ]
   }
 }

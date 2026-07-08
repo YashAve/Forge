@@ -1,4 +1,4 @@
-package com.development.forge.ui.theme
+package com.development.forge.core.designsystem
 
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
