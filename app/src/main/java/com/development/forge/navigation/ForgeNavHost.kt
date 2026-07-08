@@ -24,6 +24,13 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.navigationevent.NavigationEventDispatcher
 import androidx.navigationevent.NavigationEventDispatcherOwner
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import com.development.forge.core.components.ForgeTopBar
+import com.development.forge.feature.auth.EmailSentScreen
+import com.development.forge.feature.auth.ForgotPasswordScreen
+import com.development.forge.feature.auth.LoginScreen
+import com.development.forge.feature.auth.RegistrationScreen
+import com.development.forge.feature.auth.ResetPasswordScreen
+import com.development.forge.feature.auth.SuccessScreen
 import com.development.forge.feature.splash.SplashScreen
 import com.development.forge.navigation.ForgeNavKey.Splash
 
@@ -41,12 +48,14 @@ import com.development.forge.navigation.ForgeNavKey.Splash
 
 @Composable
 fun ForgeNavHost(modifier: Modifier = Modifier) {
-    val backStack = rememberNavBackStack(Splash)
+    val backStack = rememberNavBackStack(ForgeNavKey.Splash)
+    val currentDestination = backStack.lastOrNull()
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF14110C))
+            .statusBarsPadding()
             .drawBehind {
                 drawRect(
                     topLeft = Offset(0f, 0f),
@@ -61,7 +70,14 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
             }) {
         Scaffold(
             modifier = modifier,
-            containerColor = Color.Transparent
+            containerColor = Color.Transparent,
+            topBar = {
+                when (currentDestination) {
+                    is Splash, is ForgeNavKey.Success -> {}
+                    is ForgeNavKey.Login, is ForgeNavKey.Registration -> ForgeTopBar()
+                    else -> ForgeTopBar(onBack = { backStack.removeLastOrNull() })
+                }
+            }
         ) { padding ->
             val basicModifier = Modifier
                 .fillMaxSize()
@@ -76,7 +92,18 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                     rememberSaveableStateHolderNavEntryDecorator(),
                 ),
                 entryProvider = entryProvider {
-                    entry<Splash> { SplashScreen(basicModifier) }
+                    entry<Splash> {
+                        SplashScreen(basicModifier) {
+                            backStack.clear()
+                            backStack.add(ForgeNavKey.Login)
+                        }
+                    }
+                    entry<ForgeNavKey.Login> { LoginScreen(basicModifier) }
+                    entry<ForgeNavKey.Registration> { RegistrationScreen(basicModifier) }
+                    entry<ForgeNavKey.ForgotPassword> { ForgotPasswordScreen(basicModifier) }
+                    entry<ForgeNavKey.EmailSent> { EmailSentScreen(basicModifier) }
+                    entry<ForgeNavKey.ResetPassword> { ResetPasswordScreen(basicModifier) }
+                    entry<ForgeNavKey.Success> { SuccessScreen(basicModifier) }
                 },
             )
         }

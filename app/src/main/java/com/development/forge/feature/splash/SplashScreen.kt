@@ -5,7 +5,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -23,9 +25,10 @@ import kotlinx.coroutines.delay
 
 @Preview
 @Composable
-fun SplashScreen(modifier: Modifier = Modifier) {
+fun SplashScreen(modifier: Modifier = Modifier, onFinished: () -> Unit = { }) {
 
     val measurer = rememberTextMeasurer()
+    val currentOnFinished by rememberUpdatedState(onFinished)
     val emberScale = remember { Animatable(1f) }
 
     LaunchedEffect(Unit) {
@@ -34,6 +37,8 @@ fun SplashScreen(modifier: Modifier = Modifier) {
             animateTo(1.18f, animationSpec = tween(800))
             animateTo(1f, tween(800))
         }
+        delay(400)
+        currentOnFinished()
     }
 
     Canvas(

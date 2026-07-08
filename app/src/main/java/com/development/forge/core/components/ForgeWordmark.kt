@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -37,16 +38,26 @@ fun ForgeWordmark(modifier: Modifier = Modifier, fontSize: TextUnit = 24.sp) {
         )
     }
 
+    val dotOverhang = 2f
+    val dotCenter = Offset(result.size.width * 0.68f, 10f)
+
     Canvas(
         modifier = modifier.size(
-        with(density) { result.size.width.toDp() },
-        with(density) { (result.size.height + 2f + 9f).toDp() }
-    )) {
-        drawText(result)
+            with(density) { result.size.width.toDp() },
+            with(density) { (result.size.height + dotOverhang).toDp() }
+        )) {
+        drawText(result, topLeft = Offset(0f, dotOverhang))
+        val glowRadius = 15f
         drawCircle(
-            radius = 4.5f,
-            center = Offset(result.size.width * 0.68f, result.size.height * 0.20f),
-            color = Color.Yellow
+            radius = glowRadius,
+            center = dotCenter,
+            brush = Brush.radialGradient(
+                listOf(Color(0xFFF58A00).copy(alpha = 0.7f), Color.Transparent),
+                center = dotCenter,
+                radius = glowRadius       // matches circle radius
+            )
         )
+// 2. solid core SECOND (smaller, on top)
+        drawCircle(color = Color(0xFFF58A00), radius = 2.25f, center = dotCenter)
     }
 }
