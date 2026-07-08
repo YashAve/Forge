@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.ui.Modifier
 import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.navigation.ForgeNavHost
 import dagger.hilt.android.AndroidEntryPoint
@@ -15,7 +16,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ForgeTheme {
-                ForgeNavHost()
+                ForgeNavHost(modifier = Modifier)
             }
         }
     }

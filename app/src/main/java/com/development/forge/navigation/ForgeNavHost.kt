@@ -1,10 +1,29 @@
 package com.development.forge.navigation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import androidx.navigationevent.NavigationEventDispatcher
+import androidx.navigationevent.NavigationEventDispatcherOwner
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import com.development.forge.feature.splash.SplashScreen
 import com.development.forge.navigation.ForgeNavKey.Splash
 
@@ -19,18 +38,60 @@ import com.development.forge.navigation.ForgeNavKey.Splash
  * NavEntry once this project moves to AGP 9 (lifecycle-viewmodel-navigation3 is stable
  * only in lifecycle 2.11.0, which requires AGP 9.1.0). See docs/CROSS-MACHINE-SETUP.md.
  */
+
 @Composable
-fun ForgeNavHost() {
+fun ForgeNavHost(modifier: Modifier = Modifier) {
     val backStack = rememberNavBackStack(Splash)
 
-    NavDisplay(
-        backStack = backStack,
-        onBack = { backStack.removeLastOrNull() },
-        entryDecorators = listOf(
-            rememberSaveableStateHolderNavEntryDecorator(),
-        ),
-        entryProvider = entryProvider {
-            entry<Splash> { SplashScreen() }
-        },
-    )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF14110C))
+            .drawBehind {
+                drawRect(
+                    topLeft = Offset(0f, 0f),
+                    size = Size(size.width, size.height),
+                    brush = Brush.radialGradient(
+                        listOf(
+                            Color(0xFFF58A00).copy(alpha = 0.10f),
+                            Color.Transparent
+                        ), center = Offset(size.width * 0.18f, size.height * 0.12f), radius = 420f
+                    )
+                )
+            }) {
+        Scaffold(
+            modifier = modifier,
+            containerColor = Color.Transparent
+        ) { padding ->
+            val basicModifier = Modifier
+                .fillMaxSize()
+                .consumeWindowInsets(padding)
+                .imePadding()
+                .statusBarsPadding()
+            NavDisplay(
+                modifier = Modifier.padding(padding),
+                backStack = backStack,
+                onBack = { backStack.removeLastOrNull() },
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                ),
+                entryProvider = entryProvider {
+                    entry<Splash> { SplashScreen(basicModifier) }
+                },
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun ForgeNavHostPreview() {
+    // Create a minimal mock owner for the preview environment
+    val mockDispatcherOwner = object : NavigationEventDispatcherOwner {
+        override val navigationEventDispatcher = NavigationEventDispatcher()
+    }
+
+    CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides mockDispatcherOwner) {
+        ForgeNavHost()
+    }
 }
