@@ -139,7 +139,9 @@
       "WebFetch(domain:github.com)",
       "Bash(mkdir -p __TRACKED_VAR__/core/components __TRACKED_VAR__/data/remote)",
       "Bash(touch __TRACKED_VAR__/core/components/.gitkeep __TRACKED_VAR__/data/remote/.gitkeep)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)"
     ]
   }
 }
