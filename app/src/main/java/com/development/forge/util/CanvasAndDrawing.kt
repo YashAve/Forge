@@ -24,8 +24,30 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.development.forge.core.components.Amber
 import com.development.forge.core.designsystem.ForgeFonts
 import kotlinx.coroutines.delay
+
+@Preview
+@Composable
+fun GlowingDot(modifier: Modifier = Modifier) {
+    Canvas(
+        modifier = modifier
+            .size(200.dp)
+            .background(Color(0xFF14110C))
+    ) {
+        val quarter = Offset(size.width * 0.25f, size.height * 0.25f)
+        drawCircle(
+            center = quarter,
+            radius = 70f,
+            brush = Brush.radialGradient(
+                listOf(Amber, Color.Transparent),
+                center = quarter,
+                radius = 50f
+            )
+        )
+    }
+}
 
 @Preview
 @Composable

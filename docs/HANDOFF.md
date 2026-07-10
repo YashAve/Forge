@@ -1,66 +1,78 @@
-# Handoff note — desktop → laptop
+# Handoff note — laptop → desktop
 
-**From:** desktop Claude session · **Date:** 2026-07-09 · **On top of:** `42903a6` (pulled clean, `compileDebugKotlin` verified on the desktop)
+**From:** laptop Claude session · **Date:** 2026-07-10 · **On top of:** `59d4782` (pulled clean, `compileDebugKotlin` verified on the laptop)
 
-This is the latest cross-machine handoff. Whoever syncs next can overwrite it. This push
-continues the Login screen: the form components are now real (largely hand-written by Yash
-as Compose practice), but the button is only partially up to spec and a couple of known
-issues are left in deliberately — read the rough edges before "fixing" anything silently.
+This is the latest cross-machine handoff. Whoever syncs next can overwrite it.
+
+## The big change: Login ↔ Registration content moved
+
+The "Forge an account." screen was built in `LoginScreen.kt`, but per the design that
+heading belongs to **sign-up**. This push moves it to where it belongs:
+
+- `RegistrationScreen.kt` now holds the real screen (heading, subtitle, email +
+  password fields, Continue button, Terms/Privacy microcopy).
+- `LoginScreen.kt` is back to an **empty stub**.
+- `ForgeNavHost`: Splash now advances to `ForgeNavKey.Registration` (was Login).
+
+So don't be surprised that Login "lost" its content — it moved, deliberately.
 
 ## What this push adds
 
-- `core/components/ForgeTextField.kt` — **the real design-system text field**: floating
-  label driven by a single 0→1 `animateFloatAsState` progress (position + size + weight
-  lerp), amber focus ring drawn with a straddling `drawBehind` stroke, animated
-  border/icon/label colors (default → focused amber → danger), leading icon slot,
-  trailing slot, helper/error supporting line (error wins). Matches the spec that used
-  to sit as a comment in LoginScreen.
-- `core/components/ForgePasswordField.kt` — wraps `ForgeTextField` with a lock leading
-  icon, `PasswordVisualTransformation`, and a show/hide visibility toggle in the
-  trailing slot.
-- `core/components/ForgeButton.kt` — the primary button, **WIP against its spec**. The
-  full Forge Design System button spec (base + PrimaryButton + loading state + Compose
-  gotchas) is in the KDoc on the composable — treat that as the source of truth.
-  Implemented so far: 56.dp height, 16.dp radius, Space Grotesk 16.sp W600, animated
-  container/content colors, amber `dropShadow`, optional trailing arrow.
-- `feature/auth/LoginScreen.kt` — email (`ForgeTextField` + mail icon) and password
-  (`ForgePasswordField`) wired with hoisted `rememberSaveable` state; `canSubmit`
-  derived from email regex + password length ≥ 8; `ForgeButton` placed at the bottom.
+- `feature/auth/RegistrationScreen.kt` — full sign-up layout: hoisted
+  `rememberSaveable` email/password + `isLoading`, `canSubmit` via
+  `remember { derivedStateOf }` (email regex + password ≥ 8 + not loading), flexible
+  spacer pushing the CTA stack to the bottom, and a `TermsMicrocopy` composable using
+  `LinkAnnotation.Clickable` (handlers are TODO).
+- `core/components/ForgeButton.kt` — rewritten from `ElevatedButton` to a plain
+  `Box` + `clickable` (no ripple; color + 0.985 press scale on a 120ms
+  `CubicBezierEasing(0.22, 1, 0.36, 1)` is the feedback, per spec). Loading spinner
+  (`CircularProgressIndicator`, 18.dp), `icon: ImageVector?` param, shadow only when
+  enabled-and-not-pressed, letterSpacing fixed to `-0.005.em`, icon 20.dp.
+- `util/CanvasAndDrawing.kt` — new `GlowingDot` Canvas practice composable.
+- `gradle/libs.versions.toml` / `app/build.gradle.kts` — explicit
+  `androidx.compose.animation:animation-core` and `androidx.compose.foundation:foundation`
+  at 1.11.4 (see rough edge 3 below).
 
-## Known rough edges (left as-is, not silently fixed)
+## Rough-edge scoreboard (vs the previous desktop note)
 
-1. **`LoginScreen.canSubmit` uses `rememberSaveable { derivedStateOf { … } }`** — a
-   `DerivedState` can't be saved to a `Bundle`, so this compiles but will throw once
-   saveable state registration kicks in. Should be `remember { derivedStateOf { … } }`
-   (derived values don't need saving — their inputs are already saveable).
-2. **`canSubmit` isn't consumed yet** — the button is called as `ForgeButton()` with
-   defaults; `enabled = canSubmit` still needs wiring (the spec's hoisting principle).
-3. **`ForgeButton` color `when` order** — `isEnabled -> Amber` is checked *before*
-   `isPressed`, so the pressed color (`Amber500`) is unreachable while enabled.
-   Spec order is disabled → pressed → default.
-4. **`ForgeButton` vs its own KDoc spec, still missing:** press scale 0.985 on the
-   120ms cubic-bezier ease-out; loading spinner (the `loading` var is unused); shadow
-   should be two layers and disappear when pressed/disabled (currently one, always on);
-   letterSpacing is `-0.0005.em` (typo — spec says `-0.005em`); icon is 22.dp (spec 20.dp);
-   `isIcon: Boolean` should probably become `leadingIcon`/`trailingIcon` usage.
-5. **Design tokens live in the wrong file** — `Amber`, `Amber500`, `DarkEspresso`,
-   `DeepEarthBrown`, `AgedBrass`, `FgTertiary` etc. are file-level vals in
-   `ForgeTextField.kt` (marked TODO). They belong in `core/designsystem` as real tokens.
-6. **Carried over from the last note:** `ForgeNavKey.Registration` is still declared
-   `data object Registration: NavKey` while every sibling extends `ForgeNavKey`.
-   Compiles, but breaks `when` exhaustiveness over the sealed interface.
+Fixed in this push:
+
+1. ~~`rememberSaveable { derivedStateOf }`~~ → now `remember { derivedStateOf }`. ✔
+2. ~~`canSubmit` not consumed~~ → `ForgeButton(isEnabled = canSubmit, …)`, and the
+   trailing arrow only shows when valid. ✔
+3. ~~color `when` order~~ → disabled → pressed → default; pressed is reachable. ✔
+4. ~~button spec gaps~~ → press scale ✔, spinner ✔, conditional shadow ✔ (still a
+   single layer, not the spec's two), letterSpacing ✔, icon 20.dp ✔, `isIcon` →
+   `icon` param ✔.
+
+Still open / new:
+
+1. **Design tokens still live in `ForgeTextField.kt`** (`Amber`, `DarkEspresso`, …,
+   marked TODO) — and usage is spreading: `ForgeButton` and now `CanvasAndDrawing`
+   import from there. Belongs in `core/designsystem`.
+2. **`ForgeNavKey.Registration: NavKey`** — still doesn't extend `ForgeNavKey` like
+   its siblings (breaks `when` exhaustiveness over the sealed interface).
+3. **Explicit Compose artifact versions alongside the BOM** — `animation-core` and
+   `foundation` are pinned at 1.11.4 while the BOM (2026.06.00) manages the rest.
+   Explicit versions win over the BOM, so this can skew those two artifacts against
+   BOM-managed siblings. Compiles today; consider dropping the explicit versions and
+   letting the BOM resolve them.
+4. **`isLoading` is never reset** — `onClick = { isLoading = true }` with no auth
+   call yet, so the button spins forever after one tap. Expected WIP.
+5. `validEmailRegularExpression` is a file-level val in `RegistrationScreen.kt`;
+   will want a shared home once Login needs it too.
 
 ## Screen status — real vs stub
 
 | Screen | State |
 |---|---|
-| `LoginScreen` | **WIP.** Heading + subtitle + email + password fields real; submit button present but not wired to `canSubmit`; "forgot password?" / register links not started. |
-| `RegistrationScreen`, `ForgotPasswordScreen`, `EmailSentScreen`, `ResetPasswordScreen`, `SuccessScreen` | **Empty stubs** — unchanged from the last push. |
+| `RegistrationScreen` | **Near-complete.** Heading, subtitle, email + password, Continue button (enabled/loading wired), Terms/Privacy microcopy. Missing: link handlers, real submit action, error states. |
+| `LoginScreen`, `ForgotPasswordScreen`, `EmailSentScreen`, `ResetPasswordScreen`, `SuccessScreen` | **Empty stubs.** |
 
 Design source is still the **Forge Design System** (external Claude Design project).
 
 ## Verified
 
-`./gradlew :app:compileDebugKotlin` → BUILD SUCCESSFUL on the desktop with this exact
+`./gradlew :app:compileDebugKotlin` → BUILD SUCCESSFUL on the laptop with this exact
 tree. Full `assembleDebug` was last green at `01ad95e` (toolchain/JBR setup in
 `CROSS-MACHINE-SETUP.md`).

@@ -20,6 +20,8 @@ serializationJson = "1.9.0"
 koin = "4.0.4"
 coroutines = "1.9.0"
 coreSplashscreen = "1.0.1"
+animationCore = "1.11.4"
+foundation = "1.11.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -73,6 +75,8 @@ ktor-client-logging = { group = "io.ktor", name = "ktor-client-logging", version
 koin-ktor = { group = "io.insert-koin", name = "koin-ktor", version.ref = "koin" }
 koin-logger-slf4j = { group = "io.insert-koin", name = "koin-logger-slf4j", version.ref = "koin" }
 koin-test = { group = "io.insert-koin", name = "koin-test-junit5", version.ref = "koin" }
+androidx-compose-animation-core = { group = "androidx.compose.animation", name = "animation-core", version.ref = "animationCore" }
+androidx-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

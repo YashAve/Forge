@@ -95,7 +95,7 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                     entry<Splash> {
                         SplashScreen(basicModifier) {
                             backStack.clear()
-                            backStack.add(ForgeNavKey.Login)
+                            backStack.add(ForgeNavKey.Registration)
                         }
                     }
                     entry<ForgeNavKey.Login> { LoginScreen(basicModifier) }

@@ -1,37 +1,38 @@
 package com.development.forge.core.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ElevatedButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -109,73 +110,94 @@ import com.development.forge.core.designsystem.ForgeFonts
  * @param onClick Invoked on tap. Press feedback while touched: background
  *   `#D46E00`, shadow removed, scale 0.985 — all on the 120ms ease-out.
  */
-@Preview
+// top-level — the design's --ease-out token
+private val EaseOutForge = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
+
 @Composable
 fun ForgeButton(
     modifier: Modifier = Modifier,
     label: String = "Continue",
-    leadingIcon: ImageVector? = null,
-    trailingIcon: ImageVector? = null,
-    isEnabled: Boolean = true,
-    isIcon: Boolean = true,
-    onClick: () -> Unit = { }
+    isEnabled: Boolean = false,
+    isLoading: Boolean = false,          // plain Boolean — simpler than a lambda
+    icon: ImageVector? = null,
+    onClick: () -> Unit = {}
 ) {
-
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    var loading by rememberSaveable { mutableStateOf(false) }
 
-    val buttonColor by animateColorAsState(
+    val clickable = isEnabled && !isLoading   // gate clicks on BOTH
+
+    val bg by animateColorAsState(
         targetValue = when {
-            isEnabled -> Amber
-            isPressed -> Amber500
-            else -> DeepEarthBrown
-        }
+            !isEnabled -> DeepEarthBrown      // disabled first
+            isPressed  -> Amber500            // now reachable, since enabled
+            else       -> Amber
+        },
+        animationSpec = tween(120, easing = EaseOutForge), label = "bg"
     )
-    val contentColor by animateColorAsState(
-        targetValue = when {
-            isEnabled -> DarkEspresso
-            else -> AgedBrass
-        }
+    val content by animateColorAsState(
+        targetValue = if (isEnabled) DarkEspresso else AgedBrass,
+        animationSpec = tween(120, easing = EaseOutForge), label = "content"
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.985f else 1f,
+        animationSpec = tween(120, easing = EaseOutForge), label = "scale"
     )
 
-    val shape = RoundedCornerShape(corner = CornerSize(16.dp))
-    ElevatedButton(
-        onClick = {
-            onClick()
-        }, shape = RoundedCornerShape(16.dp),
+    val shape = RoundedCornerShape(16.dp)
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(height = 56.dp)
-            .dropShadow(
-                shape = shape,
-                shadow = Shadow(
-                    color = androidx.compose.ui.graphics.Color(0x2EF58A00),
-                    offset = DpOffset(0.dp, 2.dp),
-                    radius = 24.dp
-                )
-            ),
-        colors = ButtonDefaults.elevatedButtonColors(
-            containerColor = buttonColor,
-            contentColor = contentColor
-        )
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = label,
-                style = TextStyle(
-                    fontFamily = ForgeFonts.spaceGrotesk,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.W600,
-                    letterSpacing = (-0.0005).em
-                )
+            .height(56.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            // amber shadow only when enabled AND not pressed
+            .then(
+                if (isEnabled && !isPressed)
+                    Modifier.dropShadow(
+                        shape = shape,
+                        shadow = Shadow(
+                            color = Color(0x38F58A00),           // amber @ ~0.22
+                            offset = DpOffset(0.dp, 8.dp),
+                            radius = 24.dp
+                        )
+                    )
+                else Modifier
             )
-            if (isIcon) {
-                Spacer(modifier = Modifier.width(10.dp))
-                Icon(Icons.AutoMirrored.Default.ArrowForward, null, modifier = Modifier.size(22.dp))
+            .clip(shape)
+            .background(bg)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,        // color + scale IS our feedback (design has no ripple)
+                enabled = clickable,
+                onClick = onClick
+            )
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isLoading) {
+            CircularProgressIndicator(               // spins itself — no manual rotation
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+                color = DarkEspresso,
+                trackColor = DarkEspresso.copy(alpha = 0.25f)   // correct color build
+            )
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = label,
+                    color = content,
+                    style = TextStyle(
+                        fontFamily = ForgeFonts.spaceGrotesk,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.W600,
+                        letterSpacing = (-0.005).em          // corrected
+                    )
+                )
+                if (icon != null) {                          // uses the passed icon
+                    Spacer(Modifier.width(10.dp))
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = content)
+                }
             }
         }
     }
