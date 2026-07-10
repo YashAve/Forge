@@ -141,7 +141,9 @@
       "Bash(touch __TRACKED_VAR__/core/components/.gitkeep __TRACKED_VAR__/data/remote/.gitkeep)",
       "Bash(git rm *)",
       "Bash(git fetch *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(./gradlew :app:compileDebugKotlin)",
+      "Bash(echo \"GRADLE EXIT: $?\")"
     ]
   }
 }

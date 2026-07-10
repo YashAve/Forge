@@ -48,7 +48,7 @@ import com.development.forge.navigation.ForgeNavKey.Splash
 
 @Composable
 fun ForgeNavHost(modifier: Modifier = Modifier) {
-    val backStack = rememberNavBackStack(ForgeNavKey.Splash)
+    val backStack = rememberNavBackStack(Splash)
     val currentDestination = backStack.lastOrNull()
 
     Box(
@@ -95,11 +95,23 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                     entry<Splash> {
                         SplashScreen(basicModifier) {
                             backStack.clear()
-                            backStack.add(ForgeNavKey.Registration)
+                            backStack.add(ForgeNavKey.Login)
                         }
                     }
-                    entry<ForgeNavKey.Login> { LoginScreen(basicModifier) }
-                    entry<ForgeNavKey.Registration> { RegistrationScreen(basicModifier) }
+                    entry<ForgeNavKey.Login> {
+                        LoginScreen(basicModifier, onForgotPassword = {
+                            backStack.add(ForgeNavKey.ForgotPassword)
+                        }, onForgeAccount = {
+                            backStack.add(ForgeNavKey.Registration)
+                        }, onLogin = {
+                            backStack.add(ForgeNavKey.Success)
+                        })
+                    }
+                    entry<ForgeNavKey.Registration> {
+                        RegistrationScreen(basicModifier, onRegister = {
+                            backStack.add(ForgeNavKey.Success)
+                        })
+                    }
                     entry<ForgeNavKey.ForgotPassword> { ForgotPasswordScreen(basicModifier) }
                     entry<ForgeNavKey.EmailSent> { EmailSentScreen(basicModifier) }
                     entry<ForgeNavKey.ResetPassword> { ResetPasswordScreen(basicModifier) }

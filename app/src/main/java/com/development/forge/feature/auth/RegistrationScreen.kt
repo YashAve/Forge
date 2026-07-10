@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -38,8 +39,9 @@ import com.development.forge.core.designsystem.ForgeFonts
 
 val validEmailRegularExpression = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
 
+@Preview
 @Composable
-fun RegistrationScreen(modifier: Modifier = Modifier) {
+fun RegistrationScreen(modifier: Modifier = Modifier, onRegister: () -> Unit = { }) {
     var emailInput by rememberSaveable { mutableStateOf("") }
     var passwordInput by rememberSaveable { mutableStateOf("") }
     var isLoading by rememberSaveable { mutableStateOf(false) }
@@ -114,7 +116,10 @@ fun RegistrationScreen(modifier: Modifier = Modifier) {
             isLoading = isLoading,                     // plain Boolean now
             icon = if (canSubmit && !isLoading)        // ← arrow only when valid
                 Icons.AutoMirrored.Default.ArrowForward else null,
-            onClick = { isLoading = true }
+            onClick = {
+                isLoading = true
+                onRegister()
+            }
         )
         Spacer(Modifier.height(16.dp))
 
