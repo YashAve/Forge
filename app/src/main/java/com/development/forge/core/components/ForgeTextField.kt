@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -27,10 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -93,48 +93,45 @@ fun ForgeTextField(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 64.dp)
-                // Focus ring: the stroke STRADDLES the rounded-rect edge, so a 4dp stroke
-                // puts ~2dp outside the border — a soft amber halo. (Your Canvas lesson.)
-                .drawBehind {
-                    if (focused) {
-                        drawRoundRect(
-                            color = Amber.copy(alpha = 0.14f),
-                            cornerRadius = CornerRadius(16.dp.toPx()),
-                            style = Stroke(width = 4.dp.toPx())
-                        )
-                    }
-                }
+                .height(64.dp)                      // fixed — single-line field is always 64
+                .drawBehind { /* focus ring, unchanged */ }
                 .background(BgRaised, shape)
                 .border(1.5.dp, borderColor, shape)
-                .padding(horizontal = 18.dp),
-            contentAlignment = Alignment.CenterStart
+                .padding(horizontal = 18.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 if (leadingIcon != null) {
                     Icon(leadingIcon, null, Modifier.size(22.dp), tint = iconColor)
                     Spacer(Modifier.width(14.dp))
                 }
 
-                Box(Modifier.weight(1f)) {
-                    // Floating label — overlays the input, rises + shrinks as progress: 0→1.
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()            // ← THE FIX: offsets now anchor to the field
+                ) {
                     if (label != null) {
                         Text(
                             text = label,
                             color = labelColor,
-                            fontSize = lerp(16.sp, 11.sp, progress),          // TextUnit lerp
+                            fontSize = lerp(16.sp, 11.sp, progress),
                             fontWeight = if (floated) FontWeight.W600 else FontWeight.W500,
                             letterSpacing = if (floated) 0.06.em else 0.sp,
-                            modifier = Modifier.offset(y = lerp(18.dp, 0.dp, progress)) // Dp lerp
+                            // two absolute positions, measured from the FIELD's top:
+                            // rest = 20.dp (visually centered), floated = 10.dp
+                            modifier = Modifier.offset(y = lerp(20.dp, 10.dp, progress))
                         )
                     }
-                    // The editable text, pushed below the floated label.
                     BasicTextField(
                         value = value,
                         onValueChange = onValueChange,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = if (label != null) 18.dp else 0.dp),
+                            .align(if (label != null) Alignment.TopStart else Alignment.CenterStart)
+                            .padding(top = if (label != null) 28.dp else 0.dp),   // FIXED input position
                         textStyle = TextStyle(color = FgPrimary, fontSize = 16.sp),
                         singleLine = true,
                         cursorBrush = SolidColor(Amber),

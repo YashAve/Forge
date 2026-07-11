@@ -112,7 +112,14 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                             backStack.add(ForgeNavKey.Success)
                         })
                     }
-                    entry<ForgeNavKey.ForgotPassword> { ForgotPasswordScreen(basicModifier) }
+                    entry<ForgeNavKey.ForgotPassword> {
+                        ForgotPasswordScreen(basicModifier, onSendLink = {
+                            backStack.add(ForgeNavKey.EmailSent)
+                        }, onRemembered = {
+                            backStack.removeLastOrNull()
+                            backStack.add(ForgeNavKey.Login)
+                        })
+                    }
                     entry<ForgeNavKey.EmailSent> { EmailSentScreen(basicModifier) }
                     entry<ForgeNavKey.ResetPassword> { ResetPasswordScreen(basicModifier) }
                     entry<ForgeNavKey.Success> { SuccessScreen(basicModifier) }
