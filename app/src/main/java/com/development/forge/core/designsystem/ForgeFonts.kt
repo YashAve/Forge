@@ -24,10 +24,15 @@ object ForgeFonts {
     )
 
     private val spaceGroteskName = GoogleFont("Space Grotesk")
+    private val jetbrainsMonoName = GoogleFont("JetBrains Mono")
 
     /** Soft, rounded geometric sans — the Forge branding typeface. */
     val spaceGrotesk: FontFamily = FontFamily(
         Font(googleFont = spaceGroteskName, fontProvider = provider, weight = FontWeight.Medium),
         Font(googleFont = spaceGroteskName, fontProvider = provider, weight = FontWeight.W700)
+    )
+    val jetbrainsMono: FontFamily = FontFamily(
+        Font(googleFont = jetbrainsMonoName, fontProvider = provider, weight = FontWeight.Medium),
+        Font(googleFont = jetbrainsMonoName, fontProvider = provider, weight = FontWeight.W700)
     )
 }

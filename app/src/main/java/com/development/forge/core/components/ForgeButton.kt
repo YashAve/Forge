@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -113,6 +114,7 @@ import com.development.forge.core.designsystem.ForgeFonts
 // top-level — the design's --ease-out token
 private val EaseOutForge = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
 
+@Preview
 @Composable
 fun ForgeButton(
     modifier: Modifier = Modifier,

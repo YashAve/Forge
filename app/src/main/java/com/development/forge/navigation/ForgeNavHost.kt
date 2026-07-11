@@ -32,7 +32,13 @@ import com.development.forge.feature.auth.RegistrationScreen
 import com.development.forge.feature.auth.ResetPasswordScreen
 import com.development.forge.feature.auth.SuccessScreen
 import com.development.forge.feature.splash.SplashScreen
+import com.development.forge.navigation.ForgeNavKey.EmailSent
+import com.development.forge.navigation.ForgeNavKey.ForgotPassword
+import com.development.forge.navigation.ForgeNavKey.Login
+import com.development.forge.navigation.ForgeNavKey.Registration
+import com.development.forge.navigation.ForgeNavKey.ResetPassword
 import com.development.forge.navigation.ForgeNavKey.Splash
+import com.development.forge.navigation.ForgeNavKey.Success
 
 /**
  * The single Navigation 3 host for the app.
@@ -48,9 +54,8 @@ import com.development.forge.navigation.ForgeNavKey.Splash
 
 @Composable
 fun ForgeNavHost(modifier: Modifier = Modifier) {
-    val backStack = rememberNavBackStack(ForgeNavKey.ResetPassword)
+    val backStack = rememberNavBackStack(EmailSent)
     val currentDestination = backStack.lastOrNull()
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -62,28 +67,25 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                     size = Size(size.width, size.height),
                     brush = Brush.radialGradient(
                         listOf(
-                            Color(0xFFF58A00).copy(alpha = 0.10f),
-                            Color.Transparent
+                            Color(0xFFF58A00).copy(alpha = 0.10f), Color.Transparent
                         ), center = Offset(size.width * 0.18f, size.height * 0.12f), radius = 420f
                     )
                 )
             }) {
         Scaffold(
-            modifier = modifier,
-            containerColor = Color.Transparent,
-            topBar = {
+            modifier = modifier, containerColor = Color.Transparent, topBar = {
                 when (currentDestination) {
-                    is Splash, is ForgeNavKey.Success -> {}
-                    is ForgeNavKey.Login, is ForgeNavKey.Registration -> ForgeTopBar()
+                    is Splash, is Success -> {}
+                    is Login, is Registration -> ForgeTopBar()
                     else -> ForgeTopBar(onBack = { backStack.removeLastOrNull() })
                 }
-            }
-        ) { padding ->
-            val basicModifier = Modifier
-                .fillMaxSize()
-                .consumeWindowInsets(padding)
-                .imePadding()
-                .statusBarsPadding()
+            }) { padding ->
+            val basicModifier =
+                Modifier
+                    .fillMaxSize()
+                    .consumeWindowInsets(padding)
+                    .imePadding()
+                    .statusBarsPadding()
             NavDisplay(
                 modifier = Modifier.padding(padding),
                 backStack = backStack,
@@ -95,34 +97,43 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                     entry<Splash> {
                         SplashScreen(basicModifier) {
                             backStack.clear()
-                            backStack.add(ForgeNavKey.Login)
+                            backStack.add(Login)
                         }
                     }
-                    entry<ForgeNavKey.Login> {
+                    entry<Login> {
                         LoginScreen(basicModifier, onForgotPassword = {
-                            backStack.add(ForgeNavKey.ForgotPassword)
+                            backStack.add(ForgotPassword)
                         }, onForgeAccount = {
-                            backStack.add(ForgeNavKey.Registration)
+                            backStack.add(Registration)
                         }, onLogin = {
-                            backStack.add(ForgeNavKey.Success)
+                            backStack.add(Success)
                         })
                     }
-                    entry<ForgeNavKey.Registration> {
+                    entry<Registration> {
                         RegistrationScreen(basicModifier, onRegister = {
-                            backStack.add(ForgeNavKey.Success)
+                            backStack.add(Success)
                         })
                     }
-                    entry<ForgeNavKey.ForgotPassword> {
+                    entry<ForgotPassword> {
                         ForgotPasswordScreen(basicModifier, onSendLink = {
-                            backStack.add(ForgeNavKey.EmailSent)
+                            backStack.add(EmailSent)
                         }, onRemembered = {
                             backStack.removeLastOrNull()
-                            backStack.add(ForgeNavKey.Login)
+                            backStack.add(Login)
                         })
                     }
-                    entry<ForgeNavKey.EmailSent> { EmailSentScreen(basicModifier) }
-                    entry<ForgeNavKey.ResetPassword> { ResetPasswordScreen(basicModifier) }
-                    entry<ForgeNavKey.Success> { SuccessScreen(basicModifier) }
+                    entry<EmailSent> { EmailSentScreen(basicModifier) }
+                    entry<ResetPassword> {
+                        ResetPasswordScreen(basicModifier, onResetPassword = {
+                            backStack.add(EmailSent)
+                        })
+                    }
+                    entry<Success> {
+                        SuccessScreen(basicModifier, onContinue = {
+                            backStack.clear()
+                            backStack.add(Splash)
+                        })
+                    }
                 },
             )
         }
