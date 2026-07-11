@@ -54,7 +54,7 @@ import com.development.forge.navigation.ForgeNavKey.Success
 
 @Composable
 fun ForgeNavHost(modifier: Modifier = Modifier) {
-    val backStack = rememberNavBackStack(EmailSent)
+    val backStack = rememberNavBackStack(Splash)
     val currentDestination = backStack.lastOrNull()
     Box(
         modifier = Modifier

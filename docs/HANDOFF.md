@@ -1,106 +1,92 @@
 # Handoff note — laptop → desktop
 
-**From:** laptop Claude session · **Date:** 2026-07-11 · **On top of:** `f02dbed` (this tree `compileDebugKotlin` verified on the laptop)
+**From:** laptop Claude session · **Date:** 2026-07-12 · **On top of:** `4e60f22` (this tree `compileDebugKotlin` verified on the laptop)
 
 This is the latest cross-machine handoff. Whoever syncs next can overwrite it.
 
 ## ⚠️ Read this first
 
-1. **The app entry point is temporarily EmailSent** (was ResetPassword last
-   commit — the dev-iteration entry just moved to the screen under
-   construction). `ForgeNavHost` does `rememberNavBackStack(EmailSent)`.
-   Restore `rememberNavBackStack(Splash)` before treating any build as "the app."
-2. **The ForgeTextField focus ring is still deleted** (3rd note in a row):
-   `.drawBehind { /* focus ring, unchanged */ }` is an empty lambda — the amber
-   halo `drawRoundRect` and its `CornerRadius`/`Stroke` imports are gone.
-   Restore block is in git history: `git show 0c6ffa9:docs/HANDOFF.md`.
-   Confirm with Yash before restoring.
+**The ForgeTextField focus ring is still deleted** (4th note in a row):
+`.drawBehind { /* focus ring, unchanged */ }` is an empty lambda — the amber
+halo `drawRoundRect` and its `CornerRadius`/`Stroke` imports are gone.
+Restore block is in git history: `git show 0c6ffa9:docs/HANDOFF.md`.
+Confirm with Yash before restoring.
+
+(Last note's other warning is cleared: **the entry point is back to
+`rememberNavBackStack(Splash)`** — builds are "the real app" again.)
 
 ## What this push adds
 
-- `feature/auth/SuccessScreen.kt` — **implemented from its newly added KDoc
-  spec**: 80.dp Canvas badge (amber 10% fill, 1.5.dp amber 30% ring — correctly
-  `dp.toPx()`), 40.dp Check icon, "You're in." headline, "Signed in as" + the
-  email in **JetBrains Mono**, flexible spacer, "Continue" CTA. Two streaks
-  break here, pleasantly: the headline letterSpacing is **correct**
-  (`(-0.025).em`, no typo this time) and the button **actually passes the arrow
-  icon** (`Icons.AutoMirrored.Default.ArrowForward`) — first screen to do
-  either. The spec's secondary "Reset prototype" button was skipped (spec
-  itself says prototype-only, "your call").
-- `feature/auth/EmailSentScreen.kt` — the spec **finally exists** (it was the
-  one stub without a KDoc) and the **centered middle block is implemented**:
-  96.dp badge with ember dot, mark_email_read icon, "Check your email."
-  headline, "We sent a reset link to" + mono email, "expires in 30 minutes."
-  The **bottom CTA stack is NOT built yet** — "Open mail app" + the 45s resend
-  cooldown (the LaunchedEffect countdown exercise) remain; that spec chunk sits
-  as a trailing comment inside the Column as a visible to-do.
-- `core/designsystem/ForgeFonts.kt` — adds **JetBrains Mono** (Medium + W700)
-  via the Google Fonts provider, for the mono email/token styles.
-- `ForgeApplication.kt` — `onCreate` launches a coroutine touching both font
-  families as a warm-up. See rough edge #1 — as written it preloads nothing.
-- `navigation/ForgeNavHost.kt` — nav keys now imported directly (cosmetic);
-  `ResetPasswordScreen.onResetPassword` wired → push EmailSent (see edge #4);
-  `SuccessScreen.onContinue` wired → `clear()` + Splash; entry point → EmailSent.
-- `core/components/ForgeButton.kt` — `@Preview` added (valid: every param has
-  a default; label defaults to "Continue").
+- `MainActivity.kt` — **the real font preload** (replaces last note's no-op
+  warm-up): a `createFontFamilyResolver(applicationContext, backgroundScope
+  .coroutineContext)` resolver `resolve()`s both `ForgeFonts` families on
+  `Dispatchers.Default` at startup. `resolve()` kicks off the async Google
+  Fonts fetch, and downloaded typefaces land in the shared async cache, so
+  first text draw hits warm — this one actually works. (Stricter alternative
+  if you ever want to await/fail loudly: the suspend `preload()`.)
+- `feature/auth/EmailSentScreen.kt` — **the bottom CTA stack is built**:
+  "Open mail app" ForgeButton (with arrow icon) + the resend row, driven by a
+  `LaunchedEffect(send)` countdown — tap flips `send`, the effect relaunches,
+  counts 45→0 at 1s ticks, then re-enables and resets. The middle block also
+  got the spec's `weight(1f)` + centered structure (last note's layout caveat —
+  addressed). The countdown has real bugs though — see below.
+- `navigation/ForgeNavHost.kt` — entry point restored to `Splash`. One line.
 
 ## New rough edges (left as-is, not silently fixed)
 
-1. **The font warm-up is a no-op.** `ForgeFonts.spaceGrotesk` /
-   `.jetbrainsMono` as bare expressions only class-initialize the `ForgeFonts`
-   object — constructing a `FontFamily` doesn't fetch anything for downloadable
-   Google Fonts; the download starts when a resolver first resolves the family
-   for real text. Actual preload is
-   `createFontFamilyResolver(this).preload(ForgeFonts.spaceGrotesk)` (suspend,
-   in that same launch). The bare `MainScope()` is also never cancelled —
-   harmless in an Application, but pointless while the body does nothing.
-2. **EmailSent's badge Canvas mixes raw px with dp.** The ring is
-   `Stroke(1.5f)` — raw pixels (a hairline at ~2.75x density; SuccessScreen
-   does the same ring correctly with `1.5.dp.toPx()`), and the ember is
-   `radius = 12f`, `center = Offset(size.width - 22f, 14f)` — also raw px, so
-   it renders as a speck hugging the corner instead of the spec's 8.dp dot +
-   12 glow at (−22.dp, 14.dp). Only the glow gradient is drawn, too — no solid
-   amber dot at its center (the ForgeWordmark pattern is dot + glow).
-3. **EmailSent middle-block spec drift:** icon is `Icons.Outlined.MarkEmailRead`
-   (spec: FILLED); subtext `widthIn(max = 200.dp)` (spec: **280.dp**) with an
-   added W600 the spec doesn't ask for; no `textAlign = Center`, so if the
-   subtext wraps it left-aligns inside its centered box; "expires in 30
-   minutes." is set in mono W500 (spec says only 13.sp #7A7060). KDoc says
-   `onOpenMail`, actual param is `onOpenEmail` — the @param drift streak
-   continues. Also: once the CTA stack lands, the layout needs the spec's
-   weight(1f) middle-block structure — the current `Arrangement.Center` on the
-   outer Column centers everything as one group, it won't pin CTAs to the
-   bottom. (The inner `Column` + `align` is redundant as-is.)
-4. **ResetPassword → EmailSent is backwards flow-wise** — the real chain is
-   Forgot → EmailSent → Reset → Success; this wiring looks like a dev hop into
-   the screen under construction. And it makes the `isLoading` trap bite for
-   real now: "Hammer it in" sets `isLoading = true`, pushes EmailSent, and
-   navigating BACK shows the button still spinning forever (`rememberSaveable`
-   restores it).
-5. **Success "Continue" → `clear()` + Splash** loops the whole app back to the
-   splash — coherent as a demo/prototype loop (matches the spec's
-   "Reset prototype" semantics), but not a real-app destination. Deliberate?
-   Ask Yash.
-6. **Email is never threaded through nav** — both new screens default to
-   `"you@forge.app"`; the address typed on ForgotPassword isn't carried to
-   EmailSent (needs an arg on the nav key), same for Success.
-7. Minor: Success's "Signed in as" adds W600 + letterSpacing the spec doesn't
-   specify; the mono email weight differs between screens (W600 in Success,
-   W500 in EmailSent); both new files are missing trailing newlines.
+1. **The resend label doubles the "0:" prefix.** The `derivedStateOf` builds
+   `"Resend in 0:${if (timer > 9) "0:$timer" else "0:0$timer"}"` — the outer
+   template already has `0:`, and both inner branches add another, so it
+   renders **"Resend in 0:0:45"** for the whole countdown. Inner branches
+   should be seconds only (`"$timer"` / `"0$timer"`) to get the spec's m:ss.
+2. **The cooldown doesn't start on entry.** Spec: start at 45 (row disabled,
+   counting, "Resend in 0:45"). Actual: `send` starts `false`, so the row
+   shows an enabled "Resend link" immediately on arrival. (Note the spec's
+   state model drives the row off `timer > 0` / `timer == 0`; the impl drives
+   it off separate `send`/`enabled` flags instead — `enabled` is always
+   `!send` modulo one frame, so it could just be derived.)
+3. **`onResend` is never invoked** — the tap only sets `send = true`; the
+   param stays unused. And the nav host still instantiates
+   `EmailSentScreen(basicModifier)` bare: no email, no `onResend`, no
+   `onOpenEmail`. Which means:
+4. **"Open mail app" spins forever** — it sets `isLoading = true` and calls
+   the default no-op, and `rememberSaveable` keeps it spinning across restore.
+   Fourth member of the Login/Registration/ResetPassword trap family. (Spec
+   also says this button is "always enabled" — a loading latch isn't in it.)
+5. **Resend row geometry:** the Row isn't `fillMaxWidth()`, so its
+   `Arrangement.Center` is inert (the outer Column centers it anyway), and it
+   has no `verticalAlignment` — the text sits at the TOP of the 48.dp strip,
+   not centered in it. Gap above the row is 8.dp (spec: **14.dp**). The spec's
+   two-part layout ("Resend in" sans W600 + time in mono W500, 8.dp apart)
+   was collapsed into one all-mono Text with a weight flip. And the pasted
+   spec-block comment for items 10–11 still sits above the now-implemented
+   CTA code — stale, delete it.
+6. **`ForgeApplication.onCreate`'s warm-up is now dead weight** — the working
+   preload lives in MainActivity, so the Application's `MainScope().launch`
+   touching the two families (last note's edge #1, still a no-op) is pure
+   leftover. Remove one of the two; arguably the working resolver belongs in
+   the Application (where the dead code currently is) — MainActivity rebuilds
+   the scope + resolver on every recreation and never cancels the scope
+   (cheap, but pointless work).
 
 ## Carried over (still open)
 
 From the previous notes, none addressed: the **focus-ring deletion** (banner
-above), ForgotPassword ignoring its `modifier` param, the "Log in" footer
-double-Login back stack, Login's 8-char `canSubmit` rule vs its spec, Login
-headline letterSpacing (the typo streak stopped in the new screens but the old
-sightings are still in Login/ForgotPassword/ResetPassword), the `isLoading`
-restore trap on Login/Registration (now demonstrably reachable on
-ResetPassword too, edge #4), unused `interactionSource` in LoginScreen, inline
-`ForgeDivider`, token/easing duplication — both new screens hardcode
-`#F5EDDE`/`#B5A990`/`#7A7060` again AND import `Amber` from `core.components`;
-`core/designsystem` is clearly the right home and `ForgeFonts` already lives
-there, extraction long overdue — `ForgeSecondaryButton`'s Google default icon,
+above), EmailSent's middle-block drift — the px-vs-dp ember/ring
+(`Stroke(1.5f)`, ember at `Offset(size.width - 22f, 14f)` with no solid dot),
+Outlined vs FILLED mark_email_read, `widthIn(max = 200.dp)` vs spec 280.dp,
+missing `textAlign = Center` — the **ResetPassword → EmailSent backwards
+wiring** (real chain: Forgot → EmailSent → Reset → Success; and its
+`isLoading` bites on back-navigation), **Success "Continue" → Splash loop**
+(deliberate? ask Yash), email never threaded through nav (both screens show
+`you@forge.app`), ForgotPassword ignoring its `modifier` param, the "Log in"
+footer double-Login back stack, Login's 8-char `canSubmit` rule vs its spec,
+the letterSpacing typo in Login/ForgotPassword/ResetPassword headlines,
+the `isLoading` restore trap on Login/Registration, unused
+`interactionSource` in LoginScreen, inline `ForgeDivider`, token/easing
+duplication (`#F5EDDE`/`#B5A990`/`#7A7060` hardcoded per screen, `Amber`
+imported from `core.components` — `core/designsystem` extraction long
+overdue), `ForgeSecondaryButton`'s Google default icon,
 `ForgeNavKey.Registration: NavKey`, the `animation-core`/`foundation` 1.11.4
 pins, and the email regex living in `RegistrationScreen.kt`.
 
@@ -110,11 +96,12 @@ pins, and the email regex living in `RegistrationScreen.kt`.
 |---|---|
 | `LoginScreen`, `RegistrationScreen` | Near-complete (unchanged this push). |
 | `ForgotPasswordScreen` | Near-complete (unchanged this push). |
-| `ResetPasswordScreen` | Near-complete; `onResetPassword` now wired but to EmailSent (edge #4). |
-| `EmailSentScreen` | **Middle block done (new); CTA stack + 45s resend countdown still to build.** Spec now in the KDoc. |
-| `SuccessScreen` | **Near-complete (new).** Missing: real email pass-through; "Continue" destination decision (edge #5). |
+| `ResetPasswordScreen` | Near-complete; `onResetPassword` still wired to EmailSent (backwards). |
+| `EmailSentScreen` | **Structurally complete (new)** — countdown + CTAs built, but edges #1–5: label renders 0:0:SS, no cooldown on entry, `onResend`/`onOpenEmail` inert. |
+| `SuccessScreen` | Near-complete (unchanged this push). |
 
-Design source is still the **Forge Design System** (external Claude Design project).
+The full flow is navigable from Splash again. Design source is still the
+**Forge Design System** (external Claude Design project).
 
 ## Verified
 
