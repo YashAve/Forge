@@ -48,7 +48,7 @@ import com.development.forge.navigation.ForgeNavKey.Splash
 
 @Composable
 fun ForgeNavHost(modifier: Modifier = Modifier) {
-    val backStack = rememberNavBackStack(Splash)
+    val backStack = rememberNavBackStack(ForgeNavKey.ResetPassword)
     val currentDestination = backStack.lastOrNull()
 
     Box(
