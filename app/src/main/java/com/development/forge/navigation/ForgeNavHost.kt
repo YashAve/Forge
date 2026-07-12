@@ -31,6 +31,9 @@ import com.development.forge.feature.auth.LoginScreen
 import com.development.forge.feature.auth.RegistrationScreen
 import com.development.forge.feature.auth.ResetPasswordScreen
 import com.development.forge.feature.auth.SuccessScreen
+import com.development.forge.feature.onboarding.OnboardingDisciplineScreen
+import com.development.forge.feature.onboarding.OnboardingMechanicScreen
+import com.development.forge.feature.onboarding.OnboardingPromiseScreen
 import com.development.forge.feature.splash.SplashScreen
 import com.development.forge.navigation.ForgeNavKey.EmailSent
 import com.development.forge.navigation.ForgeNavKey.ForgotPassword
@@ -54,7 +57,7 @@ import com.development.forge.navigation.ForgeNavKey.Success
 
 @Composable
 fun ForgeNavHost(modifier: Modifier = Modifier) {
-    val backStack = rememberNavBackStack(Splash)
+    val backStack = rememberNavBackStack(ForgeNavKey.OnboardingPromise)
     val currentDestination = backStack.lastOrNull()
     Box(
         modifier = Modifier
@@ -133,6 +136,13 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                             backStack.clear()
                             backStack.add(Splash)
                         })
+                    }
+                    entry<ForgeNavKey.OnboardingPromise> { OnboardingPromiseScreen(basicModifier) }
+                    entry<ForgeNavKey.OnboardingMechanic> { OnboardingMechanicScreen(basicModifier) }
+                    entry<ForgeNavKey.OnboardingDiscipline> {
+                        OnboardingDisciplineScreen(
+                            basicModifier
+                        )
                     }
                 },
             )

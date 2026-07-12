@@ -22,4 +22,4 @@ dependencyResolutionManagement {
 rootProject.name = "Forge"
 include(":app")
 include(":server")
- 
+include(":lib")

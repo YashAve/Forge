@@ -24,4 +24,10 @@ sealed interface ForgeNavKey : NavKey {
     data object ResetPassword : ForgeNavKey
     @Serializable
     data object Success : ForgeNavKey
+    @Serializable
+    data object OnboardingPromise : ForgeNavKey
+    @Serializable
+    data object OnboardingMechanic : ForgeNavKey
+    @Serializable
+    data object OnboardingDiscipline : ForgeNavKey
 }
