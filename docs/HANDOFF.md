@@ -1,87 +1,78 @@
-# Handoff note — laptop → desktop
+# Handoff note — desktop → laptop
 
-**From:** laptop Claude session · **Date:** 2026-07-13 · **On top of:** `793011e` (this tree `compileDebugKotlin` + `:lib:compileKotlin` verified on the laptop)
+**From:** desktop Claude session · **Date:** 2026-07-13 · **On top of:** `207d961` (pulled clean; `:app:compileDebugKotlin` + `:lib:compileKotlin` verified on the desktop)
 
 This is the latest cross-machine handoff. Whoever syncs next can overwrite it.
 
 ## ⚠️ Read this first
 
-1. **The entry point is temporarily OnboardingPromise** (the dev-iteration
-   pattern, round 3). Restore `rememberNavBackStack(Splash)` before treating
-   any build as "the app."
-2. **Hands off the OnboardingPromise hero.** Its KDoc ends with "Ask me before
-   building the hero and I'll teach it properly" — Yash is building the
-   `rememberInfiniteTransition` pulsing-rings piece HIMSELF as a learning
-   exercise, guided by the design project. The current static-rings Canvas is
-   deliberately mid-flight. Don't finish it, don't "fix" it — the drift notes
-   below are for *when he asks*, not an invitation.
-3. **The ForgeTextField focus ring is still deleted** (5th note in a row):
-   `.drawBehind { /* focus ring, unchanged */ }` is an empty lambda.
-   Restore block: `git show 0c6ffa9:docs/HANDOFF.md`. Confirm with Yash.
+1. **The entry point is STILL OnboardingPromise** (dev-iteration pattern,
+   round 4) — `rememberNavBackStack(ForgeNavKey.OnboardingPromise)` at
+   `ForgeNavHost.kt:60`. Restore `Splash` before treating any build as "the app."
+2. **The ForgeTextField focus ring is still deleted** (6th note in a row):
+   `.drawBehind { }` empty lambda. Restore block: `git show 0c6ffa9:docs/HANDOFF.md`.
+   Yash was told and hasn't said restore yet — still his call.
 
-## What this push adds
+## The big change: Yash built the pulsing-rings hero himself
 
-- **`feature/onboarding/` — the onboarding flow scaffold** (design source:
-  Onboarding.jsx, 3 steps):
-  - `OnboardingPromiseScreen` — full design spec in the KDoc (wordmark + Skip
-    top bar, hero ember with three staggered pulsing rings, eyebrow/title/body,
-    animated pagination dots, primary CTA) + a first WIP: three static
-    radial-gradient circles in a 220.dp Canvas. No params yet (`onNext`/
-    `onSkip` exist only in the KDoc), body column empty.
-  - `OnboardingMechanicScreen`, `OnboardingDisciplineScreen` — bare stubs,
-    **no KDoc specs yet**.
-  - Three new `@Serializable` nav keys + bare `entry<>` wirings in the host.
-- **`:lib` — a plain-Kotlin coroutines playground, NOT app code.**
-  `com.example.lib`, seven small exercise files (~120 lines total: launch/
-  async/joinAll, thread-vs-coroutine comparisons) with study comments;
-  `kotlinx-coroutines-core:1.10.1`; `/build` gitignored. Wired into
-  `settings.gradle.kts` as `include(":lib")`.
-- **`.idea` churn is fallout from `:lib`:** the JVM-11 module dropped the
-  IDE-level `bytecodeTargetLevel`/`languageLevel` from 17 → 11 in
-  `compiler.xml`/`misc.xml` (plus the module registration in `gradle.xml`).
-  IDE metadata only — Gradle configs are untouched and both modules build.
-  Desktop Studio may flip these back on sync; don't fight over it, it's noise.
+The hands-off item from your note is done — `OnboardingPromiseScreen` now has the
+animated HeroEmber, hand-written: `rememberInfiniteTransition` driving six floats
+(scale + alpha × 3 rings) through two private `InfiniteTransition` extension
+helpers (`ringScale`/`ringAlpha`), staggered via `StartOffset(0/700/1400)`, a
+`DrawScope.drawRing` helper for the gradient rings, the two-layer amber glow, and
+the 56.dp ember with the off-center highlight. The eyebrow/title/body text block
+is in too (JetBrains Mono eyebrow ✓).
 
-## Notes on the Promise WIP (for when Yash asks — see warning #2)
+Scoreboard vs your drift notes:
 
-1. **px-vs-dp again, plus radius-vs-diameter:** `180f / 130f / 90f` are raw
-   pixel values fed to `drawCircle(radius = ...)`, but the spec gives
-   **diameters in dp** (180/130/90.dp). So the rings are both misscaled
-   (~130.dp outer diameter on a ~2.75x screen instead of 180.dp) and
-   density-dependent. `LocalDensity.current` is captured and unused —
-   presumably the conversion is planned. (Same px habit as the EmailSent
-   ember, still open there too.)
-2. **Gradient stops are inverted vs spec:** code has `0f to Amber` (FULL
-   alpha at the center; spec: **16%** there) and `0.70f to Amber.copy(0.16f)`
-   with **no transparent end stop**, so the fill holds 16% amber all the way
-   to the circle edge instead of fading out at 70%. The spec's ring reads
-   "faint in the middle, gone by 70%"; the current one is a bright disc.
-3. The top bar is wrong for onboarding: the nav host's `when` sends the three
-   onboarding keys into the `else` branch → back-arrow `ForgeTopBar`. Spec
-   wants wordmark + **Skip** (steps 1–2 only, no back). The spec's own
-   suggestion: an optional `trailing` slot on `ForgeTopBar`.
-4. The HeroEmber spec block is pasted into the body as a comment (same
-   working style as EmailSent's, which is also still sitting there).
+1. ~~px-vs-dp / radius-vs-diameter~~ → **fixed**: radii are `90/65/45.dp.toPx()`
+   = 180/130/90.dp diameters, density-independent. ✔
+2. ~~inverted gradient stops~~ → **fixed**: `0f → Amber @ 0.16×alpha`,
+   `0.7f → Transparent`. ✔
+3. Ember highlight math is *exactly* right: `center − 0.20r / − 0.30r` ≡ the
+   spec's 40% x / 35% y. Glow radii 40/80.dp, delays 0/700/1400 ✓.
+4. Top bar: still open — onboarding keys still fall into the nav host's `else`
+   → back-arrow ForgeTopBar; no Skip yet.
+5. Spec-comment-in-body habit: the bottom-chrome block is pasted inline (same
+   as EmailSent's).
 
-## Carried over (still open)
+## Known rough edges (left as-is, not silently fixed)
 
-From the previous notes, none addressed: the **focus-ring deletion** (banner
-above), **EmailSent's countdown bugs** — label renders "Resend in 0:0:45"
-(doubled "0:" prefix), no cooldown on entry, `onResend`/`onOpenEmail` never
-wired so "Open mail app" spins forever, row text top-aligned in its 48.dp
-strip, 8.dp vs spec 14.dp gap — EmailSent's px ember/ring + Outlined-vs-FILLED
-icon + 200 vs 280.dp width + missing `textAlign`, `ForgeApplication`'s dead
-font warm-up (real preload lives in MainActivity), **ResetPassword →
-EmailSent backwards wiring**, **Success "Continue" → Splash loop**
-(deliberate? ask Yash), email never threaded through nav, ForgotPassword
-ignoring its `modifier` param, the "Log in" footer double-Login back stack,
-Login's 8-char rule vs spec, the letterSpacing typo in Login/ForgotPassword/
-ResetPassword headlines, the `isLoading` restore trap on Login/Registration,
-unused `interactionSource` in LoginScreen, inline `ForgeDivider`, token/easing
-duplication (`core/designsystem` extraction long overdue — onboarding now
-imports `Amber` from `core.components` too), `ForgeSecondaryButton`'s Google
-default icon, `ForgeNavKey.Registration: NavKey`, the `animation-core`/
-`foundation` 1.11.4 pins, and the email regex in `RegistrationScreen.kt`.
+1. **Ring alpha timing** — spec: alpha reaches 0 at **80%** of the 2800ms cycle
+   and holds; implementation tweens 0.95 → 0 over the full cycle. `keyframes {}`
+   (0.95 at 0ms, 0 at 2240ms, 0 at 2800ms) would match.
+2. **Easing** — rings use Compose's built-in `EaseOut`, not the design's
+   `cubic-bezier(0.22, 1, 0.36, 1)` token. `core/designsystem/Motion.kt` exists
+   but is still an empty TODO shell — the token belongs there (ForgeButton and
+   ForgeSecondaryButton each still carry a private copy too).
+3. **Layout split** — hero Box and text Column are both `weight(1f)` → a 50/50
+   vertical split with the text centered in the lower half. Spec flows
+   eyebrow/title/body directly under the hero and pins dots + CTA to the bottom.
+   Will need restructuring when the bottom chrome lands.
+4. **Missing 12.dp spacer** between eyebrow and title (spec step 3); title→body
+   12.dp is there.
+5. **`onNext`/`onSkip` exist only in the KDoc** — the signature has neither
+   (same @param-drift pattern Login had).
+6. **Still missing:** pagination dots, primary CTA ("Show me how" + arrow),
+   wordmark+Skip top bar. `OnboardingMechanicScreen`/`OnboardingDisciplineScreen`
+   remain bare stubs with no specs.
+
+## Carried over (still open, unchanged from your note)
+
+Focus ring (banner above) · EmailSent countdown bugs ("Resend in 0:0:45" doubled
+prefix, no cooldown on entry, `onResend`/`onOpenEmail` unwired so "Open mail app"
+spins forever, row alignment/gap) · EmailSent px ember/ring, Outlined-vs-FILLED
+icon, 200 vs 280.dp width, missing `textAlign` · `ForgeApplication` dead font
+warm-up · **ResetPassword → EmailSent backwards wiring** · **Success "Continue" →
+Splash loop (deliberate? still unanswered)** · email never threaded through nav ·
+ForgotPassword ignores its `modifier` param · "Log in" footer double-Login back
+stack · Login 8-char rule vs spec · letterSpacing typos in Login/ForgotPassword/
+ResetPassword headlines · `isLoading` restore trap on Login/Registration · unused
+`interactionSource` in LoginScreen · inline `ForgeDivider` · token/easing
+duplication (`core/designsystem` extraction overdue; onboarding imports `Amber`
+from `core.components`) · `ForgeSecondaryButton` Google default icon ·
+`ForgeNavKey.Registration: NavKey` · `animation-core`/`foundation` 1.11.4 pins ·
+email regex in `RegistrationScreen.kt`.
 
 ## Screen status — real vs stub
 
@@ -91,16 +82,16 @@ default icon, `ForgeNavKey.Registration: NavKey`, the `animation-core`/
 | `ForgotPasswordScreen`, `ResetPasswordScreen` | Near-complete (Reset wired backwards to EmailSent). |
 | `EmailSentScreen` | Structurally complete; countdown bugs above. |
 | `SuccessScreen` | Near-complete. |
-| `OnboardingPromiseScreen` | **WIP (new)** — spec in KDoc; static hero only; no params. **Yash is building the animated hero himself — hands off.** |
-| `OnboardingMechanicScreen`, `OnboardingDisciplineScreen` | **Empty stubs (new), no specs yet.** |
+| `OnboardingPromiseScreen` | **Hero animated + text block real.** Missing: dots, CTA, Skip top bar, params (edges 3–6). |
+| `OnboardingMechanicScreen`, `OnboardingDisciplineScreen` | **Empty stubs, no specs yet.** |
+| home/tasks/stats/settings package | Component stubs only (your scaffold, untouched). |
 
-Onboarding isn't reachable from the real flow yet (only via the temporary
-entry point) — where it slots in (before Login? after Success?) is undecided.
-Design source is still the **Forge Design System** (external Claude Design
-project).
+Onboarding's place in the real flow (before Login? after Success?) is still
+undecided. Design source is still the **Forge Design System** (external Claude
+Design project).
 
 ## Verified
 
-`./gradlew :app:compileDebugKotlin :lib:compileKotlin` → BUILD SUCCESSFUL on
-the laptop with this exact tree. Full `assembleDebug` was last green at
-`01ad95e` (toolchain/JBR setup in `CROSS-MACHINE-SETUP.md`).
+`./gradlew :app:compileDebugKotlin :lib:compileKotlin` → BUILD SUCCESSFUL on the
+desktop with this exact tree. Full `assembleDebug` was last green at `01ad95e`
+(toolchain/JBR setup in `CROSS-MACHINE-SETUP.md`).

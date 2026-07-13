@@ -143,7 +143,9 @@
       "Bash(git fetch *)",
       "Bash(git pull *)",
       "Bash(./gradlew :app:compileDebugKotlin)",
-      "Bash(echo \"GRADLE EXIT: $?\")"
+      "Bash(echo \"GRADLE EXIT: $?\")",
+      "Bash(git checkout *)",
+      "Bash(./gradlew :app:compileDebugKotlin :lib:compileKotlin)"
     ]
   }
 }
