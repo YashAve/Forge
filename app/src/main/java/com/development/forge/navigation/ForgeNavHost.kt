@@ -25,6 +25,7 @@ import androidx.navigationevent.NavigationEventDispatcher
 import androidx.navigationevent.NavigationEventDispatcherOwner
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import com.development.forge.core.components.ForgeTopBar
+import com.development.forge.core.components.OnForgeOnBack
 import com.development.forge.feature.auth.EmailSentScreen
 import com.development.forge.feature.auth.ForgotPasswordScreen
 import com.development.forge.feature.auth.LoginScreen
@@ -80,7 +81,9 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                 when (currentDestination) {
                     is Splash, is Success -> {}
                     is Login, is Registration -> ForgeTopBar()
-                    else -> ForgeTopBar(onBack = { backStack.removeLastOrNull() })
+                    else -> ForgeTopBar(
+                        onStart = OnForgeOnBack()
+                    )
                 }
             }) { padding ->
             val basicModifier =

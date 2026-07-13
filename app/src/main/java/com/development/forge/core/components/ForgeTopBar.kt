@@ -3,17 +3,10 @@ package com.development.forge.core.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
@@ -21,7 +14,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ForgeTopBar(
     modifier: Modifier = Modifier,
-    onBack: (() -> Unit)? = null
+    onStart: (@Composable (onClick: () -> Unit) -> Unit)? = null,
+    onEnd: (@Composable (onClick: () -> Unit) -> Unit)? = null
 ) {
     Row(
         modifier = modifier
@@ -29,21 +23,10 @@ fun ForgeTopBar(
             .padding(horizontal = 24.dp)
             .padding(top = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = if (onBack != null) Arrangement.SpaceBetween else Arrangement.Start
+        horizontalArrangement = if (onStart != null || onEnd != null) Arrangement.SpaceBetween else Arrangement.Start
     ) {
-        if (onBack != null) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.size(44.dp).offset(x = (-10).dp)
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Default.ArrowBack,
-                    contentDescription = "Back",
-                    modifier = Modifier.size(24.dp),
-                    tint = Color(0xFFF5EDDE)
-                )
-            }
-        }
+        onStart?.let { onStart() }
         ForgeWordmark()
+        onEnd?.let { onEnd() }
     }
 }
