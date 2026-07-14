@@ -1,124 +1,96 @@
-# Handoff note — desktop → laptop
+# Handoff note — laptop → desktop
 
-**From:** desktop Claude session · **Date:** 2026-07-14 · **On top of:** `f350112`
+**From:** laptop Claude session · **Date:** 2026-07-15 · **On top of:** `d42758c`
 
-Tree is green: `./gradlew :app:compileDebugKotlin :lib:compileKotlin` → **BUILD SUCCESSFUL**.
+Tree is green: `./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**.
 
-## ⚠️ Toolchain: two build fixes landed — read before you touch gradle config
+## ⚠️ Read this first — two temporary dev-view hooks are live
 
-### 1. `ksp.incremental=false` in `gradle.properties` — do NOT set it back to true
+1. **`ForgeNavHost` still starts at `OnboardingFlow`, not `Splash`** (line 59,
+   `rememberNavBackStack(ForgeNavKey.OnboardingFlow)`). You set this last round;
+   carried as-is. Restore `Splash` before a real run-through.
+2. **`OnboardingFlowScreen` now starts at `currentStep = 1`** (was `0`) so the
+   Mechanic screen shows on launch while Yash builds its ember. Step 0 (Promise) is
+   the real first screen — flip it back to `0` when done iterating.
 
-The build was dying on every edit-compile cycle with a Hilt error that does not name
-its own cause:
+## What this push adds — the Mechanic ember dot (Yash's code)
 
-```
-e: [ksp] [Hilt] Access to invalid ... KotlinAlwaysAccessibleLifetimeToken:
-   PSI has changed since creation
-> Task :app:kspDebugKotlin FAILED — KSP failed with exit code: PROCESSING_ERROR
-```
+`OnboardingMechanicScreen.kt`: the 83%-boundary ember is now **fully built** as a
+single `Canvas`, four stacked `drawCircle` layers (matches the KDoc plan):
+- outer glow — amber @0.4, radialGradient radius 36dp;
+- inner glow — amber @0.8, radius 18dp;
+- the coal — off-center 4-stop gradient (`#FFE0A8 → #FFAA2E@0.30 → Amber@0.65 →
+  #A85100`), highlight shifted up-and-left, gradient radius `radius * 1.3`;
+- a `Stroke` rim in bg-base `#14110C`.
 
-Root cause is an interlock between two settings, verified by testing both sides:
+The **Canvas is now `matchParentSize()`** (was `fillMaxWidth()` + `align`, which
+measured to 0px height and would have pinned `center.y` at the top edge). It now
+inherits the 14dp bar height, so the ember centers vertically on the bar.
 
-- `hilt { enableAggregatingTask = false }` (app/build.gradle.kts) puts Hilt's component
-  aggregation **inside** KSP. It must stay false — I flipped it to `true` to check, and
-  `:app:hiltJavaCompileDebug` fails exactly as its code comment predicts:
-  *"Provided Metadata instance has version 2.3.0, while maximum supported version is
-  2.2.0"* (Dagger's bundled kotlin-metadata-jvm can't read Kotlin 2.3 metadata).
-- With **incremental** KSP, Hilt's `ComponentTreeDepsGenerator` calls KSP's `associate()`
-  to record originating files. That reads a file path off the `@HiltAndroidApp` file's
-  `KSFile` — but on an incremental round that file isn't reprocessed, so its PSI is a
-  leftover from an earlier analysis session and already invalid → crash.
-- Non-incremental KSP does no dependency tracking, so `associate()` never touches PSI.
+### On "the ember renders solid black in the @Preview panel"
 
-So the two settings are mutually exclusive on this toolchain, and `enableAggregatingTask
-= false` + `ksp.incremental=false` is the combination that works. Ruled out stale daemon
-(fresh daemon, same error) and stale cache (fails deterministically with no source
-change). Cost is ~1–2s; verified across repeated edit-compile cycles. Full rationale is
-commented in `gradle.properties`. **You will hit this crash too — that's what the flag
-is for.**
+If you (or Yash) see the ember as a **solid black circle in Android Studio's Preview**:
+that's a **Layoutlib shader-rendering fallback, not a code bug**. The tell is that
+changing the gradient color does nothing — if Skia were evaluating it, Amber vs Green
+would differ. The color/overload/radius are all valid. **Verify on the emulator/device;
+the black becomes the amber glow.** (This is what Yash was chasing this round.)
 
-### 2. `:app` now has a real `compileJava` task (app/build.gradle.kts)
+## New rough edges (left as-is, documented not fixed)
 
-AGP creates one Java compile task per variant and no plain `compileJava`, so
-`./gradlew :app:compileJava` failed — and misleadingly, because Gradle falls back to
-camel-case abbreviation, matches all five variant tasks, and says *"task 'compileJava'
-is ambiguous"* when the truth is the task doesn't exist at all.
+- **Coal highlight offset — comment vs code mismatch.** The offset is
+  `center.x - radius*0.20f` / `center.y - radius*0.30f`, but the inline comment
+  computes it off the **28dp diameter** ("≈ 5.6dp / 8.4dp"). `radius` is 14dp, so the
+  real shift is ~2.8dp / ~4.2dp — half what the comment says. Highlight is subtler
+  than intended; not wrong, just off-doc.
+- **Rim stroke is 1.5dp; spec said 2dp.** Also `Stroke` centers on the path, so it
+  straddles the coal edge (half over the glow). Minor.
+- **Glow overflows the bar box.** The 72dp outer glow is drawn in a 14dp-tall Canvas;
+  Canvas doesn't clip, so it bleeds up toward the top labels and down toward the tick
+  row. Faint (0.4α) so probably fine, but worth an eye on device.
+- `.idea/misc.xml` lost its `<?xml …?>` declaration — pure IDE churn, folded into this
+  commit to keep the tree clean. No app impact.
 
-Registered `compileJava` in `:app` as an alias onto `compileDebugJavaWithJavac` (which
-pulls in `compileDebugKotlin` + `kspDebugKotlin` transitively). Side benefit worth
-knowing: `./gradlew compileJava` from the **root** used to run only in `:lib`/`:server`
-— both `NO-SOURCE`, since neither has Java files — so it reported BUILD SUCCESSFUL
-having compiled nothing and silently skipping `:app` entirely. It now covers all three
-modules (2 actionable tasks → 21).
+## Carried over (still open — from your last note + earlier)
 
-## Yash's onboarding work this round (his code — documented, not fixed)
+- **Bar not pinned inside the 72dp label box** — still a sibling of it, not bottom-
+  pinned 16dp up as the spec wants.
+- **Fill gradient stops in track-coords, not fill-coords** — the 20%/60% stops are of
+  the whole track, not of the 83% fill (slight gradient drift). `.border()` still runs
+  before `.clip()`/`.background()`. Tick row uses inline `#7A7060` while COOL DOWN uses
+  the `FgTertiary` token — same colour, two spellings.
+- `OnboardingDisciplineScreen` hero still `Text("android")` placeholder; HeroTaskStack
+  not started.
+- `OnboardingFlowScreen` CTA still cycles `0→1→2→0` (dev convenience); `onFinish` is a
+  no-op default and unwired from `ForgeNavHost` — Skip does nothing.
+- `Motion.kt` still an empty TODO while three screens hand-roll easing; ring alpha wants
+  `keyframes` (hold at 0 from 80%), currently plain `tween`.
+- Two dead `gradle.properties` blocks (deprecated
+  `kotlin.incremental.useClasspathSnapshot` warns every build; dead `kapt.*` section).
+- The long auth-flow tail, unchanged: EmailSent countdown ("0:0:45", no entry cooldown,
+  `onResend`/`onOpenEmail` unwired) · EmailSent px ember/width/textAlign · ForgeApplication
+  dead font warm-up · ResetPassword→EmailSent backwards wiring · Success "Continue"→Splash
+  loop · email not threaded through nav · headline letterSpacing typos · `isLoading`
+  restore trap · inline ForgeDivider · `ForgeNavKey.Registration: NavKey` sealed-
+  exhaustiveness break · **ForgeTextField focus ring still deleted (10th note running —
+  restore block at `git show 0c6ffa9:docs/HANDOFF.md`).**
 
-**`OnboardingMechanicScreen.kt` — hero mostly built**, top labels + bar + tick row done.
-Open vs the spec in its own KDoc:
-- **Ember dot not built** (spec part A.4: 28dp coal circle centred on the 83% point,
-  amber glow ×2, 2dp bg-base border). The bar's amber glow shadow (~0.55 alpha, blur 18)
-  is also not there yet.
-- **The bar is a sibling of the 72dp Box, not inside it.** Spec pins the bar to the
-  bottom of that box (16dp up from bottom); right now the box holds only the two labels
-  and the bar sits below it.
-- The fill is done as **one Box with a two-stop-transparent gradient** (`0.83f to
-  #FFAA2E, 0.83f to Transparent`) rather than a nested 83%-width fill Box. Neat trick,
-  but it puts the colour stops in *track* coordinates — 0.20/0.60 of the whole track —
-  whereas the spec's 20%/60% are of the **fill** (≈0.166/0.498 in track coords). Slight
-  gradient drift.
-- `.border()` runs before `.clip()`/`.background()` in the chain, so the border isn't
-  clipped by the pill shape. Renders okay because the border draws its own rounded
-  outline, but the ordering is worth a look.
-- Tick row uses `Color(0xFF7A7060)` inline while the COOL DOWN label above uses the
-  `FgTertiary` token — same colour, two spellings.
+## Toolchain — untouched this round
 
-**`OnboardingDisciplineScreen.kt`** — text block (eyebrow/title/body) built to spec;
-hero is still a `Text("android")` placeholder. HeroTaskStack (3 stacked cards, front one
-amber-ringed) not started.
-
-**`OnboardingFlowScreen.kt`** — the CTA now cycles instead of finishing:
-`when (currentStep) { 0 -> 1; 1 -> 2; 2 -> 0 }`, so "Forge your first task" loops back
-to step 0. Reads like a deliberate dev convenience for flipping through the three
-screens. `onFinish` is still a no-op default (`{ }`) and still unwired from
-`ForgeNavHost` — nothing happens on Skip either.
-
-Both new screens repeat the Promise screen's **missing 12.dp eyebrow→title spacer**
-(there's a 12.dp between title and body, none above), and both end without a trailing
-newline.
-
-## Carried over (still open)
-
-- Ring alpha should hit 0 at 80% of the cycle and hold (needs `keyframes`, currently
-  plain `tween`); built-in `EaseOut` vs the design's 0.22/1/0.36/1 token — `Motion.kt`
-  is still an empty TODO while three screens now hand-roll easing.
-- **Two dead config blocks in `gradle.properties`**, both noticed while fixing the KSP
-  crash, neither touched (one change at a time): `kotlin.incremental.useClasspathSnapshot`
-  is **deprecated** and warns on every build ("It is unsupported, please stop using it"),
-  and the whole `kapt.*` section is dead — this project uses KSP, not kapt.
-- The long tail, unchanged: EmailSent countdown bugs ("0:0:45", no entry cooldown,
-  `onResend`/`onOpenEmail` unwired) · EmailSent px ember/icon/width/textAlign ·
-  ForgeApplication dead font warm-up · ResetPassword→EmailSent backwards wiring ·
-  Success "Continue"→Splash loop (deliberate?) · email not threaded through nav ·
-  ForgotPassword ignores `modifier` · footer double-Login back stack · Login 8-char rule
-  vs spec · headline letterSpacing typos · `isLoading` restore trap · unused
-  `interactionSource` in LoginScreen · inline ForgeDivider · token/easing duplication ·
-  ForgeSecondaryButton Google default · `ForgeNavKey.Registration: NavKey` (still breaks
-  sealed exhaustiveness) · `animation-core`/`foundation` 1.11.4 pins · email regex in
-  RegistrationScreen · ForgeTextField focus ring still deleted (9th note running —
-  `git show 0c6ffa9:docs/HANDOFF.md` has the restore block).
+I did not touch gradle config. `ksp.incremental=false` + `hilt { enableAggregatingTask
+= false }` and the `:app:compileJava` alias are all as you left them. Your KSP/PSI-crash
+rationale in `gradle.properties` stands.
 
 ## Screen status — real vs stub
 
-Login/Registration/ForgotPassword/ResetPassword/EmailSent/Success near-complete (known
-bugs above). Onboarding is one flow screen: **Promise** done (animated hero + text),
-**Mechanic** hero mostly built (ember dot pending), **Discipline** text done / hero
-placeholder. Home/tasks/stats/settings scaffold untouched.
+Auth six near-complete (known bugs above). Onboarding is one flow screen: **Promise**
+done (animated hero), **Mechanic** hero now essentially complete (ember built; bar-in-box
+pinning + gradient-coord polish open), **Discipline** text done / hero placeholder.
+Home/tasks/stats/settings still scaffold stubs.
 
 Design source is still the **Forge Design System** (external Claude Design project).
 
 ## Verified
 
-`./gradlew :app:compileDebugKotlin :lib:compileKotlin` → **BUILD SUCCESSFUL**.
-`./gradlew :app:compileJava` → **BUILD SUCCESSFUL** (the new alias). Edit-compile cycles
-re-verified green after the KSP fix. Full `assembleDebug` was last green at `01ad95e`
-(toolchain/JBR in `CROSS-MACHINE-SETUP.md`).
+`./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**. Ember not yet eyeballed on a
+running emulator from this machine — that's the one confirmation still worth doing
+(see the black-in-preview note above).
