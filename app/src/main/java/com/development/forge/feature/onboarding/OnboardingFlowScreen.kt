@@ -19,9 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.development.forge.core.components.ForgeButton
+import com.development.forge.core.components.ForgePaginationDots
 import com.development.forge.core.components.ForgeTopBar
 import com.development.forge.core.components.OnForgeOnSkip
-import com.development.forge.core.components.canvas.ForgePaginationDots
 
 @Preview
 @Composable
