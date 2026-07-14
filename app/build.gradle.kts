@@ -49,6 +49,29 @@ kotlin {
     }
 }
 
+// `compileJava` is a JVM-plugin convention that AGP does not follow: an Android module
+// gets one Java compile task per variant (compileDebugJavaWithJavac, compileRelease...)
+// and no plain `compileJava`. Asking for :app:compileJava therefore fails, and confusingly
+// so — Gradle falls back to camel-case abbreviation, matches all five variant tasks, and
+// reports "task 'compileJava' is ambiguous" rather than "no such task".
+//
+// Registering it for real fixes two things:
+//   1. `./gradlew :app:compileJava` resolves exactly (an exact name beats abbreviation
+//      matching) instead of erroring.
+//   2. `./gradlew compileJava` from the root now covers :app too. Previously it ran only
+//      in :lib and :server — the modules that get `compileJava` from java-library — and
+//      silently skipped :app, reporting BUILD SUCCESSFUL without ever compiling the app.
+//
+// Debug is the variant chosen, mirroring what `compileJava` means in :lib/:server (the
+// main sources). Depending on the javac task pulls in compileDebugKotlin and kspDebugKotlin
+// transitively, so this compiles the module's Kotlin as well despite the Java-flavoured name.
+tasks.register("compileJava") {
+    group = "build"
+    description = "Compiles the debug variant. Alias for the JVM-conventional task name; " +
+        "AGP only creates per-variant compile tasks."
+    dependsOn("compileDebugJavaWithJavac")
+}
+
 hilt {
     // Do Hilt component aggregation inside the KSP processor instead of the separate
     // `hiltJavaCompileDebug` javac task. That javac task reads Kotlin metadata through

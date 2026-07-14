@@ -145,7 +145,11 @@
       "Bash(./gradlew :app:compileDebugKotlin)",
       "Bash(echo \"GRADLE EXIT: $?\")",
       "Bash(git checkout *)",
-      "Bash(./gradlew :app:compileDebugKotlin :lib:compileKotlin)"
+      "Bash(./gradlew :app:compileDebugKotlin :lib:compileKotlin)",
+      "Bash(python3 -c ' *)",
+      "Bash(echo \"--- exit: $? \\(1 = no matches, 0 = matches found\\) ---\")",
+      "Bash(./gradlew :app:tasks --all)",
+      "Bash(git reset *)"
     ]
   }
 }
