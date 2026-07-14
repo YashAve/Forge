@@ -78,7 +78,11 @@ fun OnboardingFlowScreen(
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 28.dp)
         ) {
-            if (currentStep < 2) currentStep++
+            when (currentStep) {
+                0 -> currentStep = 1
+                1 -> currentStep = 2
+                2 -> currentStep = 0
+            }
         }
     }
 }

@@ -1,8 +1,24 @@
 package com.development.forge.feature.onboarding
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
+import com.development.forge.core.components.Amber
+import com.development.forge.core.designsystem.ForgeFonts
 
 /**
  * DESIGN SPEC — Onboarding Step 3 of 3: The Discipline.
@@ -57,5 +73,53 @@ import androidx.compose.ui.tooling.preview.Preview
 @Preview
 @Composable
 fun OnboardingDisciplineScreen(modifier: Modifier = Modifier) {
-    
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .padding(top = 24.dp, bottom = 28.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+            Text(text = "android")
+        }
+        Column(
+            modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.Center
+        ) {
+            /*## Text content (same styles as the other steps)
+ * - Eyebrow:  "STEP 03 · THE DISCIPLINE"  (Mono, 11sp, 0.18em, uppercase, amber)
+ * - Title:    "One task\nat a time."       (Space Grotesk, 32sp, W600, 1.1em, -0.025em, #F5EDDE)
+ * - Body:     "The rest of your list stays hidden until you finish what's in front of
+ *              you. The next thing is the only thing."  (16sp, 1.45em, #B5A990)*/
+            Text(
+                text = "STEP 03 · THE DISCIPLINE", style = TextStyle(
+                    fontFamily = ForgeFonts.jetbrainsMono,
+                    fontSize = 11.sp,
+                    letterSpacing = (0.18).em,
+                    color = Amber
+                )
+            )
+            Text(
+                text = "One task\nat a time.", style = TextStyle(
+                    fontFamily = ForgeFonts.spaceGrotesk,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.W600,
+                    lineHeight = (1.1).em,
+                    letterSpacing = (-0.025).em,
+                    color = Color(0xFFF5EDDE)
+                )
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "The rest of your list stays hidden until you finish what's in front of you. The next thing is the only thing.",
+                style = TextStyle(
+                    fontFamily = ForgeFonts.spaceGrotesk,
+                    fontSize = 16.sp,
+                    lineHeight = (1.45).em,
+                    color = Color(0xFFB5A990)
+                )
+            )
+            Spacer(modifier = Modifier.height(28.dp))
+        }
+    }
 }
