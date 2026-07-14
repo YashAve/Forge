@@ -32,9 +32,7 @@ import com.development.forge.feature.auth.LoginScreen
 import com.development.forge.feature.auth.RegistrationScreen
 import com.development.forge.feature.auth.ResetPasswordScreen
 import com.development.forge.feature.auth.SuccessScreen
-import com.development.forge.feature.onboarding.OnboardingDisciplineScreen
-import com.development.forge.feature.onboarding.OnboardingMechanicScreen
-import com.development.forge.feature.onboarding.OnboardingPromiseScreen
+import com.development.forge.feature.onboarding.OnboardingFlowScreen
 import com.development.forge.feature.splash.SplashScreen
 import com.development.forge.navigation.ForgeNavKey.EmailSent
 import com.development.forge.navigation.ForgeNavKey.ForgotPassword
@@ -58,7 +56,7 @@ import com.development.forge.navigation.ForgeNavKey.Success
 
 @Composable
 fun ForgeNavHost(modifier: Modifier = Modifier) {
-    val backStack = rememberNavBackStack(ForgeNavKey.OnboardingPromise)
+    val backStack = rememberNavBackStack(ForgeNavKey.OnboardingFlow)
     val currentDestination = backStack.lastOrNull()
     Box(
         modifier = Modifier
@@ -79,10 +77,15 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
         Scaffold(
             modifier = modifier, containerColor = Color.Transparent, topBar = {
                 when (currentDestination) {
-                    is Splash, is Success -> {}
+                    is Splash, is Success, is ForgeNavKey.OnboardingFlow -> {}
                     is Login, is Registration -> ForgeTopBar()
+
                     else -> ForgeTopBar(
-                        onStart = OnForgeOnBack()
+                        onStart = {
+                            OnForgeOnBack {
+                                backStack.removeLastOrNull()
+                            }
+                        }
                     )
                 }
             }) { padding ->
@@ -140,13 +143,7 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                             backStack.add(Splash)
                         })
                     }
-                    entry<ForgeNavKey.OnboardingPromise> { OnboardingPromiseScreen(basicModifier) }
-                    entry<ForgeNavKey.OnboardingMechanic> { OnboardingMechanicScreen(basicModifier) }
-                    entry<ForgeNavKey.OnboardingDiscipline> {
-                        OnboardingDisciplineScreen(
-                            basicModifier
-                        )
-                    }
+                    entry<ForgeNavKey.OnboardingFlow> { OnboardingFlowScreen(basicModifier) }
                 },
             )
         }

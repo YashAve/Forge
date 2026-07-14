@@ -14,8 +14,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ForgeTopBar(
     modifier: Modifier = Modifier,
-    onStart: (@Composable (onClick: () -> Unit) -> Unit)? = null,
-    onEnd: (@Composable (onClick: () -> Unit) -> Unit)? = null
+    onStart: (@Composable () -> Unit)? = null,
+    onEnd: (@Composable () -> Unit)? = null
 ) {
     Row(
         modifier = modifier

@@ -109,7 +109,6 @@ fun OnboardingPromiseScreen(modifier: Modifier = Modifier) {
 
     Column(
         modifier = modifier
-            .fillMaxSize()
             .padding(horizontal = 24.dp)
             .padding(top = 24.dp, bottom = 28.dp)
     ) {
@@ -166,9 +165,7 @@ fun OnboardingPromiseScreen(modifier: Modifier = Modifier) {
             }
         }
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .weight(1f),
+            modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.Center
         ) {
