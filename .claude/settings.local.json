@@ -150,7 +150,8 @@
       "Bash(echo \"--- exit: $? \\(1 = no matches, 0 = matches found\\) ---\")",
       "Bash(./gradlew :app:tasks --all)",
       "Bash(git reset *)",
-      "Bash(git status *)"
+      "Bash(git status *)",
+      "Bash(./gradlew :app:compileDebugKotlin --rerun)"
     ]
   }
 }

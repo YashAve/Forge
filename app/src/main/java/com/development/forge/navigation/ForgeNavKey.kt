@@ -35,4 +35,10 @@ sealed interface ForgeNavKey : NavKey {
     data object OnboardingFlow : ForgeNavKey
     @Serializable
     data object Home : ForgeNavKey
+    @Serializable
+    data object Add : ForgeNavKey
+    @Serializable
+    data object Statistics: ForgeNavKey
+    @Serializable
+    data object Settings : ForgeNavKey
 }
