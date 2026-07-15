@@ -301,6 +301,7 @@ The actual 28dp-diameter dot — not flat orange, but your off-center-highlight 
                     color = Amber
                 )
             )
+            Spacer(Modifier.height(12.dp))
             Text(
                 text = "Heat up.\nThen cool down.", style = TextStyle(
                     fontFamily = ForgeFonts.spaceGrotesk,

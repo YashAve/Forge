@@ -177,6 +177,7 @@ fun OnboardingPromiseScreen(modifier: Modifier = Modifier) {
                     color = Amber
                 )
             )
+            Spacer(Modifier.height(12.dp))
             Text(
                 text = "Stop putting\nit off.", style = TextStyle(
                     fontFamily = ForgeFonts.spaceGrotesk,

@@ -1,5 +1,6 @@
 package com.development.forge.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -32,6 +33,7 @@ import com.development.forge.feature.auth.LoginScreen
 import com.development.forge.feature.auth.RegistrationScreen
 import com.development.forge.feature.auth.ResetPasswordScreen
 import com.development.forge.feature.auth.SuccessScreen
+import com.development.forge.feature.home.HomeScreen
 import com.development.forge.feature.onboarding.OnboardingFlowScreen
 import com.development.forge.feature.splash.SplashScreen
 import com.development.forge.navigation.ForgeNavKey.EmailSent
@@ -54,10 +56,69 @@ import com.development.forge.navigation.ForgeNavKey.Success
  * only in lifecycle 2.11.0, which requires AGP 9.1.0). See docs/CROSS-MACHINE-SETUP.md.
  */
 
+/**
+ * NAVIGATION SPEC — Splash, Auth, and Onboarding.
+ *
+ * SPLASH — clears itself always, never returnable, routes based on persisted state:
+ *   - never seen onboarding      → ONBOARDING
+ *   - seen onboarding, logged out → LOGIN
+ *   - seen onboarding, logged in  → HOME
+ *
+ * ONBOARDING — ONE nav destination with internal step state (0/1/2), NOT three
+ * separate nav keys.
+ *   - Next: currentStep++ (no back stack involvement)
+ *   - Back on step 1 or 2: currentStep-- (needs an explicit BackHandler, doesn't
+ *     happen automatically)
+ *   - Back on step 0: EXIT APP (nothing behind it, Splash was cleared)
+ *   - Skip (steps 0 and 1 only): → REGISTRATION, clear()+add, mark onboarding
+ *     complete in persisted state
+ *   - Finish (step 2's CTA): → REGISTRATION, clear()+add, mark onboarding complete
+ *
+ * REGISTRATION and LOGIN are SIBLINGS, not a chain — switching between them
+ * REPLACES the top of the stack, it does not push. (Design note: the provided
+ * design treats these as push targets; reject that — it lets the stack grow
+ * unbounded as a user bounces between the two forms.)
+ *   - Back on either: EXIT APP
+ *   - Registration submit: → SUCCESS
+ *   - Login submit: → HOME directly (SKIP Success — Success is for registration
+ *     only, showing it after every login is unnecessary friction)
+ *   - Login → "Forgot password?": → FORGOT_PASSWORD
+ *
+ * FORGOT_PASSWORD → EMAIL_SENT → RESET_PASSWORD — a genuine linear PUSH chain,
+ * Back walks backward through it normally.
+ *   - EMAIL_SENT/FORGOT_PASSWORD → "Log in" footer: → LOGIN
+ *   - RESET_PASSWORD submit: → LOGIN, and CLEAR the entire forgot/reset chain
+ *     (a user should never Back into a reset flow they just completed)
+ *   - NOTE: RESET_PASSWORD is realistically a DEEP LINK target reached from the
+ *     reset email, not reached by tapping forward from EMAIL_SENT. Chaining it
+ *     here is a prototype-only simplification.
+ *
+ * SUCCESS — registration only, never shown after login.
+ *   - NO back button, no top bar
+ *   - DELETE the "Reset prototype" secondary button — it's a Claude Design
+ *     prototype artifact (restarts the design demo) with no place in the real app
+ *   - "Continue": → HOME, clear() the ENTIRE stack — this is the hard auth-to-app
+ *     boundary; Back must never be able to cross back into auth from inside the app
+ *
+ * STACK-CLEARING SUMMARY
+ *   Splash        → anything      : clear() + add
+ *   Onboarding    → Registration  : clear() + add
+ *   Login         ↔ Registration  : replace top, never push
+ *   ResetPassword → Login         : clear the whole forgot/reset chain
+ *   Success       → Home          : clear() the entire stack
+ */
+
 @Composable
 fun ForgeNavHost(modifier: Modifier = Modifier) {
-    val backStack = rememberNavBackStack(ForgeNavKey.OnboardingFlow)
+    val backStack = rememberNavBackStack(Splash)
     val currentDestination = backStack.lastOrNull()
+
+    BackHandler {
+        when (currentDestination) {
+            Login, Registration -> backStack.clear()
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -106,7 +167,7 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                     entry<Splash> {
                         SplashScreen(basicModifier) {
                             backStack.clear()
-                            backStack.add(Login)
+                            backStack.add(ForgeNavKey.OnboardingFlow)
                         }
                     }
                     entry<Login> {
@@ -115,11 +176,13 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                         }, onForgeAccount = {
                             backStack.add(Registration)
                         }, onLogin = {
-                            backStack.add(Success)
+                            backStack.clear()
+                            backStack.add(ForgeNavKey.Home)
                         })
                     }
                     entry<Registration> {
                         RegistrationScreen(basicModifier, onRegister = {
+                            backStack.clear()
                             backStack.add(Success)
                         })
                     }
@@ -140,10 +203,16 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                     entry<Success> {
                         SuccessScreen(basicModifier, onContinue = {
                             backStack.clear()
-                            backStack.add(Splash)
+                            backStack.add(ForgeNavKey.Home)
                         })
                     }
-                    entry<ForgeNavKey.OnboardingFlow> { OnboardingFlowScreen(basicModifier) }
+                    entry<ForgeNavKey.OnboardingFlow> {
+                        OnboardingFlowScreen(basicModifier) {
+                            backStack.clear()
+                            backStack.add(Login)
+                        }
+                    }
+                    entry<ForgeNavKey.Home> { HomeScreen(basicModifier) }
                 },
             )
         }

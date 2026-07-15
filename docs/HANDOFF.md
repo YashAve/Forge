@@ -1,96 +1,99 @@
-# Handoff note — laptop → desktop
+# Handoff note — desktop → laptop
 
-**From:** laptop Claude session · **Date:** 2026-07-15 · **On top of:** `d42758c`
+**From:** desktop Claude session · **Date:** 2026-07-15 · **On top of:** `b76dca5`
 
 Tree is green: `./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**.
 
-## ⚠️ Read this first — two temporary dev-view hooks are live
+## What this push adds — real navigation + the Discipline hero (Yash's code)
 
-1. **`ForgeNavHost` still starts at `OnboardingFlow`, not `Splash`** (line 59,
-   `rememberNavBackStack(ForgeNavKey.OnboardingFlow)`). You set this last round;
-   carried as-is. Restore `Splash` before a real run-through.
-2. **`OnboardingFlowScreen` now starts at `currentStep = 1`** (was `0`) so the
-   Mechanic screen shows on launch while Yash builds its ember. Step 0 (Promise) is
-   the real first screen — flip it back to `0` when done iterating.
+**`ForgeNavHost.kt` got a full navigation spec and real routing**, replacing the
+placeholder wiring:
+- Back stack now starts at `Splash` again (both dev-view hooks from my last note —
+  boot-to-`OnboardingFlow`, `currentStep = 1` — are reverted).
+- `Home` is a real nav key now. Splash → Onboarding (always, for now — see below);
+  Login submit → clear() + Home (skips Success, by design: Success is registration-only);
+  Registration submit → clear() + Success; Success continue → clear() + Home;
+  Onboarding finish/skip → clear() + Login.
+- Login/Registration are documented as **siblings, not a chain** — switching between
+  them replaces the top of the stack rather than pushing, so bouncing between the two
+  forms can't grow the stack unbounded. Deliberate rejection of what the design file
+  shows.
+- A top-level `BackHandler` was added whose `when` only matches `Login, Registration`
+  and calls `backStack.clear()` on either.
 
-## What this push adds — the Mechanic ember dot (Yash's code)
+**`OnboardingDisciplineScreen.kt` — HeroTaskStack fully built.** Three overlapping
+cards per spec: cards 1/2 (dim, receding backlog) drawn in one `Canvas` via `scale()`;
+card 3 (the active task) is a real composable `Box` with `dropShadow` + a straddling
+amber focus-ring `drawBehind` + the "NOW · 25:00 · Draft the proposal" content row.
+Also: the missing 12dp eyebrow→title `Spacer` (flagged in the last two handoffs) is
+now added on **all three** onboarding screens — Promise, Mechanic, Discipline.
 
-`OnboardingMechanicScreen.kt`: the 83%-boundary ember is now **fully built** as a
-single `Canvas`, four stacked `drawCircle` layers (matches the KDoc plan):
-- outer glow — amber @0.4, radialGradient radius 36dp;
-- inner glow — amber @0.8, radius 18dp;
-- the coal — off-center 4-stop gradient (`#FFE0A8 → #FFAA2E@0.30 → Amber@0.65 →
-  #A85100`), highlight shifted up-and-left, gradient radius `radius * 1.3`;
-- a `Stroke` rim in bg-base `#14110C`.
+## Two things worth your eye — spec vs. code mismatches
 
-The **Canvas is now `matchParentSize()`** (was `fillMaxWidth()` + `align`, which
-measured to 0px height and would have pinned `center.y` at the top edge). It now
-inherits the 14dp bar height, so the ember centers vertically on the bar.
+1. **Onboarding finish/skip routes to `Login`, but the KDoc spec three lines above it
+   says `REGISTRATION`.** Both `OnForgeOnSkip` and the step-2 CTA call the same
+   `onFinish()`, wired in `ForgeNavHost` to `backStack.clear(); backStack.add(Login)`
+   (line ~212). Might be intentional (finishing onboarding into Login rather than
+   Registration is a defensible product call) but it disagrees with the comment
+   directly above it — worth a decision either way, not silently changed.
+2. **`BackHandler { ... clear() }` on Login/Registration may not achieve "EXIT APP".**
+   The spec says Back on either screen should exit the app; `backStack.clear()` just
+   empties the app-owned back stack, it doesn't finish the Activity. Separately,
+   `NavDisplay` already gets its own `onBack = { backStack.removeLastOrNull() }` — with
+   two back-press consumers now in the tree (the top-level `BackHandler` and
+   `NavDisplay`'s internal one), which one actually wins on a real back press depends on
+   `OnBackPressedDispatcher` registration order, which I didn't chase down by reading
+   alone. Worth an actual device back-button test on Login/Registration/elsewhere
+   before trusting this section — I didn't have a device up this round to check it.
 
-### On "the ember renders solid black in the @Preview panel"
+Splash's routing is also still hardcoded to always go to Onboarding (`persisted state`
+routing described in the KDoc — never-seen → onboarding, seen+logged-out → login,
+seen+logged-in → home — isn't implemented yet, no persistence layer exists). That one's
+clearly a known stub, not a mismatch.
 
-If you (or Yash) see the ember as a **solid black circle in Android Studio's Preview**:
-that's a **Layoutlib shader-rendering fallback, not a code bug**. The tell is that
-changing the gradient color does nothing — if Skia were evaluating it, Amber vs Green
-would differ. The color/overload/radius are all valid. **Verify on the emulator/device;
-the black becomes the amber glow.** (This is what Yash was chasing this round.)
+## Carried over (still open)
 
-## New rough edges (left as-is, documented not fixed)
-
-- **Coal highlight offset — comment vs code mismatch.** The offset is
-  `center.x - radius*0.20f` / `center.y - radius*0.30f`, but the inline comment
-  computes it off the **28dp diameter** ("≈ 5.6dp / 8.4dp"). `radius` is 14dp, so the
-  real shift is ~2.8dp / ~4.2dp — half what the comment says. Highlight is subtler
-  than intended; not wrong, just off-doc.
-- **Rim stroke is 1.5dp; spec said 2dp.** Also `Stroke` centers on the path, so it
-  straddles the coal edge (half over the glow). Minor.
-- **Glow overflows the bar box.** The 72dp outer glow is drawn in a 14dp-tall Canvas;
-  Canvas doesn't clip, so it bleeds up toward the top labels and down toward the tick
-  row. Faint (0.4α) so probably fine, but worth an eye on device.
-- `.idea/misc.xml` lost its `<?xml …?>` declaration — pure IDE churn, folded into this
-  commit to keep the tree clean. No app impact.
-
-## Carried over (still open — from your last note + earlier)
-
-- **Bar not pinned inside the 72dp label box** — still a sibling of it, not bottom-
-  pinned 16dp up as the spec wants.
-- **Fill gradient stops in track-coords, not fill-coords** — the 20%/60% stops are of
-  the whole track, not of the 83% fill (slight gradient drift). `.border()` still runs
-  before `.clip()`/`.background()`. Tick row uses inline `#7A7060` while COOL DOWN uses
-  the `FgTertiary` token — same colour, two spellings.
-- `OnboardingDisciplineScreen` hero still `Text("android")` placeholder; HeroTaskStack
-  not started.
-- `OnboardingFlowScreen` CTA still cycles `0→1→2→0` (dev convenience); `onFinish` is a
-  no-op default and unwired from `ForgeNavHost` — Skip does nothing.
-- `Motion.kt` still an empty TODO while three screens hand-roll easing; ring alpha wants
+- Onboarding "mark complete in persisted state" (Skip/Finish) — no persistence layer,
+  noted above.
+- Bar not pinned inside the 72dp label box on Mechanic (still a sibling); fill-gradient
+  stops still in track-coords not fill-coords; `.border()` still before `.clip()`/
+  `.background()`; tick row inline `#7A7060` vs `FgTertiary` token elsewhere. Ember-dot
+  polish items from the laptop's note (highlight-offset comment mismatch, 1.5dp vs 2dp
+  rim, glow bleeding past the 14dp Canvas) — all untouched.
+- `Motion.kt` still an empty TODO, three screens hand-roll easing; ring alpha wants
   `keyframes` (hold at 0 from 80%), currently plain `tween`.
-- Two dead `gradle.properties` blocks (deprecated
-  `kotlin.incremental.useClasspathSnapshot` warns every build; dead `kapt.*` section).
+- Two dead `gradle.properties` blocks (deprecated `kotlin.incremental.useClasspathSnapshot`
+  warns every build; dead `kapt.*` section) — untouched again this round.
 - The long auth-flow tail, unchanged: EmailSent countdown ("0:0:45", no entry cooldown,
-  `onResend`/`onOpenEmail` unwired) · EmailSent px ember/width/textAlign · ForgeApplication
-  dead font warm-up · ResetPassword→EmailSent backwards wiring · Success "Continue"→Splash
-  loop · email not threaded through nav · headline letterSpacing typos · `isLoading`
-  restore trap · inline ForgeDivider · `ForgeNavKey.Registration: NavKey` sealed-
-  exhaustiveness break · **ForgeTextField focus ring still deleted (10th note running —
-  restore block at `git show 0c6ffa9:docs/HANDOFF.md`).**
+  `onResend`/`onOpenEmail` unwired) · EmailSent px ember/width/textAlign ·
+  ForgeApplication dead font warm-up · ResetPassword→EmailSent chain is a prototype
+  simplification (real flow is a deep link) · email not threaded through nav · headline
+  letterSpacing typos · `isLoading` restore trap · inline ForgeDivider ·
+  `ForgeNavKey.Registration: NavKey` sealed-exhaustiveness break · **ForgeTextField
+  focus ring still deleted (11th note running — restore block at
+  `git show 0c6ffa9:docs/HANDOFF.md`).**
+- `SuccessScreen` still has the "Reset prototype" secondary button the new nav KDoc
+  says to delete (Claude Design demo artifact, no place in the real app) — noted in
+  the spec comment itself, not yet acted on.
 
 ## Toolchain — untouched this round
 
-I did not touch gradle config. `ksp.incremental=false` + `hilt { enableAggregatingTask
-= false }` and the `:app:compileJava` alias are all as you left them. Your KSP/PSI-crash
-rationale in `gradle.properties` stands.
+`ksp.incremental=false`, `hilt { enableAggregatingTask = false }`, and the
+`:app:compileJava` alias are all exactly as before. No gradle config touched.
 
 ## Screen status — real vs stub
 
-Auth six near-complete (known bugs above). Onboarding is one flow screen: **Promise**
-done (animated hero), **Mechanic** hero now essentially complete (ember built; bar-in-box
-pinning + gradient-coord polish open), **Discipline** text done / hero placeholder.
-Home/tasks/stats/settings still scaffold stubs.
+Auth six near-complete (known bugs above). Onboarding: **Promise** done, **Mechanic**
+hero essentially complete (ember built, bar-in-box pinning + gradient-coord polish
+open), **Discipline** now feature-complete (text + HeroTaskStack both built). Real
+navigation now connects Splash → Onboarding → Login/Registration → Success/Home.
+Home/tasks/stats/settings still scaffold stubs (`HomeScreen` + `FocusCard` exist,
+untouched this round).
 
 Design source is still the **Forge Design System** (external Claude Design project).
 
 ## Verified
 
-`./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**. Ember not yet eyeballed on a
-running emulator from this machine — that's the one confirmation still worth doing
-(see the black-in-preview note above).
+`./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**. Compile-only — the two
+back-navigation mismatches above need an actual device/emulator pass, which I didn't
+have running this round.

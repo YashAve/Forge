@@ -29,7 +29,7 @@ fun OnboardingFlowScreen(
     modifier: Modifier = Modifier,
     onFinish: () -> Unit = { }
 ) {
-    var currentStep by rememberSaveable { mutableIntStateOf(1) }
+    var currentStep by rememberSaveable { mutableIntStateOf(0) }
     val buttonLabel by remember {
         derivedStateOf {
             when (currentStep) {
@@ -81,7 +81,9 @@ fun OnboardingFlowScreen(
             when (currentStep) {
                 0 -> currentStep = 1
                 1 -> currentStep = 2
-                2 -> currentStep = 0
+                2 -> {
+                    onFinish()
+                }
             }
         }
     }
