@@ -13,11 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Insights
-import androidx.compose.material.icons.outlined.Bolt
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,7 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -39,6 +34,7 @@ import com.development.forge.core.components.Amber
 import com.development.forge.core.components.FgTertiary
 import com.development.forge.core.designsystem.ForgeFonts
 import com.development.forge.core.designsystem.Oil
+import com.development.forge.navigation.BottomNavigationSpecifications
 import com.development.forge.navigation.ForgeNavKey
 
 /**
@@ -154,20 +150,56 @@ import com.development.forge.navigation.ForgeNavKey
 "You" — icon: person — settings and profile*/
 
 private val navigations = listOf(
-    listOf(0, ForgeNavKey.Home, "Focus", Icons.Outlined.Bolt),
-    listOf(1, ForgeNavKey.Add, "Add", Icons.Default.Add),
-    listOf(2, ForgeNavKey.Statistics, "Stats", Icons.Default.Insights),
-    listOf(3, ForgeNavKey.Settings, "You", Icons.Outlined.Person)
+    ForgeNavKey.Home, ForgeNavKey.Statistics, ForgeNavKey.Settings
 )
+
+@Preview
+@Composable
+fun ForgeBottomNavigationBarItem(
+    modifier: Modifier = Modifier,
+    current: ForgeNavKey = ForgeNavKey.Home,
+    selection: Int = 0,
+    onSelect: () -> Unit = { }
+) {
+    val item = navigations[selection] as BottomNavigationSpecifications
+    val color by animateColorAsState(
+        targetValue = if (current == navigations[selection]) Amber else FgTertiary,
+        animationSpec = tween(160, easing = EaseOut),
+        label = "label"
+    )
+    Column(
+        modifier = modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {
+                    onSelect()
+                }
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(item.activeIcon, null, modifier = Modifier.size(24.dp), tint = color)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = item.label,
+            fontFamily = ForgeFonts.spaceGrotesk,
+            fontSize = (10.5).sp,
+            fontWeight = FontWeight.W600,
+            letterSpacing = (0.02).em,
+            color = color
+        )
+    }
+}
 
 @Preview
 @Composable
 fun ForgeBottomNavigationBar(
     modifier: Modifier = Modifier,
     current: ForgeNavKey = ForgeNavKey.Home,
-    onSelect: () -> Unit = { },
+    onSelect: (ForgeNavKey) -> Unit = { },
     onAddClick: () -> Unit = { }
 ) {
+    val context = LocalContext.current
     var selected by rememberSaveable { mutableStateOf(ForgeNavKey.Home.toString()) }
 
     Row(
@@ -209,36 +241,20 @@ fun ForgeBottomNavigationBar(
          *   Amber when that tab is active, #7A7060 (tertiary) when it is not.
          *   The colour animates over 160ms on the ease-out curve.
          *   The Add button's label is always tertiary, since it is never active.*/
-        val color by animateColorAsState(
-            targetValue = if (current == navigations[2]) Amber else FgTertiary,
-            animationSpec = tween(160, easing = EaseOut),
-            label = "label"
+        ForgeBottomNavigationBarItem(
+            Modifier.padding(top = 10.dp, bottom = 8.dp).weight(1f),
+            selection = 0,
+            onSelect = { onSelect(ForgeNavKey.Home) }
         )
-
-        navigations.forEachIndexed { index, navigationItem ->
-            Column(
-                modifier = Modifier
-                    .padding(top = 10.dp, bottom = 8.dp)
-                    .weight(1f)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {
-                            selected = (navigationItem[1] as ForgeNavKey).toString()
-                        }
-                    ),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(navigationItem[3] as ImageVector, null, modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = navigationItem[2] as String,
-                    fontFamily = ForgeFonts.spaceGrotesk,
-                    fontSize = (10.5).sp,
-                    fontWeight = FontWeight.W600,
-                    letterSpacing = (0.02).em,
-                    color = color
-                )
-            }
-        }
+        ForgeBottomNavigationBarItem(
+            Modifier.padding(top = 10.dp, bottom = 8.dp).weight(1f),
+            selection = 1,
+            onSelect = { onSelect(ForgeNavKey.Statistics) }
+        )
+        ForgeBottomNavigationBarItem(
+            Modifier.padding(top = 10.dp, bottom = 8.dp).weight(1f),
+            selection = 2,
+            onSelect = { onSelect(ForgeNavKey.Settings) }
+        )
     }
 }

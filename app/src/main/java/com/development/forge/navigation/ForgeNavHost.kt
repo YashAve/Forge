@@ -1,5 +1,6 @@
 package com.development.forge.navigation
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
@@ -34,8 +36,11 @@ import com.development.forge.feature.auth.RegistrationScreen
 import com.development.forge.feature.auth.ResetPasswordScreen
 import com.development.forge.feature.auth.SuccessScreen
 import com.development.forge.feature.home.HomeScreen
+import com.development.forge.feature.home.components.ForgeBottomNavigationBar
 import com.development.forge.feature.onboarding.OnboardingFlowScreen
+import com.development.forge.feature.settings.SettingsScreen
 import com.development.forge.feature.splash.SplashScreen
+import com.development.forge.feature.stats.StatsScreen
 import com.development.forge.navigation.ForgeNavKey.EmailSent
 import com.development.forge.navigation.ForgeNavKey.ForgotPassword
 import com.development.forge.navigation.ForgeNavKey.Login
@@ -110,7 +115,8 @@ import com.development.forge.navigation.ForgeNavKey.Success
 
 @Composable
 fun ForgeNavHost(modifier: Modifier = Modifier) {
-    val backStack = rememberNavBackStack(Splash)
+    val context = LocalContext.current
+    val backStack = rememberNavBackStack(ForgeNavKey.Home)
     val currentDestination = backStack.lastOrNull()
 
     BackHandler {
@@ -138,7 +144,7 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
         Scaffold(
             modifier = modifier, containerColor = Color.Transparent, topBar = {
                 when (currentDestination) {
-                    is Splash, is Success, is ForgeNavKey.OnboardingFlow -> {}
+                    is Splash, is Success, is ForgeNavKey.OnboardingFlow, is ForgeNavKey.Home, is ForgeNavKey.Statistics, is ForgeNavKey.Settings -> { }
                     is Login, is Registration -> ForgeTopBar()
 
                     else -> ForgeTopBar(
@@ -148,6 +154,21 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                             }
                         }
                     )
+                }
+            }, bottomBar = {
+                when (currentDestination) {
+                    is ForgeNavKey.Home, is ForgeNavKey.Statistics, is ForgeNavKey.Settings -> {
+                        ForgeBottomNavigationBar(current = currentDestination, onSelect = { value ->
+                            Toast.makeText(context, value.toString(), Toast.LENGTH_LONG).show()
+                            backStack.add(value)
+                        }) {
+
+                        }
+                    }
+
+                    else -> {
+
+                    }
                 }
             }) { padding ->
             val basicModifier =
@@ -213,6 +234,8 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                         }
                     }
                     entry<ForgeNavKey.Home> { HomeScreen(basicModifier) }
+                    entry<ForgeNavKey.Statistics> { StatsScreen(basicModifier) }
+                    entry<ForgeNavKey.Settings> { SettingsScreen(basicModifier) }
                 },
             )
         }
