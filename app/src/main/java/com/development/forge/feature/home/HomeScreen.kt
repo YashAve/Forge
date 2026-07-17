@@ -1,13 +1,35 @@
 package com.development.forge.feature.home
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import com.development.forge.core.components.Amber
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
+import com.development.forge.core.components.ForgeSectionLabel
+import com.development.forge.core.components.ForgeWordmark
+import com.development.forge.core.components.PriorityChip
+import com.development.forge.core.designsystem.ForgeFonts
 
 /**
  * DESIGN SPECIFICATION — Home / Focus screen
@@ -321,7 +343,126 @@ import com.development.forge.core.components.Amber
 @Preview
 @Composable
 fun HomeScreen(modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = "HomeScreen", color = Amber)
+    Column(
+        modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .padding(top = 24.dp)
+            .padding(bottom = 28.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(modifier = Modifier, horizontalAlignment = Alignment.Start) {
+                Text(
+                    text = "Good morning.", style = TextStyle(
+                        fontFamily = ForgeFonts.spaceGrotesk,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.W600,
+                        letterSpacing = (-0.025).em,
+                        lineHeight = (1.1).em,
+                        color = Color(0xFFF5EDDE)
+                    )
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "WED 15 JUL · 3 DONE", style = TextStyle(
+                        fontFamily = ForgeFonts.jetbrainsMono,
+                        fontSize = 12.sp,
+                        letterSpacing = (0.1).em,
+                        color = Color(0xFF7A7060)
+                    )
+                )
+            }
+            ForgeWordmark()
+        }
+        /** ═══════════════════════════════════════════════════════════════
+         * SECTION 2 — THE FOCUS CARD (only rendered when a focus task exists)
+         * ═══════════════════════════════════════════════════════════════
+         * This is the heart of the screen — the single task the user should be working
+         * on, given full visual weight.
+         *
+         * Start with a 28dp gap after the greeting row.
+         *
+         * Then a section label reading "The only task". This label has no action button
+         * on its right side.
+         *
+         * Then a 10dp gap, followed by the card itself: a ForgeCard with its accent
+         * variant enabled (the amber-tinted version), padded 22dp at the top, 20dp on
+         * the sides, and 20dp at the bottom. The whole card is tappable, and tapping it
+         * opens the task's detail screen.
+         *
+         * Inside the card, arranged in a Column:
+         *
+         *   First, a Row with a 10dp gap between its children, vertically centred:
+         *   the task's priority chip (the normal size, not the dense variant), and if
+         *   the task belongs to a project, the project's name in Space Grotesk at
+         *   12.5sp, colour #B5A990.
+         *
+         *   Then a 16dp gap.
+         *
+         *   Then the task's title, which is the largest text on the card:
+         *   Space Grotesk, 26sp, weight 600, letter spacing -0.02em, line height 1.15em,
+         *   colour #F5EDDE.
+         *
+         *   Then, only if the task has a due date, a 12dp gap followed by the due chip.
+         *
+         *   Then a 20dp gap.
+         *
+         *   Finally, a primary button reading "Mark it done" with a check icon, which
+         *   marks the focus task as complete.
+         *
+         *   One thing to verify on a real device: tapping this button must NOT also
+         *   trigger the card's own tap action and open the detail screen. In Compose a
+         *   button normally consumes the tap itself, so this should work without any
+         *   special handling — but confirm it, because nested clickables are a common
+         *   source of surprises.*/
+        Spacer(modifier = Modifier.height(28.dp))
+        ForgeSectionLabel(label = "The only task", onAction = null)
+        /*Then a 10dp gap, followed by the card itself: a ForgeCard with its accent
+         * variant enabled (the amber-tinted version), padded 22dp at the top, 20dp on
+         * the sides, and 20dp at the bottom. The whole card is tappable, and tapping it
+         * opens the task's detail screen.*/
+        Spacer(modifier = Modifier.height(10.dp))
+        /*Then the task's title, which is the largest text on the card:
+         *   Space Grotesk, 26sp, weight 600, letter spacing -0.02em, line height 1.15em,
+         *   colour #F5EDDE.
+         *
+         *   Then, only if the task has a due date, a 12dp gap followed by the due chip.
+         *
+         *   Then a 20dp gap.
+         *
+         *   Finally, a primary button reading "Mark it done" with a check icon, which
+         *   marks the focus task as complete.*/
+        Card(
+            modifier = Modifier
+                .clickable(
+                    enabled = true,
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {
+
+                    }
+                )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 22.dp)
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 20.dp)
+            ) {
+                Row(
+                    modifier = Modifier,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PriorityChip()
+                    Spacer(modifier = Modifier.width(10.dp))
+                }
+            }
+        }
     }
 }

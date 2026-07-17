@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,20 +14,26 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -155,6 +162,59 @@ private val navigations = listOf(
 
 @Preview
 @Composable
+fun ForgeBottomNavigationBarAddButton(modifier: Modifier = Modifier, onSelect: () -> Unit = { }) {
+    /** THE ICON, for the Add button (the special one):
+     *   It sits inside an amber pill: 44dp wide, 32dp tall, 12dp corner radius,
+     *   filled with solid amber #F58A00.
+     *   The pill carries a glow: amber at 35% opacity, offset 4dp downward, reaching
+     *   about 14dp outward.
+     *   The icon inside is 24dp and coloured #1A1207 (the dark on-amber colour), NOT
+     *   amber and NOT tertiary.
+     *   Critically, the Add button NEVER shows an active state. It is always drawn
+     *   the same way, because it does not represent a destination — it opens a sheet.*/
+    Column(
+        modifier = modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {
+                    onSelect()
+                }
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .width(44.dp)
+                .height(32.dp)
+                .dropShadow(
+                    shape = RoundedCornerShape(12.dp),
+                    shadow = Shadow(
+                        radius = 14.dp,
+                        offset = DpOffset(0.dp, 4.dp),
+                        color = Amber.copy(alpha = 0.35f)
+                    )
+                )
+                .clip(RoundedCornerShape(12.dp))
+                .background(Amber),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Filled.Add, null, modifier = Modifier.size(24.dp), tint = Color(0xFF1A1207))
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Add",
+            fontFamily = ForgeFonts.spaceGrotesk,
+            fontSize = (10.5).sp,
+            fontWeight = FontWeight.W600,
+            letterSpacing = (0.02).em,
+            color = FgTertiary
+        )
+    }
+}
+
+@Preview
+@Composable
 fun ForgeBottomNavigationBarItem(
     modifier: Modifier = Modifier,
     current: ForgeNavKey = ForgeNavKey.Home,
@@ -178,7 +238,12 @@ fun ForgeBottomNavigationBarItem(
             ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(item.activeIcon, null, modifier = Modifier.size(24.dp), tint = color)
+        Icon(
+            item.activeIcon,
+            null,
+            modifier = Modifier.size(24.dp),
+            tint = color
+        )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = item.label,
@@ -199,17 +264,23 @@ fun ForgeBottomNavigationBar(
     onSelect: (ForgeNavKey) -> Unit = { },
     onAddClick: () -> Unit = { }
 ) {
-    val context = LocalContext.current
-    var selected by rememberSaveable { mutableStateOf(ForgeNavKey.Home.toString()) }
-
+    /** A 1dp border along the TOP edge only — cream at 10% opacity (border-default).
+     * Not a full border, just the top hairline separating the bar from the content
+     * above it. In Compose this is easiest as a drawBehind that draws a single line
+     * across the top edge, or a thin Box above the Row.*/
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 4.dp)
             .background(color = Oil)
             .drawBehind {
-
-            }) {
+                drawLine(
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, 0f),
+                    color = Color(0xFFF5EDDE).copy(alpha = 0.10f),
+                    strokeWidth = 1.dp.toPx()
+                )
+            }
+            .padding(bottom = 4.dp)) {
         /** A Column, horizontally centred, with a 4dp gap between the icon and its label.
          * The whole item is tappable, with no ripple — the colour change is the feedback.
          *
@@ -242,17 +313,30 @@ fun ForgeBottomNavigationBar(
          *   The colour animates over 160ms on the ease-out curve.
          *   The Add button's label is always tertiary, since it is never active.*/
         ForgeBottomNavigationBarItem(
-            Modifier.padding(top = 10.dp, bottom = 8.dp).weight(1f),
+            Modifier
+                .padding(top = 10.dp, bottom = 8.dp)
+                .weight(1f),
+            current = current,
             selection = 0,
             onSelect = { onSelect(ForgeNavKey.Home) }
         )
+        ForgeBottomNavigationBarAddButton(Modifier
+            .padding(top = 10.dp, bottom = 8.dp)
+            .weight(1f)) {
+        }
         ForgeBottomNavigationBarItem(
-            Modifier.padding(top = 10.dp, bottom = 8.dp).weight(1f),
+            Modifier
+                .padding(top = 10.dp, bottom = 8.dp)
+                .weight(1f),
+            current = current,
             selection = 1,
             onSelect = { onSelect(ForgeNavKey.Statistics) }
         )
         ForgeBottomNavigationBarItem(
-            Modifier.padding(top = 10.dp, bottom = 8.dp).weight(1f),
+            Modifier
+                .padding(top = 10.dp, bottom = 8.dp)
+                .weight(1f),
+            current = current,
             selection = 2,
             onSelect = { onSelect(ForgeNavKey.Settings) }
         )

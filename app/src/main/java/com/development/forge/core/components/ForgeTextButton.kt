@@ -16,16 +16,20 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.development.forge.core.designsystem.ForgeFonts
 
+/*Only rendered when action is not null.
+ *   Space Grotesk, 13sp, weight 600, amber — your existing ForgeTextButton*/
 @Preview
 @Composable
 fun ForgeTextButton(
     modifier: Modifier = Modifier,
     text: String = "Submit",
+    fontSize: TextUnit = 14.sp,
     onClick: () -> Unit = { },
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -49,7 +53,7 @@ fun ForgeTextButton(
             .padding(horizontal = 4.dp, vertical = 6.dp),
         style = TextStyle(
             fontFamily = ForgeFonts.spaceGrotesk,
-            fontSize = 14.sp,
+            fontSize = fontSize,
             fontWeight = FontWeight.W600,
             letterSpacing = (-0.005).em
         )
