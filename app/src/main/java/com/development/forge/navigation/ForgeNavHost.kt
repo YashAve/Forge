@@ -123,6 +123,7 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
     BackHandler {
         when (currentDestination) {
             Login, Registration -> backStack.clear()
+            ForgeNavKey.TaskList -> backStack.removeLastOrNull()
         }
     }
 
@@ -145,7 +146,7 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
         Scaffold(
             modifier = modifier, containerColor = Color.Transparent, topBar = {
                 when (currentDestination) {
-                    is Splash, is Success, is ForgeNavKey.OnboardingFlow, is ForgeNavKey.Home, is ForgeNavKey.Statistics, is ForgeNavKey.Settings -> { }
+                    is Splash, is Success, is ForgeNavKey.OnboardingFlow, is ForgeNavKey.Home, is ForgeNavKey.Statistics, is ForgeNavKey.Settings, is ForgeNavKey.TaskList -> {}
                     is Login, is Registration -> ForgeTopBar()
 
                     else -> ForgeTopBar(
@@ -234,10 +235,18 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                             backStack.add(Login)
                         }
                     }
-                    entry<ForgeNavKey.Home> { HomeScreen(basicModifier) }
+                    entry<ForgeNavKey.Home> {
+                        HomeScreen(basicModifier, onSeeAll = {
+                            backStack.add(ForgeNavKey.TaskList)
+                        })
+                    }
                     entry<ForgeNavKey.Statistics> { StatsScreen(basicModifier) }
                     entry<ForgeNavKey.Settings> { SettingsScreen(basicModifier) }
-                    entry<ForgeNavKey.TaskList> { TaskListScreen(basicModifier) }
+                    entry<ForgeNavKey.TaskList> {
+                        TaskListScreen(basicModifier, onBack = {
+                            backStack.removeLastOrNull()
+                        })
+                    }
                 },
             )
         }

@@ -95,13 +95,13 @@ val task5 = Task(
 
 val task6 = Task(
     id = "6",
-    title = "Book the October flight to Dubai",
+    title = "Book the November flight to Dubai",
     done = false,
     priority = Priority.HIGH,
     due = "This week",
     overdue = false,
     project = null,
-    notes = "Check Emirates and Air Arabia. Aim for the first week of October.",
+    notes = "Check Emirates and Air Arabia. Aim for the first week of November.",
     subtasks = listOf(
         Subtask("6a", "Compare flight prices"),
         Subtask("6b", "Confirm dates with Mum"),
