@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,11 +24,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.development.forge.core.components.DueChip
+import com.development.forge.core.components.ForgeButton
 import com.development.forge.core.components.ForgeCard
+import com.development.forge.core.components.ForgeEmptyState
 import com.development.forge.core.components.ForgeSectionLabel
+import com.development.forge.core.components.ForgeTaskRow
 import com.development.forge.core.components.ForgeWordmark
 import com.development.forge.core.components.PriorityChip
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.domain.model.Task
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 /**
  * DESIGN SPECIFICATION — Home / Focus screen
@@ -85,48 +96,6 @@ import com.development.forge.core.designsystem.ForgeFonts
  * On the RIGHT, the small ForgeWordmark component you have already built.
  *
  * ═══════════════════════════════════════════════════════════════
- * SECTION 2 — THE FOCUS CARD (only rendered when a focus task exists)
- * ═══════════════════════════════════════════════════════════════
- * This is the heart of the screen — the single task the user should be working
- * on, given full visual weight.
- *
- * Start with a 28dp gap after the greeting row.
- *
- * Then a section label reading "The only task". This label has no action button
- * on its right side.
- *
- * Then a 10dp gap, followed by the card itself: a ForgeCard with its accent
- * variant enabled (the amber-tinted version), padded 22dp at the top, 20dp on
- * the sides, and 20dp at the bottom. The whole card is tappable, and tapping it
- * opens the task's detail screen.
- *
- * Inside the card, arranged in a Column:
- *
- *   First, a Row with a 10dp gap between its children, vertically centred:
- *   the task's priority chip (the normal size, not the dense variant), and if
- *   the task belongs to a project, the project's name in Space Grotesk at
- *   12.5sp, colour #B5A990.
- *
- *   Then a 16dp gap.
- *
- *   Then the task's title, which is the largest text on the card:
- *   Space Grotesk, 26sp, weight 600, letter spacing -0.02em, line height 1.15em,
- *   colour #F5EDDE.
- *
- *   Then, only if the task has a due date, a 12dp gap followed by the due chip.
- *
- *   Then a 20dp gap.
- *
- *   Finally, a primary button reading "Mark it done" with a check icon, which
- *   marks the focus task as complete.
- *
- *   One thing to verify on a real device: tapping this button must NOT also
- *   trigger the card's own tap action and open the detail screen. In Compose a
- *   button normally consumes the tap itself, so this should work without any
- *   special handling — but confirm it, because nested clickables are a common
- *   source of surprises.
- *
- * ═══════════════════════════════════════════════════════════════
  * SECTION 3 — THE UP NEXT LIST (only when there are further tasks)
  * ═══════════════════════════════════════════════════════════════
  * Start with a 34dp gap after the focus card.
@@ -166,144 +135,7 @@ import com.development.forge.core.designsystem.ForgeFonts
  *
  *   Finally a call-to-action button reading "Add a task", which opens the Add
  *   sheet.
- *
- *
- * ═══════════════════════════════════════════════════════════════
- * ═══════════════════════════════════════════════════════════════
- * NEW COMPONENTS REQUIRED — build these before assembling the screen
- * ═══════════════════════════════════════════════════════════════
- * ═══════════════════════════════════════════════════════════════
- *
- * ───────────────────────────────────────────────────────────────
- * ForgeCard(accent: Boolean = false, onClick: (() -> Unit)? = null)
- * ───────────────────────────────────────────────────────────────
- * A rounded container with a 16dp corner radius and a background of #1C180F
- * (the raised surface colour).
- *
- * When accent is true, an additional diagonal gradient wash is layered ON TOP of
- * that background: a linear gradient running at roughly 160 degrees, starting at
- * amber with 10% opacity, reaching amber at 2% opacity by the 60% mark, then
- * transparent. In Compose, a top-left to bottom-right diagonal gradient is close
- * enough to the design's 160-degree angle.
- *
- * The border is 1dp. When accent is true it is amber at 28% opacity. Otherwise
- * it is the default border colour, which is cream at 10% opacity.
- *
- * The shadow differs by variant. The accent card gets a large, soft, dark
- * shadow: black at 38% opacity, offset 12dp downward, with a blur reach of about
- * 32dp. The plain card gets something much subtler: black at 28% opacity, offset
- * 2dp downward, blur reach about 14dp. (The design also layers a 1dp amber
- * hairline via a CSS shadow trick on the accent card — skip that, it does not
- * translate meaningfully to Compose.)
- *
- * When the card is tappable, pressing it scales it down to 0.99 over 120ms on
- * the ease-out curve. There is no ripple — set indication to null. The scale
- * itself is the press feedback.
- *
- * ───────────────────────────────────────────────────────────────
- * ForgeSectionLabel(text: String, action: String? = null, onAction: (() -> Unit)?)
- * ───────────────────────────────────────────────────────────────
- * A Row with its children pushed to opposite ends, aligned by their text
- * BASELINE rather than centred, with a 4dp gap beneath it.
- *
- * The label itself: JetBrains Mono, 11sp, weight 500, letter spacing 0.14em, all
- * uppercase, colour #7A7060.
- *
- * The optional action on the right is simply your existing ForgeTextButton at a
- * slightly smaller size: Space Grotesk, 13sp, weight 600, amber.
- *
- * ───────────────────────────────────────────────────────────────
- * ForgeCheckbox(checked: Boolean, onChange: (Boolean) -> Unit, size: Dp = 26.dp)
- * ───────────────────────────────────────────────────────────────
- * A rounded square, sized by the size parameter, with a 9dp corner radius and a
- * 2dp border.
- *
- * When unchecked, the border is cream at 18% opacity (border-strong) and the
- * background is transparent.
- *
- * When checked, both the border and the background become amber, and a glow is
- * added: amber at 40% opacity reaching about 12dp outward.
- *
- * The background and border colours animate over 160ms on the ease-out curve.
- *
- * Inside sits the check mark itself, sized 8dp smaller than the box, coloured
- * #1A1207 (the dark on-amber colour), at weight 700.
- *
- * When unchecked, the check mark is scaled to zero and fully transparent. When
- * checked, it scales to full size and becomes fully opaque.
- *
- * The critical detail: the check mark's SCALE animates on the ease-spring curve
- * — CubicBezierEasing(0.34, 1.56, 0.64, 1) — over 180ms. That curve overshoots
- * past its target before settling, and that overshoot is precisely what makes
- * the check feel satisfying rather than mechanical. Its opacity animates
- * separately, over 120ms on the ordinary ease-out curve.
- *
- * ───────────────────────────────────────────────────────────────
- * ForgePriorityChip(level: Priority, dense: Boolean = false)
- * ───────────────────────────────────────────────────────────────
- * A small pill with an 8dp corner radius. Padding is 2dp vertical and 8dp
- * horizontal in the dense variant, 4dp and 10dp otherwise.
- *
- * It contains a Row: a 5dp dot, a 5dp gap, then the label text in JetBrains
- * Mono, 10.5sp, weight 600, letter spacing 0.08em, all uppercase.
- *
- * The three levels differ in colour:
- *
- *   HIGH — background is solid amber #F58A00; both the text and the dot are
- *          #1A1207 (the dark on-amber colour). No border.
- *
- *   MED  — background is amber at 16% opacity; text and dot are #FFAA2E
- *          (amber-300). No border.
- *
- *   LOW  — background is #251F14 (the elevated surface); text and dot are
- *          #7A7060 (tertiary). This is the ONLY level with a border: 1dp of
- *          cream at 10% opacity.
- *
- * ───────────────────────────────────────────────────────────────
- * ForgeDueChip(label: String?, overdue: Boolean = false)
- * ───────────────────────────────────────────────────────────────
- * If the label is null, this renders nothing at all.
- *
- * Otherwise it is a Row with a 4dp gap: a "schedule" clock icon at 13dp in the
- * outline style, followed by the label text in JetBrains Mono, 11sp, weight 500,
- * letter spacing 0.04em.
- *
- * The colour depends on state: when overdue it is #E8624D (the danger colour),
- * otherwise #7A7060 (tertiary).
- *
- * ───────────────────────────────────────────────────────────────
- * ForgeTaskRow(task, onToggle, onOpen, compact: Boolean = false)
- * ───────────────────────────────────────────────────────────────
- * A Row, vertically centred, with a 14dp gap between children, tappable to open
- * the task's detail screen.
- *
- * Padding is 10dp vertical and 4dp horizontal when compact, 14dp and 4dp
- * otherwise.
- *
- * The entire row's opacity drops to 0.5 when the task is done, and returns to
- * 1.0 when it is not — animated over 200ms on the ease-out curve.
- *
- * On the LEFT sits the checkbox, sized 24dp when compact and 26dp otherwise,
- * which toggles the task's done state.
- *
- * The MIDDLE takes the remaining width (weight 1f), which matters: it means a
- * long title truncates rather than pushing the priority chip off the screen. It
- * contains:
- *
- *   The task's title in Space Grotesk — 14.5sp when compact, 15.5sp otherwise —
- *   weight 500, letter spacing -0.01em, colour #F5EDDE, limited to a single line
- *   with an ellipsis on overflow. When the task is done, the title gets a
- *   strikethrough.
- *
- *   Then, only if the task has a due date or a project, a 3dp gap followed by a
- *   Row with a 10dp gap containing the due chip and then the project name in
- *   Space Grotesk at 12sp, colour #7A7060.
- *
- * On the RIGHT, the task's priority chip in its dense variant — but ONLY when
- * the task is not done. Once a task is complete, its priority no longer matters,
- * so the chip disappears.
- *
- * ───────────────────────────────────────────────────────────────
+
  * ForgeEmptyState(icon, title, body, cta, onCta)
  * ───────────────────────────────────────────────────────────────
  * Specified in section four above.
@@ -339,23 +171,46 @@ import com.development.forge.core.designsystem.ForgeFonts
  */
 @Preview
 @Composable
-fun HomeScreen(modifier: Modifier = Modifier) {
+fun HomeScreen(
+    modifier: Modifier = Modifier,
+    tasks: List<Task> = com.development.forge.domain.model.tasks,
+    onToggle: (String) -> Unit = { },
+    onOpen: (String) -> Unit = { },
+    onSeeAll: () -> Unit = { },
+    onAdd: () -> Unit = { }
+) {
+    val open = tasks.filter { !it.done }
+    val focus = open.firstOrNull()
+    val upNext = open.drop(1).take(3)
+    val doneToday = tasks.count { it.done }
+
+    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    val greeting = when {
+        hour < 12 -> "Good morning."
+        hour < 18 -> "Good afternoon."
+        else      -> "Good evening."
+    }
+    val today = SimpleDateFormat("EEE dd MMM", Locale.ENGLISH)
+        .format(Date()).uppercase()
+    val metaLine = "$today · $doneToday DONE"
+
     Column(
         modifier
             .fillMaxSize()
             .padding(horizontal = 24.dp)
-            .padding(top = 24.dp)
-            .padding(bottom = 28.dp)
+            .padding(top = 24.dp, bottom = 28.dp)
             .verticalScroll(rememberScrollState())
     ) {
+        // ── Greeting row ──────────────────────────────────────
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            Column(modifier = Modifier, horizontalAlignment = Alignment.Start) {
+            Column(horizontalAlignment = Alignment.Start) {
                 Text(
-                    text = "Good morning.", style = TextStyle(
+                    text = greeting,
+                    style = TextStyle(
                         fontFamily = ForgeFonts.spaceGrotesk,
                         fontSize = 26.sp,
                         fontWeight = FontWeight.W600,
@@ -364,9 +219,10 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                         color = Color(0xFFF5EDDE)
                     )
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "WED 15 JUL · 3 DONE", style = TextStyle(
+                    text = metaLine,
+                    style = TextStyle(
                         fontFamily = ForgeFonts.jetbrainsMono,
                         fontSize = 12.sp,
                         letterSpacing = (0.1).em,
@@ -376,96 +232,87 @@ fun HomeScreen(modifier: Modifier = Modifier) {
             }
             ForgeWordmark()
         }
-        /** ═══════════════════════════════════════════════════════════════
-         * SECTION 2 — THE FOCUS CARD (only rendered when a focus task exists)
-         * ═══════════════════════════════════════════════════════════════
-         * This is the heart of the screen — the single task the user should be working
-         * on, given full visual weight.
-         *
-         * Start with a 28dp gap after the greeting row.
-         *
-         * Then a section label reading "The only task". This label has no action button
-         * on its right side.
-         *
-         * Then a 10dp gap, followed by the card itself: a ForgeCard with its accent
-         * variant enabled (the amber-tinted version), padded 22dp at the top, 20dp on
-         * the sides, and 20dp at the bottom. The whole card is tappable, and tapping it
-         * opens the task's detail screen.
-         *
-         * Inside the card, arranged in a Column:
-         *
-         *   First, a Row with a 10dp gap between its children, vertically centred:
-         *   the task's priority chip (the normal size, not the dense variant), and if
-         *   the task belongs to a project, the project's name in Space Grotesk at
-         *   12.5sp, colour #B5A990.
-         *
-         *   Then a 16dp gap.
-         *
-         *   Then the task's title, which is the largest text on the card:
-         *   Space Grotesk, 26sp, weight 600, letter spacing -0.02em, line height 1.15em,
-         *   colour #F5EDDE.
-         *
-         *   Then, only if the task has a due date, a 12dp gap followed by the due chip.
-         *
-         *   Then a 20dp gap.
-         *
-         *   Finally, a primary button reading "Mark it done" with a check icon, which
-         *   marks the focus task as complete.
-         *
-         *   One thing to verify on a real device: tapping this button must NOT also
-         *   trigger the card's own tap action and open the detail screen. In Compose a
-         *   button normally consumes the tap itself, so this should work without any
-         *   special handling — but confirm it, because nested clickables are a common
-         *   source of surprises.*/
-        Spacer(modifier = Modifier.height(28.dp))
-        ForgeSectionLabel(label = "The only task", onAction = null)
-        /*Then a 10dp gap, followed by the card itself: a ForgeCard with its accent
-         * variant enabled (the amber-tinted version), padded 22dp at the top, 20dp on
-         * the sides, and 20dp at the bottom. The whole card is tappable, and tapping it
-         * opens the task's detail screen.*/
-        Spacer(modifier = Modifier.height(10.dp))
-        /*Then the task's title, which is the largest text on the card:
-         *   Space Grotesk, 26sp, weight 600, letter spacing -0.02em, line height 1.15em,
-         *   colour #F5EDDE.
-         *
-         *   Then, only if the task has a due date, a 12dp gap followed by the due chip.
-         *
-         *   Then a 20dp gap.
-         *
-         *   Finally, a primary button reading "Mark it done" with a check icon, which
-         *   marks the focus task as complete.*/
-        /*The ForgeCard background colours — you're right,
-         I gave you the spec in the big HomeScreen doc but let me pull it out cleanly so it's
-         in one place:
-         Plain card (accent = false):
-         Background: #1C180F (bg-raised)
-         Border: 1dp, cream at 10% opacity — Color(0xFFF5EDDE).copy(alpha = 0.10f)
-         Shadow: black at 28% opacity, offset 2dp down, radius 14dp
-         Accent card (accent = true) — the focus card:
-         Background: #1C180F (same base) PLUS a diagonal gradient wash layered on top
-         That gradient: Brush.linearGradient from top-left to bottom-right:
-         0f to Amber.copy(alpha = 0.10f) — amber at 10% at the top-left
-         0.6f to Amber.copy(alpha = 0.02f) — nearly gone by 60%
-         1f to Color.Transparent — fully transparent at the bottom-right
-         Border: 1dp, amber at 28% opacity — Amber.copy(alpha = 0.28f)
-         Shadow: black at 38% opacity, offset 12dp down, radius 32dp — noticeably larger
-         and darker than the plain card, giving the focus card real visual weight*/
-        ForgeCard {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 22.dp)
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 20.dp)
-            ) {
-                Row(
-                    modifier = Modifier,
-                    verticalAlignment = Alignment.CenterVertically
+
+        Spacer(Modifier.height(28.dp))
+
+        if (focus != null) {
+            // ── Focus card ────────────────────────────────────
+            ForgeSectionLabel(label = "The only task")
+            Spacer(Modifier.height(10.dp))
+            ForgeCard(accent = true, onClick = { onOpen(focus.id) }) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 22.dp, bottom = 20.dp)
+                        .padding(horizontal = 20.dp)
                 ) {
-                    PriorityChip()
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        PriorityChip(level = focus.priority)   // not dense
+                        focus.project?.let {
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = it,
+                                style = TextStyle(
+                                    fontFamily = ForgeFonts.spaceGrotesk,
+                                    fontSize = 12.5.sp,
+                                    color = Color(0xFFB5A990)
+                                )
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = focus.title,
+                        style = TextStyle(
+                            fontFamily = ForgeFonts.spaceGrotesk,
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.W600,
+                            letterSpacing = (-0.02).em,
+                            lineHeight = (1.15).em,
+                            color = Color(0xFFF5EDDE)
+                        )
+                    )
+                    focus.due?.let {
+                        Spacer(Modifier.height(12.dp))
+                        DueChip(label = it, overdue = focus.overdue)
+                    }
+                    Spacer(Modifier.height(20.dp))
+                    ForgeButton(
+                        label = "Mark it done",
+                        isEnabled = true,
+                        isLoading = false,
+                        icon = Icons.Filled.Check,
+                        onClick = { onToggle(focus.id) }
+                    )
                 }
             }
+
+            // ── Up next ───────────────────────────────────────
+            if (upNext.isNotEmpty()) {
+                Spacer(Modifier.height(34.dp))
+                ForgeSectionLabel(
+                    label = "Up next",
+                    action = "All tasks",
+                    onAction = onSeeAll
+                )
+                Spacer(Modifier.height(4.dp))
+                upNext.forEach { task ->
+                    ForgeTaskRow(
+                        task = task,
+                        onToggle = onToggle,
+                        onOpen = onOpen,
+                        compact = true
+                    )
+                }
+            }
+        } else {
+            // ── Empty state ───────────────────────────────────
+            ForgeEmptyState(
+                title = "Nothing left to forge.",
+                body = "You've cleared today. Rest, or line up what's next.",
+                cta = "Add a task",
+                onCta = onAdd
+            )
         }
     }
 }

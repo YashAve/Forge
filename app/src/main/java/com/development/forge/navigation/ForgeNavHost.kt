@@ -41,6 +41,7 @@ import com.development.forge.feature.onboarding.OnboardingFlowScreen
 import com.development.forge.feature.settings.SettingsScreen
 import com.development.forge.feature.splash.SplashScreen
 import com.development.forge.feature.stats.StatsScreen
+import com.development.forge.feature.tasks.TaskListScreen
 import com.development.forge.navigation.ForgeNavKey.EmailSent
 import com.development.forge.navigation.ForgeNavKey.ForgotPassword
 import com.development.forge.navigation.ForgeNavKey.Login
@@ -116,7 +117,7 @@ import com.development.forge.navigation.ForgeNavKey.Success
 @Composable
 fun ForgeNavHost(modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val backStack = rememberNavBackStack(Splash)
+    val backStack = rememberNavBackStack(ForgeNavKey.Home)
     val currentDestination = backStack.lastOrNull()
 
     BackHandler {
@@ -236,6 +237,7 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                     entry<ForgeNavKey.Home> { HomeScreen(basicModifier) }
                     entry<ForgeNavKey.Statistics> { StatsScreen(basicModifier) }
                     entry<ForgeNavKey.Settings> { SettingsScreen(basicModifier) }
+                    entry<ForgeNavKey.TaskList> { TaskListScreen(basicModifier) }
                 },
             )
         }

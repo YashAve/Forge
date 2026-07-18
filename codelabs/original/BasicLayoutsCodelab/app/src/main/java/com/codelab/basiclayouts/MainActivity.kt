@@ -85,7 +85,7 @@ fun HomeSection(
 
 // Step: Home screen - Scrolling
 @Composable
-fun HomeScreen(modifier: Modifier = Modifier) {
+private fun HomeScreen(modifier: Modifier = Modifier) {
     // Implement composable here
 }
 

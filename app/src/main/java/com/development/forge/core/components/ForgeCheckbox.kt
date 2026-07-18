@@ -1,7 +1,9 @@
 package com.development.forge.core.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.EaseOut
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -125,43 +127,12 @@ import androidx.compose.ui.unit.dp
  * @param modifier  applied to the root box for external positioning.
  */
 
-/** ═══════════════════════════════════════════════════════════════
- * THE CHECK MARK — two separate animations
- * ═══════════════════════════════════════════════════════════════
- * The check icon sits centered inside the box. Its size is (boxSize - 8)dp — so
- * for a 26dp box the check is 18dp. Its color is #1A1207 (fg-on-amber, the dark
- * color that reads against the amber fill). Weight 700 (bold).
- *
- * It has TWO independent animations running at once:
- *
- * SCALE (the satisfying one — spring/overshoot):
- *   unchecked → 0f (invisible, collapsed to nothing)
- *   checked   → 1f (full size)
- *   animationSpec: tween(180, easing = CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f))
- *   That curve OVERSHOOTS past 1.0 before settling — the check mark briefly
- *   grows larger than full size, then snaps back. This overshoot IS the
- *   satisfying feeling. It reads as physical momentum, like a stamp landing.
- *
- * ALPHA (fades in cleanly):
- *   unchecked → 0f (transparent)
- *   checked   → 1f (opaque)
- *   animationSpec: tween(120, easing = EaseOut)
- *   Faster than the scale, and no overshoot — alpha just ensures the check
- *   doesn't pop in hard. The scale does the character work; alpha smooths the
- *   entrance.
- *
- * Apply BOTH via a single graphicsLayer on the check icon:
- *   Modifier.graphicsLayer {
- *       scaleX = scale
- *       scaleY = scale
- *       this.alpha = alpha
- *   }*/
 @Preview
 @Composable
 fun ForgeCheckbox(
     modifier: Modifier = Modifier,
     checked: Boolean = true,
-    onChange: () -> Unit = { },
+    onChange: (Boolean) -> Unit = { },
     size: Dp = 24.dp
 ) {
     val backgroundColor by animateColorAsState(
@@ -172,12 +143,22 @@ fun ForgeCheckbox(
         targetValue = if (checked) Amber else Color(0xFFF5EDDE).copy(alpha = 0.18f),
         animationSpec = tween(160, easing = EaseOut)
     )
+    val checkBoxSpring by animateFloatAsState(
+        targetValue = if (checked) 1f else 0f,
+        animationSpec = tween(
+            180, easing = CubicBezierEasing(
+                0.34f, 1.56f, 0.64f, 1f
+            )
+        )
+    )
+    val checkBoxAlpha by animateFloatAsState(
+        targetValue = if (checked) 1f else 0f,
+        animationSpec = tween(120, easing = EaseOut)
+    )
+
     Box(
         modifier
             .size(size)
-            .graphicsLayer {
-
-            }
             .then(
                 if (checked) Modifier.dropShadow(
                     shape = RoundedCornerShape(9.dp),
@@ -200,14 +181,22 @@ fun ForgeCheckbox(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 enabled = true,
-                onClick = onChange
+                onClick = {
+                    onChange(!checked)
+                }
             ),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             Icons.Filled.Check,
             null,
-            modifier = Modifier.size(size - 8.dp),
+            modifier = Modifier
+                .size(size - 8.dp)
+                .graphicsLayer {
+                    scaleX = checkBoxSpring
+                    scaleY = checkBoxSpring
+                    alpha = checkBoxAlpha
+                },
             tint = Color(0xFF1A1207)
         )
     }

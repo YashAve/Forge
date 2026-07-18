@@ -59,7 +59,7 @@ import kotlinx.coroutines.launch
  * @param openDrawer (event) request opening the app drawer
  */
 @Composable
-fun HomeScreen(
+private fun HomeScreen(
     postsRepository: PostsRepository,
     navigateToArticle: (String) -> Unit,
     openDrawer: () -> Unit,
@@ -83,7 +83,7 @@ fun HomeScreen(
  * @param openDrawer (event) request opening the app drawer
  */
 @Composable
-fun HomeScreen(
+private fun HomeScreen(
     posts: List<Post>,
     navigateToArticle: (String) -> Unit,
     openDrawer: () -> Unit,
