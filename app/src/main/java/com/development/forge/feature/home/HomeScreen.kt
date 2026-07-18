@@ -1,7 +1,5 @@
 package com.development.forge.feature.home
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,10 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,6 +22,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.development.forge.core.components.ForgeCard
 import com.development.forge.core.components.ForgeSectionLabel
 import com.development.forge.core.components.ForgeWordmark
 import com.development.forge.core.components.PriorityChip
@@ -437,17 +434,23 @@ fun HomeScreen(modifier: Modifier = Modifier) {
          *
          *   Finally, a primary button reading "Mark it done" with a check icon, which
          *   marks the focus task as complete.*/
-        Card(
-            modifier = Modifier
-                .clickable(
-                    enabled = true,
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {
-
-                    }
-                )
-        ) {
+        /*The ForgeCard background colours — you're right,
+         I gave you the spec in the big HomeScreen doc but let me pull it out cleanly so it's
+         in one place:
+         Plain card (accent = false):
+         Background: #1C180F (bg-raised)
+         Border: 1dp, cream at 10% opacity — Color(0xFFF5EDDE).copy(alpha = 0.10f)
+         Shadow: black at 28% opacity, offset 2dp down, radius 14dp
+         Accent card (accent = true) — the focus card:
+         Background: #1C180F (same base) PLUS a diagonal gradient wash layered on top
+         That gradient: Brush.linearGradient from top-left to bottom-right:
+         0f to Amber.copy(alpha = 0.10f) — amber at 10% at the top-left
+         0.6f to Amber.copy(alpha = 0.02f) — nearly gone by 60%
+         1f to Color.Transparent — fully transparent at the bottom-right
+         Border: 1dp, amber at 28% opacity — Amber.copy(alpha = 0.28f)
+         Shadow: black at 38% opacity, offset 12dp down, radius 32dp — noticeably larger
+         and darker than the plain card, giving the focus card real visual weight*/
+        ForgeCard {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
