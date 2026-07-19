@@ -1,171 +1,134 @@
 # Handoff note — laptop → desktop
 
-**From:** laptop Claude session · **Date:** 2026-07-19 · **On top of:** `65050ea`
+**From:** laptop Claude session · **Date:** 2026-07-20 · **On top of:** `197b1c4`
 
 Tree is green: `./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**.
 
-This is the push where the task flow becomes real end to end: Home → Task List → Task
-Detail all navigate, with a shared top bar and an id-based detail route.
+**This is a work-in-progress push.** The Stats screen is mid-build — the new
+`ForgeProgressRing` Canvas is complete and real, but the screen around it stops partway
+(see ⚠️ 1). Committing it so the desktop has the ring component and can continue from the
+same point, not because Stats is done.
 
 ## ⚠️ Read first
 
-**1. The task-bucket overlap I flagged last note is still there.** `TaskListScreen`:
+**1. `StatsScreen` is a partial screen — it ends inside the streak card.** What's built and
+real: the header (title + mono subtitle), the hero `ForgeProgressRing`, and the
+"$done of $total tasks done today" caption. Then the streak `ForgeCard` shell renders with
+its 64dp fire-icon tile on the left — but **its right-hand `Column(weight = 1f)` is empty**,
+so the "9 / days / Current streak · personal best" content the spec calls for is missing.
+The card shows an icon and blank space. And **sections 4 (the two supporting stat cards) and
+5 (the week chart / WeekBars) don't exist yet** — the spec for them survives as a KDoc block
+inside the file. So on screen right now: title, ring, caption, half a card. It compiles and
+won't crash; it's just visibly unfinished. Pick up at the empty `Column`.
 
-```kotlin
-// mutually exclusive buckets — every active task lands in exactly one   ← not true
-val today   = active.filter { it.overdue || (it.due?.startsWith("Today") == true) }
-val someday = active.filter { it.due == null }
-```
+**2. The real, finished piece here is `ForgeProgressRing`** — and it's the app's first
+arc-based Canvas, so it's worth a look even though the screen isn't done. Two `drawArc`s
+(dark 360° track + ember-gradient progress sweep) inside an `inset(strokePx/2)` so the round
+caps don't clip, `startAngle = -90f` to begin at 12 o'clock, and the sweep-from-0 entry
+animation done correctly: `var target by remember { mutableFloatStateOf(0f) }` +
+`LaunchedEffect(value) { target = value }` feeding `animateFloatAsState`, because
+`animateFloatAsState` alone won't animate on first composition. Plus a breathing ambient
+glow via `rememberInfiniteTransition` (alpha 0.20↔0.40, 3600ms reverse). This is the "Canvas
+ring animation" task from the fixture (`task9`) actually built.
 
-A task with **`overdue = true` and `due = null`** matches both, putting the same `it.id`
-key twice in one `LazyColumn` → `IllegalArgumentException: Key "N" was already used…`.
-I re-audited all **20** fixture tasks this round: `task3` is the only overdue one and it
-has `due = "Yesterday"`, and there are no duplicate ids — so this is still **latent, not a
-live crash**. Fix stays one line: `val someday = active.filter { it.due == null && !it.overdue }`.
-
-**2. `TaskListScreen`'s `onBack` and `onAdd` are now dead parameters.** The top bar was
-(correctly) extracted to `ForgeTaskTopBar` and hoisted into the nav host's `Scaffold`, so
-nothing inside the screen calls either one any more — but `ForgeNavHost` still passes
-`onBack = { backStack.removeLastOrNull() }` and an `onAdd` TODO to it. Back *does* work,
-via the top bar's own `OnForgeOnBack`; the screen params are just wiring that looks live
-and isn't. Same shape in the screen body: a `// ── Top bar ───` comment now heads an empty
-region, followed by an orphaned `Spacer(Modifier.height(18.dp))` that used to separate the
-bar from the list.
-
-**3. `ForgeNavKey.kt` lost its trailing newline** (`\ No newline at end of file`) and its
-class-level KDoc — the block explaining that every key is `@Serializable` so Nav3 can
-save/restore the back stack across process death. That "why" isn't recorded anywhere else
-now; worth restoring since the next person adding a key needs to know it's a hard
-requirement, not a style choice.
+**3. The ring value round-trips through an integer percent and loses precision.**
+`StatsScreen` computes `percentage = done * 100 / total` (Int), then passes
+`value = percentage.toFloat() / 100f` to the ring while also using `"$percentage%"` as the
+label. So the arc and the number always agree — good — but both are quantised to whole
+percents (e.g. a true 65.7% draws as 65% / 0.65). Fine for a prototype; note it if the ring
+ever needs to look continuous.
 
 ## What this push adds (Yash's code)
 
-**`TaskDetailScreen` is real** — scrollable detail with the priority/project header, large
-title, due chip, notes, a `ForgeSectionLabel` subtask header carrying a live
-`${task.subtasks.count { it.isDone }}/${task.subtasks.size}` count, per-subtask
-`ForgeCheckbox`es each wired to `onToggleSub(subtask.id)` (correctly the *subtask* id, not
-the task's), and complete/reopen actions with `Check` / `Undo` icons.
+**`ForgeProgressRing(value, size, stroke, centerLabel, centerSub)`** — described above.
+Defaults to a 224dp / 18dp-stroke ring at 65%. Centre label is JetBrains Mono 40sp over a
+mono uppercase sub-label. It's a top-level `@Composable` in `StatsScreen.kt` (not its own
+file — worth extracting to `core/components` once Stats settles, since it's reusable).
 
-**`ForgeTaskTopBar` extracted as a shared component** — a titled bar with `onStart` /
-`onEnd` composable slots, hoisted into the nav host `Scaffold`'s `topBar` `when`. TaskList
-renders it as "All tasks" + Add; TaskDetail as "Task" + Edit. This is the reusable
-title-bar variant the Task List spec asked for, and it also removes the manual
-`.offset(x = ±10.dp)` optical hacks the inline version needed.
+**`StatsScreen` wired to real task data** — `total = tasks.size`, `done = tasks.count { done }`,
+integer `percentage`. With the current 20-task fixture (2 done) that's 10% → "2 of 20 tasks
+done today". Uses the whole list, matching the spec's "prototype uses all" note.
 
-**`OnForgeOnAdd` and `OnForgeOnEdit`** join the existing `OnForgeOnBack` slot pattern.
+**`ForgeNavHost`**: one cosmetic line — `rememberNavBackStack(ForgeNavKey.Splash)` →
+`rememberNavBackStack(Splash)`, using the import alias already present. No behavioural change.
 
-**Navigation is wired end to end.** `TaskDetail` carries `taskId: String` (not a `Task` —
-Nav3 keys must stay serializable primitives); the entry looks the task up with
-`tasks.find { it.id == key.taskId }` behind an `if (task != null)` guard; both Home's focus
-card / up-next rows and every Task List row push it. Boot is back on **`Splash`**, so the
-full splash → onboarding → home → list → detail run-through works.
+### Note on a carried default that happens to be right here
 
-**Fixture doubled**: 10 → 20 tasks, and `Task` / `Subtask` / `Priority` are now
-`@Serializable`.
-
-**Onboarding Mechanic + Promise**: design-spec KDoc consumed by the implementations; the
-Mechanic hero was restructured from the fixed 72dp positioning box to a 32dp label row with
-`verticalArrangement = Arrangement.Center`.
-
-### Fixed from my last notes ✅
-
-- **Bottom-nav tabs now replace instead of pushing** — `backStack.clear()` then
-  `backStack.add(key)`. This one had been carried since the first nav note; tapping tabs no
-  longer grows the stack forever.
-- **The debug `Toast` on every tab tap is gone.**
-- **`ForgeBottomNavigationBar` now takes a named `onAddClick`** instead of a dead trailing
-  lambda — still a TODO body, but it's a real named slot now.
-- **`BackHandler`'s `when` has an explicit `else -> {}`** rather than silently falling
-  through.
-- **A live bug fixed in passing**: `HomeScreen`'s up-next `forEach` passed
-  `onOpen = { onOpen(focus) }` — every up-next row would have opened the *focus* task's
-  detail instead of its own. Now `onOpen(task.id)`.
+`StatsScreen`'s streak card is `ForgeCard(modifier = Modifier.fillMaxWidth())` with no
+`accent` argument — and the spec wants `accent = true`. It gets it, because `ForgeCard`'s
+default is still `accent = true` (the long-standing "default drifts from spec" item). So
+this call site is correct *by accident of the wrong default*. Flagging because the day that
+default is fixed to `false`, this card silently loses its accent styling.
 
 ## Rough edges (documented, not fixed)
 
-**`BackHandler` still swallows hardware back on Home / Stats / Settings / Splash /
-Onboarding** — the `else -> {}` makes that explicit now, so it reads as deliberate rather
-than accidental. Note **`TaskDetail` is not in the `when` either**, so hardware back there
-depends entirely on `NavDisplay`'s own `onBack` winning the dispatcher. The top-bar back
-button works regardless, so this needs one on-device check rather than a code change —
-still the longest-running unverified item.
+**`StatsScreen.kt` has no trailing newline** (`\ No newline at end of file`) — same shape as
+`ForgeNavKey.kt` last push.
 
-**`ForgeTaskTopBar`'s `onStart` / `onEnd` are `@Composable` slots, not callbacks.** The
-`on*` prefix reads as an event handler everywhere else in this codebase (`onBack`,
-`onAdd`), so the signature `onStart: @Composable () -> Unit` is a small trap for the next
-caller — `leading` / `trailing` would say what they are. Also the default
-`label = "All Tasks"` (capital T) disagrees with the call site's `"All tasks"`.
+**Two `@Preview`s in one file** — both `ForgeProgressRing` and `StatsScreen` are annotated,
+which is handy for iterating the ring in isolation but means the file renders two preview
+tiles. Intentional-looking; noting so it's not mistaken for a stray.
 
-**`OnForgeOnAdd` / `OnForgeOnEdit` are top-level `val` composable lambdas, not
-`@Composable fun`s.** Consistent with `OnForgeOnBack`, so it's the house pattern rather
-than drift — but PascalCase `val`s that read as functions can't be `@Preview`ed directly
-(hence the separate wrapper previews in each file) and don't get the compiler's
-restartable/skippable treatment the way a real composable function does. Harmless at three
-call sites; worth a deliberate decision before the pattern spreads further.
-
-**The `TaskDetail` if-guard fails silently.** An id with no match renders nothing — but
-`ForgeTaskTopBar` for `TaskDetail` lives in the `Scaffold`'s `topBar`, *outside* the guard,
-so a bad id gives a "Task" bar over blank space with no clue why. Fine while every id comes
-from the same in-memory list; a real trap once ids arrive from a database or deep link.
-
-**`@Serializable` on `Task` / `Subtask` / `Priority` is now vestigial for its original
-purpose** — the nav key carries only a `String`. Harmless, and it'll be wanted the moment
-anything is persisted, but it's no longer load-bearing for navigation.
-
-**SOMEDAY still never renders.** Even at 20 tasks, every active task has a `due`; the only
-`due == null` task is `task8`, which is `done`. That branch has still never been seen on
-screen.
-
-**Still no `ForgeEmptyState` on Task List** for the all-empty case, per the spec.
-
-**Still no state anywhere.** `onToggle`, `onComplete`, `onToggleSub`, `onAdd`, `onEdit` are
-all TODO stubs against a top-level immutable `val tasks`. The detail screen's checkboxes
-animate and then snap back; nothing survives a recomposition, let alone navigation. Three
-screens are now visually complete and fully navigable with **zero** mutable state behind
-them — a ViewModel (or a hoisted `mutableStateListOf`) is the single change that lights all
-three up at once, and it's now clearly the next piece of work.
+**The section-4/5 spec is now a live KDoc block *inside* the composable body**, not above it
+— it sits between the caption and the streak card as a `/** … */`. It'll want deleting once
+those sections are built, the way the other screens' spec KDocs were consumed.
 
 ## Carried over (still open)
 
-- Bottom-nav icon outline→filled swap still doesn't happen (`activeIcon` always).
-- Bottom-nav Add button now has a named `onAddClick` but still an empty TODO body.
-- `HomeScreen` / `TaskListScreen` both default `tasks` to the fully-qualified
-  `com.development.forge.domain.model.tasks` inline rather than importing it.
-- `ForgeTaskRow`'s KDoc still says `onOpen` is "called with the task id" — it's `() -> Unit`
-  now, with the caller supplying the id.
-- `ForgeEmptyState`'s default body hardcodes a `\n` while `widthIn(max = 280.dp)` +
-  `TextAlign.Center` already handle the wrap.
-- `ForgeCard` defaults still `accent = true` / `onClick = { }` vs spec's `false` / `null`.
-- `ForgeSectionLabel` aligns `CenterVertically` while its KDoc says **baseline**.
-- `DueChip`'s `"High"` default label; `PriorityChip`'s non-exhaustive `when(level)`.
-- Onboarding finish/skip → `Login` vs spec's `Registration`.
-- `Motion.kt` still an empty TODO while screens hand-roll easing.
-- `designsystem/Color.kt` still carries none of the palette — `0xFFF5EDDE` alone is inlined
-  ~40× across the app, including in all three new components.
-- `gradle.properties`: dead `kapt.*` block; `org.gradle.tooling.parallel=true` inert on
-  Gradle 8.13; deprecated `kotlin.incremental.useClasspathSnapshot` still warns.
+- **Task List bucket overlap**: `overdue && due == null` lands in both TODAY and SOMEDAY →
+  duplicate `LazyColumn` key → crash. Still latent (no fixture task hits it). One-line fix:
+  `someday = active.filter { it.due == null && !it.overdue }`.
+- **`TaskListScreen`'s `onBack` / `onAdd` are dead params** since the top bar moved to the
+  nav host, but `ForgeNavHost` still passes them. Plus the orphaned `// ── Top bar ──`
+  comment + `Spacer(18.dp)` where the inline bar used to be.
+- **`ForgeNavKey.kt`** still missing its trailing newline and the class-level KDoc explaining
+  why every key must be `@Serializable` (Nav3 back-stack save/restore across process death).
+- **No mutable state anywhere.** `onToggle` / `onComplete` / `onToggleSub` / `onAdd` /
+  `onEdit` are all TODO stubs against the immutable top-level `val tasks`. Four screens now
+  navigate perfectly and mutate nothing. A ViewModel (or hoisted `mutableStateListOf`) is
+  still the one change that brings the whole app to life — and Stats now depends on it too
+  for a live completion count.
+- **`BackHandler`** swallows hardware back on Home / Stats / Settings / Splash / Onboarding
+  (explicit `else -> {}`); `TaskDetail` isn't in the `when`, so its hardware back rides on
+  `NavDisplay.onBack`. Top-bar back works everywhere. Needs one on-device check.
+- `ForgeTaskTopBar`'s `onStart` / `onEnd` are `@Composable` slots named like callbacks;
+  default `label = "All Tasks"` vs call-site `"All tasks"`.
+- `OnForgeOnAdd` / `OnForgeOnEdit` / `OnForgeOnBack` are top-level `val` composable lambdas,
+  not `@Composable fun`s (house pattern, but un-previewable without wrappers).
+- `TaskDetail` if-guard fails silently; its top bar (outside the guard) shows over blank.
+- `SOMEDAY` section still never renders; no `ForgeEmptyState` on Task List.
+- Bottom-nav icon outline→filled swap still doesn't happen (`activeIcon` always); Add button
+  named `onAddClick` but empty body.
+- `Home` / `TaskList` / `Stats` all default `tasks` to the fully-qualified path inline.
+- `ForgeTaskRow` KDoc still says `onOpen` "called with the task id" — it's `() -> Unit` now.
+- `ForgeEmptyState` default body hardcodes `\n`; `ForgeSectionLabel` centres vs KDoc's
+  baseline; `DueChip` `"High"` default; `PriorityChip` non-exhaustive `when`.
+- Onboarding finish/skip → `Login` vs spec's `Registration`; `Motion.kt` empty TODO.
+- `designsystem/Color.kt` still empty of palette — `0xFFF5EDDE` inlined ~40×, now also
+  `0xFF7A7060` / `0xFF251F14` / the ember hex triplet in the ring.
+- `gradle.properties`: dead `kapt.*`; inert `org.gradle.tooling.parallel=true`; deprecated
+  `useClasspathSnapshot` warns.
 - `SuccessScreen` "Reset prototype" button still not deleted.
-- **`codelabs/original/` drift is still unreverted** — `AccessibilityCodelab/.../HomeScreen.kt`
-  and `BasicLayoutsCodelab/.../MainActivity.kt` still carry `fun HomeScreen` →
-  `private fun HomeScreen` from an IDE quick-fix. `git checkout 55575c3 -- codelabs/original/`.
+- **`codelabs/original/` drift still unreverted** — two files with `fun HomeScreen` →
+  `private fun HomeScreen`. `git checkout 55575c3 -- codelabs/original/`.
 - Auth tail unchanged: EmailSent countdown/cooldown/unwired resend · px ember/width/
   textAlign · ForgeApplication dead font warm-up · email not threaded through nav ·
   letterSpacing typos · `isLoading` restore trap · inline ForgeDivider ·
-  **ForgeTextField focus ring still deleted (18th note running — restore block at
+  **ForgeTextField focus ring still deleted (19th note running — restore block at
   `git show 0c6ffa9:docs/HANDOFF.md`).**
 
 ## Toolchain
 
-Unchanged. Laptop runs Android Studio Quail 2's healthy JBR 21.0.10; launcher and
-`org.gradle.java.home` both resolve to it. No repo toolchain config touched this round.
+Unchanged. Laptop runs Android Studio Quail 2's healthy JBR 21.0.10. No repo toolchain
+config touched.
 
 ## Screen status — real vs stub
 
-Auth six near-complete. Onboarding feature-complete. **Home / Task List / Task Detail: all
-visually complete and fully navigable between each other** — and all three inert below the
-navigation layer. **Stats / Settings**: stubs. **Bottom nav**: tabs now replace correctly,
-active colour works, icon swap doesn't, Add button named but empty; correctly hidden on
-Task List and Task Detail. Boot seeds at `Splash`, so the whole flow is walkable.
+Auth six near-complete. Onboarding feature-complete. **Home / Task List / Task Detail:
+visually complete, fully navigable, inert below the nav layer.** **Stats: in progress** —
+`ForgeProgressRing` done, screen built through the header/ring/caption and into a
+half-finished streak card; stat cards + week chart not started. **Settings**: stub. Bottom
+nav: tabs replace correctly, active colour works, icon swap doesn't. Boot seeds at `Splash`.
 
 Design source is still the **Forge Design System** (external Claude Design project).
 
@@ -173,6 +136,5 @@ Design source is still the **Forge Design System** (external Claude Design proje
 
 `./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL** (full run on this exact tree).
 Pre-existing warnings only: deprecated `useClasspathSnapshot`, and the KSP/Hilt "no
-dependencies reported" note that comes with `ksp.incremental=false`. **Compile only — the
-app was not launched this round**, so the splash → onboarding → home → list → detail flow
-is verified to build, not verified to run.
+dependencies reported" note. **Compile only — the app was not launched**, so the ring's
+entry sweep and breathing glow are verified to build, not verified to animate on device.

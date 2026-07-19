@@ -56,7 +56,7 @@ import com.development.forge.navigation.ForgeNavKey.Success
 @Composable
 fun ForgeNavHost(modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val backStack = rememberNavBackStack(ForgeNavKey.Splash)
+    val backStack = rememberNavBackStack(Splash)
     val currentDestination = backStack.lastOrNull()
 
     BackHandler {
