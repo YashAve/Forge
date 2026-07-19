@@ -1,93 +1,88 @@
 # Handoff note — laptop → desktop
 
-**From:** laptop Claude session · **Date:** 2026-07-20 · **On top of:** `197b1c4`
+**From:** laptop Claude session · **Date:** 2026-07-20 · **On top of:** `041ae76`
 
-Tree is green: `./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**.
+Tree is green: full `--rerun-tasks` `./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**,
+no new warnings.
 
-**This is a work-in-progress push.** The Stats screen is mid-build — the new
-`ForgeProgressRing` Canvas is complete and real, but the screen around it stops partway
-(see ⚠️ 1). Committing it so the desktop has the ring component and can continue from the
-same point, not because Stats is done.
+**Stats screen is now feature-complete.** The last push stopped inside an empty streak
+card; this one fills in the streak content, both supporting stat cards, and the whole
+animated week chart. See ⚠️ 1 for the one thing still worth knowing about it.
 
 ## ⚠️ Read first
 
-**1. `StatsScreen` is a partial screen — it ends inside the streak card.** What's built and
-real: the header (title + mono subtitle), the hero `ForgeProgressRing`, and the
-"$done of $total tasks done today" caption. Then the streak `ForgeCard` shell renders with
-its 64dp fire-icon tile on the left — but **its right-hand `Column(weight = 1f)` is empty**,
-so the "9 / days / Current streak · personal best" content the spec calls for is missing.
-The card shows an icon and blank space. And **sections 4 (the two supporting stat cards) and
-5 (the week chart / WeekBars) don't exist yet** — the spec for them survives as a KDoc block
-inside the file. So on screen right now: title, ring, caption, half a card. It compiles and
-won't crash; it's just visibly unfinished. Pick up at the empty `Column`.
+**1. The week chart's data is mostly fake, and three "weekly completions" numbers
+disagree.** `StatsScreen` builds `data = listOf("M" to 3, "T" to 5, "W" to 2, "T" to 6,
+"F" to 4, "S" to 1, "S" to done)` — six hardcoded placeholder ints, and only the last
+entry (Sunday) uses the real `done` count. Separately, the "Done this week" stat card
+hardcodes `"1"`. So right now: the Sunday bar shows `done` (2, with the current 20-task
+fixture), the stat card says `1`, and neither is wired to the other or to anything real.
+The "Best day: Thursday" footer text is also a hardcoded string, not
+`data.maxBy { it.second }` — it happens to match the synthetic peak (Thursday's fake `6`
+is the highest value) purely by construction; change the placeholder numbers and it'll
+silently go stale. None of this is a bug to *fix* so much as a marker for where real
+weekly-completion tracking needs to plug in — today's percentage (from `total`/`done`)
+is the only genuinely live number on the whole screen.
 
-**2. The real, finished piece here is `ForgeProgressRing`** — and it's the app's first
-arc-based Canvas, so it's worth a look even though the screen isn't done. Two `drawArc`s
-(dark 360° track + ember-gradient progress sweep) inside an `inset(strokePx/2)` so the round
-caps don't clip, `startAngle = -90f` to begin at 12 o'clock, and the sweep-from-0 entry
-animation done correctly: `var target by remember { mutableFloatStateOf(0f) }` +
-`LaunchedEffect(value) { target = value }` feeding `animateFloatAsState`, because
-`animateFloatAsState` alone won't animate on first composition. Plus a breathing ambient
-glow via `rememberInfiniteTransition` (alpha 0.20↔0.40, 3600ms reverse). This is the "Canvas
-ring animation" task from the fixture (`task9`) actually built.
+**2. `ForgeProgressRing` is still the best-built piece here** — the app's first arc-based
+Canvas, unchanged since last push: two `drawArc`s inside `inset(strokePx/2)`,
+`startAngle = -90f`, correct sweep-from-0 entry animation, breathing ambient glow. The
+week-chart bars reuse the same animation pattern (remembered `target` + `LaunchedEffect`
++ `animateDpAsState` instead of `animateFloatAsState`) for their per-bar entry animation,
+so it's now used twice in one file — a candidate for extracting into a shared helper.
 
-**3. The ring value round-trips through an integer percent and loses precision.**
-`StatsScreen` computes `percentage = done * 100 / total` (Int), then passes
-`value = percentage.toFloat() / 100f` to the ring while also using `"$percentage%"` as the
-label. So the arc and the number always agree — good — but both are quantised to whole
-percents (e.g. a true 65.7% draws as 65% / 0.65). Fine for a prototype; note it if the ring
-ever needs to look continuous.
+**3. The ring value still round-trips through an integer percent** (`percentage = done *
+100 / total`, Int division) — arc and label always agree, both quantised to whole
+percents. Unchanged from last push, still fine for a prototype.
 
 ## What this push adds (Yash's code)
 
-**`ForgeProgressRing(value, size, stroke, centerLabel, centerSub)`** — described above.
-Defaults to a 224dp / 18dp-stroke ring at 65%. Centre label is JetBrains Mono 40sp over a
-mono uppercase sub-label. It's a top-level `@Composable` in `StatsScreen.kt` (not its own
-file — worth extracting to `core/components` once Stats settles, since it's reusable).
+**Streak card content** — "9" in mono 44sp baseline-aligned with "days" at 15sp, then a
+two-tone "Current streak · personal best" caption via `buildAnnotatedString` +
+`SpanStyle` ("Current streak" in `0xFFB5A990`, " · personal best" in `FgTertiary`).
 
-**`StatsScreen` wired to real task data** — `total = tasks.size`, `done = tasks.count { done }`,
-integer `percentage`. With the current 20-task fixture (2 done) that's 10% → "2 of 20 tasks
-done today". Uses the whole list, matching the spec's "prototype uses all" note.
+**Two supporting stat cards** (`Row` of two `ForgeCard(accent = false)`) — outlined
+`CheckCircle` icon over `"$percentage%"` / "Completion rate", and outlined `TaskAlt` icon
+over the hardcoded `"1"` / "Done this week" (see ⚠️ 1).
 
-**`ForgeNavHost`**: one cosmetic line — `rememberNavBackStack(ForgeNavKey.Splash)` →
-`rememberNavBackStack(Splash)`, using the import alias already present. No behavioural change.
-
-### Note on a carried default that happens to be right here
-
-`StatsScreen`'s streak card is `ForgeCard(modifier = Modifier.fillMaxWidth())` with no
-`accent` argument — and the spec wants `accent = true`. It gets it, because `ForgeCard`'s
-default is still `accent = true` (the long-standing "default drifts from spec" item). So
-this call site is correct *by accident of the wrong default*. Flagging because the day that
-default is fixed to `false`, this card silently loses its accent styling.
+**Week chart** — `ForgeSectionLabel("This week")` + a `ForgeCard` containing seven
+animated bars (`Modifier.dropShadow` + `Shadow` for the peak bar's glow, gradient fill on
+peak vs. flat translucent amber on the rest), a hairline divider, and a "Best day" footer
+row with an `EmojiEvents` trophy icon.
 
 ## Rough edges (documented, not fixed)
 
-**`StatsScreen.kt` has no trailing newline** (`\ No newline at end of file`) — same shape as
-`ForgeNavKey.kt` last push.
+**`StatsScreen.kt` still has no trailing newline.** Same shape as `ForgeNavKey.kt` and the
+prior Stats push.
 
-**Two `@Preview`s in one file** — both `ForgeProgressRing` and `StatsScreen` are annotated,
-which is handy for iterating the ring in isolation but means the file renders two preview
-tiles. Intentional-looking; noting so it's not mistaken for a stray.
+**Two `@Preview`s in one file** (`ForgeProgressRing` + `StatsScreen`) — unchanged, still
+looks intentional.
 
-**The section-4/5 spec is now a live KDoc block *inside* the composable body**, not above it
-— it sits between the caption and the streak card as a `/** … */`. It'll want deleting once
-those sections are built, the way the other screens' spec KDocs were consumed.
+**`Amber` / `Amber500` / `FgTertiary` are declared in `ForgeTextField.kt`**, not in
+`designsystem/Color.kt` (which is still empty of palette) — Stats imports them from
+there. Worth relocating whenever the palette file finally gets populated.
+
+**`Modifier.dropShadow` / `Shadow`** are newer Compose graphics APIs used for the peak-bar
+glow — compiled clean with no opt-in warning on this toolchain, but worth a specific
+on-device look since shadow/elevation APIs are exactly the kind of thing that can render
+differently than expected.
 
 ## Carried over (still open)
 
 - **Task List bucket overlap**: `overdue && due == null` lands in both TODAY and SOMEDAY →
-  duplicate `LazyColumn` key → crash. Still latent (no fixture task hits it). One-line fix:
+  duplicate `LazyColumn` key → crash. Still latent. One-line fix:
   `someday = active.filter { it.due == null && !it.overdue }`.
 - **`TaskListScreen`'s `onBack` / `onAdd` are dead params** since the top bar moved to the
   nav host, but `ForgeNavHost` still passes them. Plus the orphaned `// ── Top bar ──`
   comment + `Spacer(18.dp)` where the inline bar used to be.
-- **`ForgeNavKey.kt`** still missing its trailing newline and the class-level KDoc explaining
-  why every key must be `@Serializable` (Nav3 back-stack save/restore across process death).
+- **`ForgeNavKey.kt`** still missing its trailing newline and the class-level KDoc
+  explaining why every key must be `@Serializable`.
 - **No mutable state anywhere.** `onToggle` / `onComplete` / `onToggleSub` / `onAdd` /
-  `onEdit` are all TODO stubs against the immutable top-level `val tasks`. Four screens now
-  navigate perfectly and mutate nothing. A ViewModel (or hoisted `mutableStateListOf`) is
-  still the one change that brings the whole app to life — and Stats now depends on it too
-  for a live completion count.
+  `onEdit` are all TODO stubs against the immutable top-level `val tasks`. Five screens now
+  navigate and render perfectly and mutate nothing. A ViewModel (or hoisted
+  `mutableStateListOf`) is still the one change that brings the whole app to life — and
+  now it's also the one change that would let Stats compute a *real* week chart instead of
+  six placeholder numbers.
 - **`BackHandler`** swallows hardware back on Home / Stats / Settings / Splash / Onboarding
   (explicit `else -> {}`); `TaskDetail` isn't in the `when`, so its hardware back rides on
   `NavDisplay.onBack`. Top-bar back works everywhere. Needs one on-device check.
@@ -104,8 +99,7 @@ those sections are built, the way the other screens' spec KDocs were consumed.
 - `ForgeEmptyState` default body hardcodes `\n`; `ForgeSectionLabel` centres vs KDoc's
   baseline; `DueChip` `"High"` default; `PriorityChip` non-exhaustive `when`.
 - Onboarding finish/skip → `Login` vs spec's `Registration`; `Motion.kt` empty TODO.
-- `designsystem/Color.kt` still empty of palette — `0xFFF5EDDE` inlined ~40×, now also
-  `0xFF7A7060` / `0xFF251F14` / the ember hex triplet in the ring.
+- `designsystem/Color.kt` still empty of palette — see rough edge above re: `Amber` etc.
 - `gradle.properties`: dead `kapt.*`; inert `org.gradle.tooling.parallel=true`; deprecated
   `useClasspathSnapshot` warns.
 - `SuccessScreen` "Reset prototype" button still not deleted.
@@ -114,7 +108,7 @@ those sections are built, the way the other screens' spec KDocs were consumed.
 - Auth tail unchanged: EmailSent countdown/cooldown/unwired resend · px ember/width/
   textAlign · ForgeApplication dead font warm-up · email not threaded through nav ·
   letterSpacing typos · `isLoading` restore trap · inline ForgeDivider ·
-  **ForgeTextField focus ring still deleted (19th note running — restore block at
+  **ForgeTextField focus ring still deleted (20th note running — restore block at
   `git show 0c6ffa9:docs/HANDOFF.md`).**
 
 ## Toolchain
@@ -125,16 +119,18 @@ config touched.
 ## Screen status — real vs stub
 
 Auth six near-complete. Onboarding feature-complete. **Home / Task List / Task Detail:
-visually complete, fully navigable, inert below the nav layer.** **Stats: in progress** —
-`ForgeProgressRing` done, screen built through the header/ring/caption and into a
-half-finished streak card; stat cards + week chart not started. **Settings**: stub. Bottom
-nav: tabs replace correctly, active colour works, icon swap doesn't. Boot seeds at `Splash`.
+visually complete, fully navigable, inert below the nav layer. Stats: visually complete**
+too now — ring, streak card, stat cards, and week chart all render real layout, though the
+week chart's underlying numbers are mostly placeholder (see ⚠️ 1). **Settings**: stub.
+Bottom nav: tabs replace correctly, active colour works, icon swap doesn't. Boot seeds at
+`Splash`.
 
 Design source is still the **Forge Design System** (external Claude Design project).
 
 ## Verified
 
-`./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL** (full run on this exact tree).
-Pre-existing warnings only: deprecated `useClasspathSnapshot`, and the KSP/Hilt "no
-dependencies reported" note. **Compile only — the app was not launched**, so the ring's
-entry sweep and breathing glow are verified to build, not verified to animate on device.
+`./gradlew :app:compileDebugKotlin --rerun-tasks` → **BUILD SUCCESSFUL** (full run, not
+incremental, on this exact tree). Pre-existing warnings only: deprecated
+`useClasspathSnapshot`, and the KSP/Hilt "no dependencies reported" note. **Compile only —
+the app was not launched**, so the week chart's per-bar entry animation and the peak bar's
+dropShadow glow are verified to build, not verified to render/animate on device.
