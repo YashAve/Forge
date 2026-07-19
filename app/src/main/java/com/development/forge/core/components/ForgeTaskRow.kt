@@ -130,7 +130,7 @@ fun ForgeTaskRow(
     modifier: Modifier = Modifier,
     task: Task = com.development.forge.core.components.task,
     onToggle: (String) -> Unit = { },
-    onOpen: (String) -> Unit = { },
+    onOpen: () -> Unit = { },
     compact: Boolean = true
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -147,7 +147,7 @@ fun ForgeTaskRow(
                 interactionSource = interactionSource,
                 indication = null,
                 enabled = true,
-                onClick = { onOpen(task.id) }
+                onClick = { onOpen() }
             )
             .padding(
                 horizontal = 4.dp,

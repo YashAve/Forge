@@ -300,7 +300,7 @@ fun HomeScreen(
                     ForgeTaskRow(
                         task = task,
                         onToggle = onToggle,
-                        onOpen = onOpen,
+                        onOpen = { onOpen(task.id) },
                         compact = true
                     )
                 }
