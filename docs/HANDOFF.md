@@ -1,10 +1,44 @@
 # Handoff note — laptop → desktop
 
-**From:** laptop Claude session · **Date:** 2026-07-20 · **On top of:** `846ad76`
+**From:** laptop Claude session · **Date:** 2026-07-20
 
-Tree is green: `./gradlew :app:compileDebugKotlin --rerun-tasks` → **BUILD SUCCESSFUL**
-(17/17 tasks) and `./gradlew :app:lintDebug` → **BUILD SUCCESSFUL**, no new warnings.
-**Compile + lint only — the app was not launched on device/emulator.**
+Tree is green at each push below: `./gradlew :app:compileDebugKotlin --rerun-tasks` →
+**BUILD SUCCESSFUL** (17/17) and `./gradlew :app:lintDebug` → **BUILD SUCCESSFUL**, no new
+warnings. **Compile + lint only — the app was not launched on device/emulator.**
+
+---
+
+## Push 2 — `ForgePreferences` migrated to real DataStore (latest, on top of `3e4c0b3`)
+
+The earlier SharedPreferences shim is gone; `ForgePreferences` now uses Jetpack
+**DataStore Preferences**, as STEP 5 of the colour brief originally asked. This is the one
+push in this run that **touches Gradle** — done under an explicit instruction to add the
+dependency.
+
+- **Gradle:** added `datastore = "1.1.7"` + `androidx-datastore-preferences` to
+  `gradle/libs.versions.toml`, and `implementation(libs.androidx.datastore.preferences)` to
+  `app/build.gradle.kts`. No other build changes. Dependency resolves (`--rerun-tasks` clean).
+- **`ForgePreferences.kt`** — rewritten body-only; the **public API is byte-for-byte the same**
+  (`isDarkTheme(): Flow<Boolean>`, `suspend setDarkTheme(Boolean)`, default dark), so
+  `MainActivity` and every other call site are untouched. Now: a top-level
+  `Context.dataStore by preferencesDataStore(name = "forge_preferences")` delegate;
+  `isDarkTheme()` = `dataStore.data.map { it[KEY] ?: true }.distinctUntilChanged()`;
+  `setDarkTheme()` = `dataStore.edit { it[KEY] = isDark }`. The `callbackFlow`
+  /`OnSharedPreferenceChangeListener` plumbing is gone — DataStore's `.data` Flow gives change
+  notification for free.
+- **⚠️ No data migration.** The old shim wrote `forge_preferences.xml` (SharedPreferences);
+  DataStore writes `forge_preferences.preferences_pb` — different file, same name. Any flag a
+  user had already stored under the shim does **not** carry over. Harmless here: nothing
+  shipped, and the default is dark either way. If you ever need it, DataStore has
+  `SharedPreferencesMigration(context, "forge_preferences")` — one line in the
+  `preferencesDataStore(...)` `produceMigrations` arg — but I left it out as dead weight.
+
+Everything below this line describes Push 1 (`3e4c0b3`) and is still accurate **except** the
+old ⚠️ "SharedPreferences-backed, not DataStore" caveat, which Push 2 resolves.
+
+---
+
+## Push 1 — Settings screen + working theme toggle (`3e4c0b3`, on top of `846ad76`)
 
 **The theme switch now has a real UI.** The previous push centralised colours and added
 `ForgePreferences` (the persisted dark/light flag), but nothing called `setDarkTheme()` yet.
@@ -46,14 +80,12 @@ This push builds the Settings screen for real and wires a working toggle end to 
 device/emulator to confirm the animation, the recomposition, and the light-theme palette
 actually look right together. That's the natural next step before trusting this fully.
 
-**2. `ForgePreferences` is still SharedPreferences-backed, not DataStore** (unchanged from
-last push — DataStore isn't on the classpath, Gradle is off-limits). No new deviation here,
-just restating it since this push is what finally exercises `setDarkTheme()` for the first
-time.
+**2. ~~`ForgePreferences` is SharedPreferences-backed~~ — RESOLVED in Push 2 above.** It is
+now real Jetpack DataStore. (When Push 1 landed it was still the shim; left here for history.)
 
 **3. Notifications / Completion-sound toggles are cosmetic only.** Their state is a local
 `remember { mutableStateOf(...) }` in `SettingsScreen` — nothing persists them and nothing
-reads them elsewhere. Only the Theme row is wired to a real system (DataStore-shim +
+reads them elsewhere. Only the Theme row is wired to a real system (DataStore +
 recomposition). That's by design per the brief (only the theme switch needed to be real) but
 worth knowing if asked "does the sound toggle do anything" — no.
 

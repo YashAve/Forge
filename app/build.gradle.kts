@@ -98,6 +98,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.text.google.fonts)
 
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.datastore.preferences)
 
     implementation(libs.hilt.android)
     implementation(libs.androidx.compose.animation.core)
