@@ -20,7 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -30,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 
 /**
  * DESIGN SPECIFICATION — ForgeEmptyState
@@ -117,17 +117,17 @@ fun ForgeEmptyState(
             modifier = Modifier
                 .size(88.dp)
                 .clip(RoundedCornerShape(percent = 100))
-                .background(Amber.copy(alpha = 0.10f))
+                .background(ForgeTheme.colors.amber.copy(alpha = 0.10f))
                 .border(
                     border = BorderStroke(
                         width = 1.5.dp,
-                        color = Amber.copy(alpha = 0.30f)
+                        color = ForgeTheme.colors.amber.copy(alpha = 0.30f)
                     ),
                     shape = RoundedCornerShape(percent = 100)
                 ),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, modifier = Modifier.size(40.dp), Amber)
+            Icon(icon, null, modifier = Modifier.size(40.dp), ForgeTheme.colors.amber)
         }
         Spacer(modifier = Modifier.height(24.dp))
         Text(
@@ -136,7 +136,7 @@ fun ForgeEmptyState(
                 fontSize = 24.sp,
                 fontWeight = FontWeight.W600,
                 letterSpacing = (-0.02).em,
-                color = Color(0xFFF5EDDE)
+                color = ForgeTheme.colors.fgPrimary
             )
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -145,7 +145,7 @@ fun ForgeEmptyState(
                 fontFamily = ForgeFonts.spaceGrotesk,
                 fontSize = 15.sp,
                 lineHeight = 1.5.em,
-                color = Color(0xFFB5A990),
+                color = ForgeTheme.colors.fgSecondary,
                 textAlign = TextAlign.Center
             ), modifier = Modifier.widthIn(max = 280.dp)
         )

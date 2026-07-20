@@ -37,9 +37,8 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.development.forge.core.components.Amber
-import com.development.forge.core.components.FgTertiary
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 
 /**
  * DESIGN SPEC — Onboarding Step 3 of 3: The Discipline.
@@ -57,6 +56,9 @@ import com.development.forge.core.designsystem.ForgeFonts
 @Preview
 @Composable
 fun OnboardingDisciplineScreen(modifier: Modifier = Modifier) {
+    val amber = ForgeTheme.colors.amber            // captured for DrawScope (Canvas / drawBehind)
+    val bgRaised = ForgeTheme.colors.bgRaised      // captured for DrawScope
+    val fgTertiary = ForgeTheme.colors.fgTertiary  // captured for DrawScope
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -89,13 +91,13 @@ fun OnboardingDisciplineScreen(modifier: Modifier = Modifier) {
                         drawRoundRect(
                             topLeft = topLeft,
                             size = cardSize,
-                            color = Color(0xFF1C180F).copy(alpha = 0.4f),
+                            color = bgRaised.copy(alpha = 0.4f),
                             cornerRadius = corner
                         )
                         drawRoundRect(
                             topLeft = topLeft,
                             size = cardSize,
-                            color = FgTertiary.copy(alpha = 0.06f),
+                            color = fgTertiary.copy(alpha = 0.06f),
                             cornerRadius = corner,
                             style = Stroke(width = 1.dp.toPx())
                         )
@@ -110,13 +112,13 @@ fun OnboardingDisciplineScreen(modifier: Modifier = Modifier) {
                         drawRoundRect(
                             topLeft = topLeft,
                             size = cardSize,
-                            color = Color(0xFF1C180F).copy(alpha = 0.6f),
+                            color = bgRaised.copy(alpha = 0.6f),
                             cornerRadius = corner
                         )
                         drawRoundRect(
                             topLeft = topLeft,
                             size = cardSize,
-                            color = FgTertiary.copy(alpha = 0.10f),
+                            color = fgTertiary.copy(alpha = 0.10f),
                             cornerRadius = corner,
                             style = Stroke(width = 1.dp.toPx())
                         )
@@ -138,12 +140,12 @@ fun OnboardingDisciplineScreen(modifier: Modifier = Modifier) {
                             )
                         )
                         .clip(RoundedCornerShape(18.dp))
-                        .background(Color(0xFF251F14))
-                        .border(1.5.dp, Amber, RoundedCornerShape(18.dp))
+                        .background(ForgeTheme.colors.bgElev)
+                        .border(1.5.dp, amber, RoundedCornerShape(18.dp))
                         .drawBehind {
                             // 4dp amber focus ring — straddles the edge, half sits outside
                             drawRoundRect(
-                                color = Amber.copy(alpha = 0.16f),
+                                color = amber.copy(alpha = 0.16f),
                                 cornerRadius = CornerRadius(18.dp.toPx(), 18.dp.toPx()),
                                 style = Stroke(width = 4.dp.toPx())
                             )
@@ -165,13 +167,13 @@ fun OnboardingDisciplineScreen(modifier: Modifier = Modifier) {
                                     center = c,
                                     radius = 10.dp.toPx(),
                                     brush = Brush.radialGradient(
-                                        0f to Amber.copy(alpha = 0.8f),
+                                        0f to amber.copy(alpha = 0.8f),
                                         1f to Color.Transparent,
                                         center = c,
                                         radius = 10.dp.toPx()
                                     )
                                 )
-                                drawCircle(center = c, radius = 4.dp.toPx(), color = Amber)
+                                drawCircle(center = c, radius = 4.dp.toPx(), color = amber)
                             }
                             Spacer(Modifier.width(10.dp))
                             Text(
@@ -181,7 +183,7 @@ fun OnboardingDisciplineScreen(modifier: Modifier = Modifier) {
                                     fontSize = 10.sp,
                                     letterSpacing = 0.14.em,
                                     fontWeight = FontWeight.W600,
-                                    color = Amber
+                                    color = amber
                                 )
                             )
                             Spacer(Modifier.weight(1f))
@@ -190,7 +192,7 @@ fun OnboardingDisciplineScreen(modifier: Modifier = Modifier) {
                                 style = TextStyle(
                                     fontFamily = ForgeFonts.jetbrainsMono,
                                     fontSize = 10.sp,
-                                    color = FgTertiary
+                                    color = fgTertiary
                                 )
                             )
                         }
@@ -201,7 +203,7 @@ fun OnboardingDisciplineScreen(modifier: Modifier = Modifier) {
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.W600,
                                 letterSpacing = (-0.01).em,
-                                color = Color(0xFFF5EDDE)
+                                color = ForgeTheme.colors.fgPrimary
                             )
                         )
                     }
@@ -221,7 +223,7 @@ fun OnboardingDisciplineScreen(modifier: Modifier = Modifier) {
                     fontFamily = ForgeFonts.jetbrainsMono,
                     fontSize = 11.sp,
                     letterSpacing = 0.18.em,
-                    color = Amber
+                    color = amber
                 )
             )
             Spacer(Modifier.height(12.dp))
@@ -233,7 +235,7 @@ fun OnboardingDisciplineScreen(modifier: Modifier = Modifier) {
                     fontWeight = FontWeight.W600,
                     lineHeight = 1.1.em,
                     letterSpacing = (-0.025).em,
-                    color = Color(0xFFF5EDDE)
+                    color = ForgeTheme.colors.fgPrimary
                 )
             )
             Spacer(Modifier.height(12.dp))
@@ -243,7 +245,7 @@ fun OnboardingDisciplineScreen(modifier: Modifier = Modifier) {
                     fontFamily = ForgeFonts.spaceGrotesk,
                     fontSize = 16.sp,
                     lineHeight = 1.45.em,
-                    color = Color(0xFFB5A990)
+                    color = ForgeTheme.colors.fgSecondary
                 )
             )
         }

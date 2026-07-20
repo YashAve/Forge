@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 
 @Preview
 @Composable
@@ -25,11 +26,13 @@ fun ForgeWordmark(modifier: Modifier = Modifier, fontSize: TextUnit = 24.sp) {
 
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
-    val result = remember {
+    val fgPrimary = ForgeTheme.colors.fgPrimary   // read here — remember{} lambda is not @Composable
+    val amber = ForgeTheme.colors.amber           // captured for the DrawScope Canvas below
+    val result = remember(fgPrimary, fontSize) {
         measurer.measure(
             "Forge",
             style = TextStyle(
-                color = Color(0xFFF5EDDE),
+                color = fgPrimary,
                 fontFamily = ForgeFonts.spaceGrotesk,
                 fontWeight = FontWeight.W700,
                 fontSize = fontSize,
@@ -52,12 +55,12 @@ fun ForgeWordmark(modifier: Modifier = Modifier, fontSize: TextUnit = 24.sp) {
             radius = glowRadius,
             center = dotCenter,
             brush = Brush.radialGradient(
-                listOf(Color(0xFFF58A00).copy(alpha = 0.7f), Color.Transparent),
+                listOf(amber.copy(alpha = 0.7f), Color.Transparent),
                 center = dotCenter,
                 radius = glowRadius       // matches circle radius
             )
         )
 // 2. solid core SECOND (smaller, on top)
-        drawCircle(color = Color(0xFFF58A00), radius = 2.25f, center = dotCenter)
+        drawCircle(color = amber, radius = 2.25f, center = dotCenter)
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import com.development.forge.core.designsystem.ForgeTheme
 
 /**
  * DESIGN SPECIFICATION — ForgeCard
@@ -158,19 +159,19 @@ fun ForgeCard(
                 )
             )
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF1C180F))
+            .background(ForgeTheme.colors.bgRaised)
             .then(
                 if (accent) Modifier.background(
                     Brush.linearGradient(
-                        0.0f to Amber.copy(alpha = 0.10f),
-                        0.6f to Amber.copy(alpha = 0.02f),
+                        0.0f to ForgeTheme.colors.amber.copy(alpha = 0.10f),
+                        0.6f to ForgeTheme.colors.amber.copy(alpha = 0.02f),
                         1f to Color.Transparent
                     )
                 ) else Modifier
             )
             .border(
                 width = 1.dp,
-                color = if (accent) Amber.copy(alpha = 0.28f) else Color(0xFFF5EDDE).copy(alpha = 0.10f),
+                color = if (accent) ForgeTheme.colors.amber.copy(alpha = 0.28f) else ForgeTheme.colors.borderDefault,
                 shape = RoundedCornerShape(16.dp)
             )
             .then(

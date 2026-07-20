@@ -24,13 +24,14 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.development.forge.core.components.Amber
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 import kotlinx.coroutines.delay
 
 @Preview
 @Composable
 fun GlowingDot(modifier: Modifier = Modifier) {
+    val amber = ForgeTheme.colors.amber   // captured for the DrawScope Canvas below
     Canvas(
         modifier = modifier
             .size(200.dp)
@@ -41,7 +42,7 @@ fun GlowingDot(modifier: Modifier = Modifier) {
             center = quarter,
             radius = 70f,
             brush = Brush.radialGradient(
-                listOf(Amber, Color.Transparent),
+                listOf(amber, Color.Transparent),
                 center = quarter,
                 radius = 50f
             )

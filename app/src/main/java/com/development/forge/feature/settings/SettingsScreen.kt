@@ -7,12 +7,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.development.forge.core.components.Amber
+import com.development.forge.core.designsystem.ForgeTheme
 
 @Preview
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = "SettingsScreen", color = Amber)
+        Text(text = "SettingsScreen", color = ForgeTheme.colors.amber)
     }
 }

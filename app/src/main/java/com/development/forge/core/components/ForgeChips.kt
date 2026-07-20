@@ -18,7 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -26,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.domain.model.Priority
 
 @Preview
@@ -33,7 +33,7 @@ import com.development.forge.domain.model.Priority
 fun DueChip(
     modifier: Modifier = Modifier, label: String? = "High", overdue: Boolean = false
 ) {
-    val color = if (overdue) Color(0xFFE8624D) else FgTertiary
+    val color = if (overdue) ForgeTheme.colors.danger else ForgeTheme.colors.fgTertiary
     label?.let {
         Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
             Icon(
@@ -62,21 +62,21 @@ fun PriorityChip(
     modifier: Modifier = Modifier, level: Priority = Priority.HIGH, dense: Boolean = false
 ) {
     val backgroundColor = when (level) {
-        Priority.HIGH -> Amber
-        Priority.MED -> Amber.copy(alpha = 0.16f)
-        else -> Color(0xFF251F14)
+        Priority.HIGH -> ForgeTheme.colors.amber
+        Priority.MED -> ForgeTheme.colors.amber.copy(alpha = 0.16f)
+        else -> ForgeTheme.colors.bgElev
     }
     val color = when (level) {
-        Priority.HIGH -> Color(0xFF1A1207)
-        Priority.MED -> Color(0xFFFFAA2E)
-        else -> FgTertiary
+        Priority.HIGH -> ForgeTheme.colors.fgOnAmber
+        Priority.MED -> ForgeTheme.colors.amberA300
+        else -> ForgeTheme.colors.fgTertiary
     }
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .then(
                 if (level == Priority.LOW) Modifier.border(
-                    1.dp, Color(0xFFF5EDDE).copy(alpha = 0.10f), RoundedCornerShape(8.dp)
+                    1.dp, ForgeTheme.colors.borderDefault, RoundedCornerShape(8.dp)
                 )
                 else Modifier
             )

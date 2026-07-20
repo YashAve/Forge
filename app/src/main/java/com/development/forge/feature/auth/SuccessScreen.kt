@@ -17,7 +17,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -25,9 +24,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.development.forge.core.components.Amber
 import com.development.forge.core.components.ForgeButton
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 
 /**
  * DESIGN SPEC — Success screen (Screens.jsx → SuccessScreen).
@@ -66,6 +65,7 @@ fun SuccessScreen(
     email: String = "you@forge.app",
     onContinue: () -> Unit = { }
 ) {
+    val amber = ForgeTheme.colors.amber   // captured for the DrawScope Canvas below
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -83,12 +83,12 @@ fun SuccessScreen(
             Canvas(modifier = Modifier.fillMaxSize()) {
                 drawCircle(
                     radius = size.minDimension / 2,
-                    color = Amber.copy(alpha = 0.10f)
+                    color = amber.copy(alpha = 0.10f)
                     // no center param → defaults to size.width/2, size.height/2 ✓
                 )
                 drawCircle(
                     radius = size.minDimension / 2,
-                    color = Amber.copy(alpha = 0.30f),
+                    color = amber.copy(alpha = 0.30f),
                     style = Stroke(width = 1.5.dp.toPx())
                 )
             }
@@ -97,7 +97,7 @@ fun SuccessScreen(
                 null,
                 modifier = Modifier
                     .size(40.dp),
-                tint = Amber
+                tint = amber
             )
         }
         Spacer(modifier = Modifier.height(28.dp))
@@ -107,7 +107,7 @@ fun SuccessScreen(
                 fontSize = 32.sp,
                 fontWeight = FontWeight.W600,
                 letterSpacing = (-0.025).em,
-                color = Color(0xFFF5EDDE)
+                color = ForgeTheme.colors.fgPrimary
             )
         )
         Spacer(modifier = Modifier.height(14.dp))
@@ -117,7 +117,7 @@ fun SuccessScreen(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.W600,
                 letterSpacing = (-0.025).em,
-                color = Color(0xFFB5A990)
+                color = ForgeTheme.colors.fgSecondary
             )
         )
         Text(
@@ -125,7 +125,7 @@ fun SuccessScreen(
                 fontFamily = ForgeFonts.jetbrainsMono,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.W600,
-                color = Color(0xFFF5EDDE)
+                color = ForgeTheme.colors.fgPrimary
             )
         )
         Spacer(

@@ -41,6 +41,7 @@ import com.development.forge.core.components.ForgeSecondaryButton
 import com.development.forge.core.components.ForgeTextButton
 import com.development.forge.core.components.ForgeTextField
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 
 /**
  * DESIGN SPEC — Login screen (source: Forge Design System, Screens.jsx → LoginScreen).
@@ -149,7 +150,7 @@ fun LoginScreen(
                 lineHeight = (1.05).em,
                 letterSpacing = (-0.003).em
             ),
-            color = Color(0xFFF5EDDE)
+            color = ForgeTheme.colors.fgPrimary
         )
         Spacer(modifier = Modifier.height(14.dp))
         Text(
@@ -158,7 +159,7 @@ fun LoginScreen(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.W400,
                 lineHeight = (1.45).em,
-                color = Color(0xFFB5A990)
+                color = ForgeTheme.colors.fgSecondary
             )
         )
         Spacer(modifier = Modifier.height(40.dp))
@@ -204,7 +205,7 @@ fun LoginScreen(
             Spacer(
                 modifier = Modifier
                     .height(1.dp)
-                    .background(color = Color(0xFFF5EDDE).copy(alpha = 0.10f))
+                    .background(color = ForgeTheme.colors.borderDefault)
                     .weight(1f)
             )
             Text(
@@ -213,14 +214,14 @@ fun LoginScreen(
                     fontFamily = ForgeFonts.spaceGrotesk,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.W500,
-                    color = Color(0xFF7A7060)
+                    color = ForgeTheme.colors.fgTertiary
                 ),
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
             Spacer(
                 modifier = Modifier
                     .height(1.dp)
-                    .background(color = Color(0xFFF5EDDE).copy(alpha = 0.10f))
+                    .background(color = ForgeTheme.colors.borderDefault)
                     .weight(1f)
             )
         }
@@ -248,7 +249,7 @@ fun LoginScreen(
                     fontFamily = ForgeFonts.spaceGrotesk,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.W400,
-                    color = Color(0xFFB5A990)
+                    color = ForgeTheme.colors.fgSecondary
                 )
             )
             ForgeTextButton(text = "Forge an account") {

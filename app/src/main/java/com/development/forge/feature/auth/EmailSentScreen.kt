@@ -39,9 +39,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.development.forge.core.components.Amber
 import com.development.forge.core.components.ForgeButton
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 import kotlinx.coroutines.delay
 
 /**
@@ -98,6 +98,7 @@ fun EmailSentScreen(
     onResend: () -> Unit = { },
     onOpenEmail: () -> Unit = { }
 ) {
+    val amber = ForgeTheme.colors.amber   // captured for the DrawScope Canvas below
     var timer by rememberSaveable { mutableIntStateOf(45) }
     var send by rememberSaveable { mutableStateOf(false) }
     var enabled by rememberSaveable { mutableStateOf(true) }
@@ -145,11 +146,11 @@ fun EmailSentScreen(
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     drawCircle(
                         radius = size.minDimension / 2,
-                        color = Amber.copy(alpha = 0.10f)
+                        color = amber.copy(alpha = 0.10f)
                     )
                     drawCircle(
                         radius = size.minDimension / 2,
-                        color = Amber.copy(alpha = 0.30f),
+                        color = amber.copy(alpha = 0.30f),
                         style = Stroke(1.5f)
                     )
                     drawCircle(
@@ -158,7 +159,7 @@ fun EmailSentScreen(
                         brush = Brush.radialGradient(
                             center = Offset(size.width - 22f, 14f),
                             radius = 12f,
-                            colors = listOf(Amber.copy(alpha = 0.70f), Color.Transparent)
+                            colors = listOf(amber.copy(alpha = 0.70f), Color.Transparent)
                         )
                     )
                 }
@@ -166,7 +167,7 @@ fun EmailSentScreen(
                     Icons.Outlined.MarkEmailRead,
                     null,
                     modifier = Modifier.size(44.dp),
-                    tint = Amber
+                    tint = amber
                 )
             }
             Spacer(modifier = Modifier.height(32.dp))
@@ -176,7 +177,7 @@ fun EmailSentScreen(
                     fontSize = 32.sp,
                     fontWeight = FontWeight.W600,
                     letterSpacing = (-0.025).em,
-                    color = Color(0xFFF5EDDE)
+                    color = ForgeTheme.colors.fgPrimary
                 )
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -186,7 +187,7 @@ fun EmailSentScreen(
                     fontSize = 15.sp,
                     fontWeight = FontWeight.W600,
                     lineHeight = 1.5.em,
-                    color = Color(0xFFB5A990)
+                    color = ForgeTheme.colors.fgSecondary
                 ), modifier = Modifier.widthIn(max = 200.dp)
             )
             Spacer(modifier = Modifier.height(4.dp))
@@ -195,7 +196,7 @@ fun EmailSentScreen(
                     fontFamily = ForgeFonts.jetbrainsMono,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.W500,
-                    color = Color(0xFFF5EDDE)
+                    color = ForgeTheme.colors.fgPrimary
                 )
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -204,7 +205,7 @@ fun EmailSentScreen(
                     fontFamily = ForgeFonts.jetbrainsMono,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.W500,
-                    color = Color(0xFF7A7060)
+                    color = ForgeTheme.colors.fgTertiary
                 )
             )
         }
@@ -235,7 +236,7 @@ fun EmailSentScreen(
                     fontSize = 14.sp,
                     fontFamily = ForgeFonts.jetbrainsMono,
                     fontWeight = if (enabled) FontWeight.W600 else FontWeight.W500,
-                    color = if (enabled) Amber else Color(0xFF7A7060)
+                    color = if (enabled) amber else ForgeTheme.colors.fgTertiary
                 ),
                 modifier = Modifier.clickable(
                     enabled = enabled,

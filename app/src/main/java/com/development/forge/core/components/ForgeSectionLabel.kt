@@ -13,6 +13,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 
 /**
  * ForgeSectionLabel(text: String, action: String? = null, onAction: (() -> Unit)? = null)
@@ -53,7 +54,7 @@ fun ForgeSectionLabel(
                 fontSize = 11.sp,
                 fontWeight = FontWeight.W500,
                 letterSpacing = (0.14).em,
-                color = FgTertiary
+                color = ForgeTheme.colors.fgTertiary
             )
         )
         if (action != null) {

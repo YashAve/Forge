@@ -15,7 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -25,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.development.forge.core.components.ForgeButton
 import com.development.forge.core.components.ForgePasswordField
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 
 /**
  * DESIGN SPEC — Reset Password screen (Screens.jsx → ResetPasswordScreen).
@@ -107,7 +107,7 @@ fun ResetPasswordScreen(
                 fontWeight = FontWeight.W600,
                 lineHeight = (1.05).em,
                 letterSpacing = (-0.003).em
-            ), color = Color(0xFFF5EDDE)
+            ), color = ForgeTheme.colors.fgPrimary
         )
         Spacer(modifier = Modifier.height(14.dp))
         Text(
@@ -116,7 +116,7 @@ fun ResetPasswordScreen(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.W400,
                 lineHeight = (1.45).em,
-                color = Color(0xFFB5A990)
+                color = ForgeTheme.colors.fgSecondary
             )
         )
         Spacer(modifier = Modifier.height(40.dp))

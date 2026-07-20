@@ -31,6 +31,7 @@ import com.development.forge.core.components.ForgeTopBar
 import com.development.forge.core.components.OnForgeOnAdd
 import com.development.forge.core.components.OnForgeOnBack
 import com.development.forge.core.components.OnForgeOnEdit
+import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.feature.auth.EmailSentScreen
 import com.development.forge.feature.auth.ForgotPasswordScreen
 import com.development.forge.feature.auth.LoginScreen
@@ -59,6 +60,8 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
     val backStack = rememberNavBackStack(Splash)
     val currentDestination = backStack.lastOrNull()
 
+    val amber = ForgeTheme.colors.amber   // captured for the drawBehind ambient wash below
+
     BackHandler {
         when (currentDestination) {
             Login, Registration -> backStack.clear()
@@ -70,7 +73,7 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF14110C))
+            .background(ForgeTheme.colors.bgBase)
             .statusBarsPadding()
             .drawBehind {
                 drawRect(
@@ -78,7 +81,7 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                     size = Size(size.width, size.height),
                     brush = Brush.radialGradient(
                         listOf(
-                            Color(0xFFF58A00).copy(alpha = 0.10f),
+                            amber.copy(alpha = 0.10f),
                             Color.Transparent
                         ),
                         center = Offset(size.width * 0.18f, size.height * 0.12f),

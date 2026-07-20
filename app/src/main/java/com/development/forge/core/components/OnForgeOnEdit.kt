@@ -7,9 +7,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.development.forge.core.designsystem.ForgeTheme
 
 val OnForgeOnEdit: @Composable (onClick: () -> Unit) -> Unit = { onClick ->
     IconButton(
@@ -20,7 +20,7 @@ val OnForgeOnEdit: @Composable (onClick: () -> Unit) -> Unit = { onClick ->
             Icons.Filled.Edit,
             contentDescription = "Edit",
             modifier = Modifier.size(24.dp),
-            tint = Color(0xFFF5EDDE)
+            tint = ForgeTheme.colors.fgPrimary
         )
     }
 }

@@ -40,12 +40,9 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.development.forge.R
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 
 private val EaseOutForge = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
-
-private val BgRaised = Color(0xFF1C180F)   // default surface
-private val BgPress  = Color(0xFF3A3020)   // pressed surface
-private val Cream     = Color(0xFFF5EDDE)
 
 @Preview
 @Composable
@@ -69,9 +66,9 @@ fun ForgeSecondaryButton(
 
     val bg by animateColorAsState(
         targetValue = when {
-            !isEnabled -> BgRaised     // disabled → default surface (dimmed via alpha below)
-            isPressed  -> BgPress      // pressed
-            else       -> BgRaised     // default
+            !isEnabled -> ForgeTheme.colors.bgRaised     // disabled → default surface (dimmed via alpha below)
+            isPressed  -> ForgeTheme.colors.bgPress      // pressed
+            else       -> ForgeTheme.colors.bgRaised     // default
         },
         animationSpec = tween(120, easing = EaseOutForge), label = "bg"
     )
@@ -106,7 +103,7 @@ fun ForgeSecondaryButton(
             )
             .clip(shape)
             .background(bg)                                       // fill first
-            .border(1.5.dp, Cream.copy(alpha = 0.18f), shape)    // border on top
+            .border(1.5.dp, ForgeTheme.colors.borderStrong, shape)    // border on top
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -123,7 +120,7 @@ fun ForgeSecondaryButton(
             }
             Text(
                 text = label,
-                color = Cream,
+                color = ForgeTheme.colors.fgPrimary,
                 style = TextStyle(
                     fontFamily = ForgeFonts.spaceGrotesk,
                     fontSize = 16.sp,

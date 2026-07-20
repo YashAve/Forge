@@ -19,6 +19,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 import kotlinx.coroutines.delay
 
 /** Placeholder splash screen — just centers the Forge wordmark for now. */
@@ -30,6 +31,8 @@ fun SplashScreen(modifier: Modifier = Modifier, onFinished: () -> Unit = { }) {
     val measurer = rememberTextMeasurer()
     val currentOnFinished by rememberUpdatedState(onFinished)
     val emberScale = remember { Animatable(1f) }
+    val fgPrimary = ForgeTheme.colors.fgPrimary   // captured for the DrawScope Canvas below
+    val amber = ForgeTheme.colors.amber           // captured for the DrawScope Canvas below
 
     LaunchedEffect(Unit) {
         delay(600)
@@ -48,7 +51,7 @@ fun SplashScreen(modifier: Modifier = Modifier, onFinished: () -> Unit = { }) {
             text = "Forge",
             style = TextStyle(
                 fontSize = 72.sp,
-                color = Color(0xFFF5EDDE),
+                color = fgPrimary,
                 fontFamily = ForgeFonts.spaceGrotesk,
                 fontWeight = FontWeight.W700
             )
@@ -67,16 +70,16 @@ fun SplashScreen(modifier: Modifier = Modifier, onFinished: () -> Unit = { }) {
             radius = glowRadius,
             center = dotCenter,
             brush = Brush.radialGradient(
-                listOf(Color(0xFFF58A00), Color.Transparent),
+                listOf(amber, Color.Transparent),
                 center = dotCenter,
                 radius = glowRadius
             )
         )
-        drawCircle(color = Color(0xFFF58A00), radius = 10f * emberScale.value, center = dotCenter)
+        drawCircle(color = amber, radius = 10f * emberScale.value, center = dotCenter)
         val heatUpResult = measurer.measure(
             "HEAT UP",
             style = TextStyle(
-                color = Color(0xFFF5EDDE).copy(alpha = 0.60f),
+                color = fgPrimary.copy(alpha = 0.60f),
                 fontFamily = ForgeFonts.spaceGrotesk,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,

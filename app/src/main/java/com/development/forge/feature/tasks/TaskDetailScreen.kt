@@ -22,7 +22,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -30,15 +29,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.development.forge.core.components.AgedBrass
 import com.development.forge.core.components.DueChip
-import com.development.forge.core.components.FgTertiary
 import com.development.forge.core.components.ForgeButton
 import com.development.forge.core.components.ForgeCheckbox
 import com.development.forge.core.components.ForgeSecondaryButton
 import com.development.forge.core.components.ForgeSectionLabel
 import com.development.forge.core.components.PriorityChip
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.domain.model.Task
 import com.development.forge.domain.model.tasks
 
@@ -77,7 +75,7 @@ fun TaskDetailScreen(
                         style = TextStyle(
                             fontFamily = ForgeFonts.spaceGrotesk,
                             fontSize = 13.sp,
-                            color = Color(0xFFB5A990)
+                            color = ForgeTheme.colors.fgSecondary
                         )
                     )
                 }
@@ -94,7 +92,7 @@ fun TaskDetailScreen(
                     fontWeight = FontWeight.W600,
                     letterSpacing = (-0.02).em,
                     lineHeight = (1.15).em,
-                    color = Color(0xFFF5EDDE)
+                    color = ForgeTheme.colors.fgPrimary
                 ),
                 textDecoration = if (task.done) TextDecoration.LineThrough else null
             )
@@ -114,7 +112,7 @@ fun TaskDetailScreen(
                         fontFamily = ForgeFonts.spaceGrotesk,
                         fontSize = 15.sp,
                         lineHeight = (1.55).em,
-                        color = Color(0xFFB5A990)
+                        color = ForgeTheme.colors.fgSecondary
                     )
                 )
             }
@@ -145,7 +143,7 @@ fun TaskDetailScreen(
                             style = TextStyle(
                                 fontFamily = ForgeFonts.spaceGrotesk,
                                 fontSize = 14.5.sp,
-                                color = Color(0xFFF5EDDE)
+                                color = ForgeTheme.colors.fgPrimary
                             ),
                             textDecoration = if (subtask.isDone) TextDecoration.LineThrough else null
                         )
@@ -159,7 +157,7 @@ fun TaskDetailScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(1.dp)
-                    .background(Color(0xFFF5EDDE).copy(alpha = 0.06f))
+                    .background(ForgeTheme.colors.borderSubtle)
             )
             Spacer(Modifier.height(16.dp))
             Text(
@@ -168,7 +166,7 @@ fun TaskDetailScreen(
                     fontFamily = ForgeFonts.jetbrainsMono,
                     fontSize = 11.sp,
                     letterSpacing = (0.1).em,
-                    color = FgTertiary
+                    color = ForgeTheme.colors.fgTertiary
                 )
             )
         }
@@ -183,7 +181,7 @@ fun TaskDetailScreen(
                         Icons.AutoMirrored.Filled.Undo,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
-                        tint = AgedBrass
+                        tint = ForgeTheme.colors.fgDisabled
                     )
                 },
                 onClick = { onToggle(task.id) }

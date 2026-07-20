@@ -17,7 +17,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -33,6 +32,7 @@ import com.development.forge.core.components.ForgeTaskRow
 import com.development.forge.core.components.ForgeWordmark
 import com.development.forge.core.components.PriorityChip
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.domain.model.Task
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -216,7 +216,7 @@ fun HomeScreen(
                         fontWeight = FontWeight.W600,
                         letterSpacing = (-0.025).em,
                         lineHeight = (1.1).em,
-                        color = Color(0xFFF5EDDE)
+                        color = ForgeTheme.colors.fgPrimary
                     )
                 )
                 Spacer(Modifier.height(6.dp))
@@ -226,7 +226,7 @@ fun HomeScreen(
                         fontFamily = ForgeFonts.jetbrainsMono,
                         fontSize = 12.sp,
                         letterSpacing = (0.1).em,
-                        color = Color(0xFF7A7060)
+                        color = ForgeTheme.colors.fgTertiary
                     )
                 )
             }
@@ -255,7 +255,7 @@ fun HomeScreen(
                                 style = TextStyle(
                                     fontFamily = ForgeFonts.spaceGrotesk,
                                     fontSize = 12.5.sp,
-                                    color = Color(0xFFB5A990)
+                                    color = ForgeTheme.colors.fgSecondary
                                 )
                             )
                         }
@@ -269,7 +269,7 @@ fun HomeScreen(
                             fontWeight = FontWeight.W600,
                             letterSpacing = (-0.02).em,
                             lineHeight = (1.15).em,
-                            color = Color(0xFFF5EDDE)
+                            color = ForgeTheme.colors.fgPrimary
                         )
                     )
                     focus.due?.let {

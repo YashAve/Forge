@@ -27,7 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -39,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 
 /**
  * DESIGN SPEC — Forge Design System button (source: external Claude Design project).
@@ -131,14 +131,14 @@ fun ForgeButton(
 
     val bg by animateColorAsState(
         targetValue = when {
-            !isEnabled -> DeepEarthBrown      // disabled first
-            isPressed  -> Amber500            // now reachable, since enabled
-            else       -> Amber
+            !isEnabled -> ForgeTheme.colors.bgPress      // disabled first
+            isPressed  -> ForgeTheme.colors.amberA500    // now reachable, since enabled
+            else       -> ForgeTheme.colors.amber
         },
         animationSpec = tween(120, easing = EaseOutForge), label = "bg"
     )
     val content by animateColorAsState(
-        targetValue = if (isEnabled) DarkEspresso else AgedBrass,
+        targetValue = if (isEnabled) ForgeTheme.colors.fgOnAmber else ForgeTheme.colors.fgDisabled,
         animationSpec = tween(120, easing = EaseOutForge), label = "content"
     )
     val scale by animateFloatAsState(
@@ -159,7 +159,7 @@ fun ForgeButton(
                     Modifier.dropShadow(
                         shape = shape,
                         shadow = Shadow(
-                            color = Color(0x38F58A00),           // amber @ ~0.22
+                            color = ForgeTheme.colors.amber.copy(alpha = 0.22f),   // amber @ ~0.22
                             offset = DpOffset(0.dp, 8.dp),
                             radius = 24.dp
                         )
@@ -181,8 +181,8 @@ fun ForgeButton(
             CircularProgressIndicator(               // spins itself — no manual rotation
                 modifier = Modifier.size(18.dp),
                 strokeWidth = 2.dp,
-                color = DarkEspresso,
-                trackColor = DarkEspresso.copy(alpha = 0.25f)   // correct color build
+                color = ForgeTheme.colors.fgOnAmber,
+                trackColor = ForgeTheme.colors.fgOnAmber.copy(alpha = 0.25f)   // correct color build
             )
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {

@@ -62,11 +62,10 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.development.forge.core.components.Amber
-import com.development.forge.core.components.FgTertiary
 import com.development.forge.core.components.ForgeCard
 import com.development.forge.core.components.ForgeSectionLabel
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.domain.model.Task
 
 @Composable
@@ -97,6 +96,9 @@ fun ForgeProgressRing(
         label = "sweep"
     )
 
+    val amber = ForgeTheme.colors.amber      // captured for the DrawScope Canvas below
+    val bgElev = ForgeTheme.colors.bgElev    // captured for the DrawScope Canvas below
+
     Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.matchParentSize()) {
             val center = Offset(this.size.width / 2f, this.size.height / 2f)
@@ -106,8 +108,8 @@ fun ForgeProgressRing(
                 center = center,
                 radius = this.size.height / 2f,
                 brush = Brush.radialGradient(
-                    0.00f to Amber.copy(alpha = glowAlpha),
-                    0.55f to Amber.copy(alpha = glowAlpha * 0.18f),
+                    0.00f to amber.copy(alpha = glowAlpha),
+                    0.55f to amber.copy(alpha = glowAlpha * 0.18f),
                     0.70f to Color.Transparent,
                     center = center,
                     radius = this.size.height / 2f
@@ -117,7 +119,7 @@ fun ForgeProgressRing(
             inset(stroke.toPx() / 2f) {
                 // track arc — full 360° dark groove
                 drawArc(
-                    color = Color(0xFF251F14),
+                    color = bgElev,
                     startAngle = -90f,
                     sweepAngle = 360f,
                     useCenter = false,
@@ -148,7 +150,7 @@ fun ForgeProgressRing(
                     fontFamily = ForgeFonts.jetbrainsMono,
                     fontSize = 40.sp,
                     fontWeight = FontWeight.W600,
-                    color = Color(0xFFF5EDDE)
+                    color = ForgeTheme.colors.fgPrimary
                 )
             )
             Text(
@@ -157,7 +159,7 @@ fun ForgeProgressRing(
                     fontFamily = ForgeFonts.jetbrainsMono,
                     fontSize = 12.sp,
                     letterSpacing = (0.1).em,
-                    color = Color(0xFF7A7060)
+                    color = ForgeTheme.colors.fgTertiary
                 )
             )
         }
@@ -206,7 +208,7 @@ fun StatsScreen(
                 fontSize = 26.sp,
                 fontWeight = FontWeight.W600,
                 letterSpacing = (-0.025).em,
-                color = Color(0xFFF5EDDE)
+                color = ForgeTheme.colors.fgPrimary
             )
         )
         Spacer(Modifier.height(6.dp))
@@ -216,7 +218,7 @@ fun StatsScreen(
                 fontFamily = ForgeFonts.jetbrainsMono,
                 fontSize = 12.sp,
                 letterSpacing = (0.1).em,
-                color = Color(0xFF7A7060)
+                color = ForgeTheme.colors.fgTertiary
             )
         )
 
@@ -235,7 +237,7 @@ fun StatsScreen(
             style = TextStyle(
                 fontFamily = ForgeFonts.spaceGrotesk,
                 fontSize = 14.sp,
-                color = Color(0xFFB5A990)
+                color = ForgeTheme.colors.fgSecondary
             ),
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
@@ -252,10 +254,10 @@ fun StatsScreen(
                     modifier = Modifier
                         .size(64.dp)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(Amber.copy(alpha = 0.14f))
+                        .background(ForgeTheme.colors.amber.copy(alpha = 0.14f))
                         .border(
                             1.dp,
-                            Amber.copy(alpha = 0.30f),
+                            ForgeTheme.colors.amber.copy(alpha = 0.30f),
                             RoundedCornerShape(18.dp)
                         ),
                     contentAlignment = Alignment.Center
@@ -264,7 +266,7 @@ fun StatsScreen(
                         Icons.Filled.LocalFireDepartment,
                         contentDescription = null,
                         modifier = Modifier.size(34.dp),
-                        tint = Amber
+                        tint = ForgeTheme.colors.amber
                     )
                 }
                 Spacer(Modifier.width(20.dp))
@@ -278,7 +280,7 @@ fun StatsScreen(
                                 fontWeight = FontWeight.W600,
                                 lineHeight = 1.em,
                                 letterSpacing = (-0.02).em,
-                                color = Color(0xFFF5EDDE)
+                                color = ForgeTheme.colors.fgPrimary
                             ),
                             modifier = Modifier.alignByBaseline()
                         )
@@ -288,7 +290,7 @@ fun StatsScreen(
                             style = TextStyle(
                                 fontFamily = ForgeFonts.jetbrainsMono,
                                 fontSize = 15.sp,
-                                color = Color(0xFFB5A990)
+                                color = ForgeTheme.colors.fgSecondary
                             ),
                             modifier = Modifier.alignByBaseline()
                         )
@@ -296,10 +298,10 @@ fun StatsScreen(
                     Spacer(Modifier.height(8.dp))
                     Text(
                         text = buildAnnotatedString {
-                            withStyle(SpanStyle(color = Color(0xFFB5A990))) {
+                            withStyle(SpanStyle(color = ForgeTheme.colors.fgSecondary)) {
                                 append("Current streak")
                             }
-                            withStyle(SpanStyle(color = FgTertiary)) {
+                            withStyle(SpanStyle(color = ForgeTheme.colors.fgTertiary)) {
                                 append(" · personal best")
                             }
                         },
@@ -326,7 +328,7 @@ fun StatsScreen(
                         Icons.Outlined.CheckCircle,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
-                        tint = FgTertiary
+                        tint = ForgeTheme.colors.fgTertiary
                     )
                     Spacer(Modifier.height(14.dp))
                     Text(
@@ -337,7 +339,7 @@ fun StatsScreen(
                             fontWeight = FontWeight.W600,
                             letterSpacing = (-0.02).em,
                             lineHeight = 1.em,
-                            color = Color(0xFFF5EDDE)
+                            color = ForgeTheme.colors.fgPrimary
                         )
                     )
                     Spacer(Modifier.height(6.dp))
@@ -346,7 +348,7 @@ fun StatsScreen(
                         style = TextStyle(
                             fontFamily = ForgeFonts.spaceGrotesk,
                             fontSize = 12.5.sp,
-                            color = Color(0xFFB5A990)
+                            color = ForgeTheme.colors.fgSecondary
                         )
                     )
                 }
@@ -362,7 +364,7 @@ fun StatsScreen(
                         Icons.Outlined.TaskAlt,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
-                        tint = FgTertiary
+                        tint = ForgeTheme.colors.fgTertiary
                     )
                     Spacer(Modifier.height(14.dp))
                     Text(
@@ -373,7 +375,7 @@ fun StatsScreen(
                             fontWeight = FontWeight.W600,
                             letterSpacing = (-0.02).em,
                             lineHeight = 1.em,
-                            color = Color(0xFFF5EDDE)
+                            color = ForgeTheme.colors.fgPrimary
                         )
                     )
                     Spacer(Modifier.height(6.dp))
@@ -382,7 +384,7 @@ fun StatsScreen(
                         style = TextStyle(
                             fontFamily = ForgeFonts.spaceGrotesk,
                             fontSize = 12.5.sp,
-                            color = Color(0xFFB5A990)
+                            color = ForgeTheme.colors.fgSecondary
                         )
                     )
                 }
@@ -441,7 +443,7 @@ fun StatsScreen(
                                             if (isPeak) Modifier.dropShadow(
                                                 shape = RoundedCornerShape(6.dp),
                                                 shadow = Shadow(
-                                                    color = Amber.copy(alpha = peakGlow),
+                                                    color = ForgeTheme.colors.amber.copy(alpha = peakGlow),
                                                     offset = DpOffset(0.dp, 0.dp),
                                                     radius = 12.dp
                                                 )
@@ -453,8 +455,8 @@ fun StatsScreen(
                                                 listOf(Color(0xFFFFC766), Color(0xFFF58A00))
                                             ) else Brush.verticalGradient(
                                                 listOf(
-                                                    Amber.copy(alpha = 0.28f),
-                                                    Amber.copy(alpha = 0.28f)
+                                                    ForgeTheme.colors.amber.copy(alpha = 0.28f),
+                                                    ForgeTheme.colors.amber.copy(alpha = 0.28f)
                                                 )
                                             )
                                         )
@@ -466,8 +468,8 @@ fun StatsScreen(
                                         fontFamily = ForgeFonts.jetbrainsMono,
                                         fontSize = 10.sp,
                                         letterSpacing = 0.06.em,
-                                        color = if (isPeak) Color(0xFFFFAA2E)
-                                        else Color(0xFF7A7060)
+                                        color = if (isPeak) ForgeTheme.colors.amberA300
+                                        else ForgeTheme.colors.fgTertiary
                                     )
                                 )
                             }
@@ -481,7 +483,7 @@ fun StatsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(1.dp)
-                        .background(Color(0xFFF5EDDE).copy(alpha = 0.06f))
+                        .background(ForgeTheme.colors.borderSubtle)
                 )
                 Spacer(Modifier.height(14.dp))
                 Row(
@@ -494,7 +496,7 @@ fun StatsScreen(
                         style = TextStyle(
                             fontFamily = ForgeFonts.spaceGrotesk,
                             fontSize = 13.sp,
-                            color = Color(0xFFB5A990)
+                            color = ForgeTheme.colors.fgSecondary
                         )
                     )
                     Row(
@@ -505,7 +507,7 @@ fun StatsScreen(
                             Icons.Filled.EmojiEvents,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
-                            tint = Color(0xFFFFAA2E)
+                            tint = ForgeTheme.colors.amberA300
                         )
                         Text(
                             text = "Thursday",
@@ -513,7 +515,7 @@ fun StatsScreen(
                                 fontFamily = ForgeFonts.spaceGrotesk,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.W600,
-                                color = Color(0xFFFFAA2E)
+                                color = ForgeTheme.colors.amberA300
                             )
                         )
                     }

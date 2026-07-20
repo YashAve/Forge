@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 
 /*Only rendered when action is not null.
  *   Space Grotesk, 13sp, weight 600, amber — your existing ForgeTextButton*/
@@ -42,7 +43,7 @@ fun ForgeTextButton(
 
     Text(
         text = text,
-        color = Amber,
+        color = ForgeTheme.colors.amber,
         modifier = modifier
             .graphicsLayer { this.alpha = alpha }
             .clickable(

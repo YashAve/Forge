@@ -16,10 +16,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.development.forge.core.components.Amber
+import com.development.forge.core.designsystem.ForgeTheme
 
 @Preview
 @Composable
@@ -41,8 +40,8 @@ fun ForgePaginationDots(
                 label = "width"
             )
             val background by animateColorAsState(
-                targetValue = if (isActive) Amber
-                else Color(0xFFF5EDDE).copy(alpha = 0.18f),
+                targetValue = if (isActive) ForgeTheme.colors.amber
+                else ForgeTheme.colors.borderStrong,
                 animationSpec = tween(200, easing = EaseOut),
                 label = "background"
             )

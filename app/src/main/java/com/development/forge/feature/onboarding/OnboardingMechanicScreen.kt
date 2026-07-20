@@ -34,13 +34,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.development.forge.core.components.Amber
-import com.development.forge.core.components.FgTertiary
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 
 @Preview
 @Composable
 fun OnboardingMechanicScreen(modifier: Modifier = Modifier) {
+    val amber = ForgeTheme.colors.amber      // captured for the DrawScope Canvas below
+    val bgBase = ForgeTheme.colors.bgBase    // captured for the DrawScope Canvas below
     Column(
         modifier = modifier
             .padding(horizontal = 24.dp)
@@ -69,7 +70,7 @@ fun OnboardingMechanicScreen(modifier: Modifier = Modifier) {
                         Icons.Default.LocalFireDepartment,
                         null,
                         modifier = Modifier.size(16.dp),
-                        tint = Amber
+                        tint = ForgeTheme.colors.amber
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
@@ -78,7 +79,7 @@ fun OnboardingMechanicScreen(modifier: Modifier = Modifier) {
                             fontFamily = ForgeFonts.jetbrainsMono,
                             fontSize = 11.sp,
                             letterSpacing = (0.14).em,
-                            color = Amber
+                            color = ForgeTheme.colors.amber
                         )
                     )
                 }
@@ -92,7 +93,7 @@ fun OnboardingMechanicScreen(modifier: Modifier = Modifier) {
                             fontFamily = ForgeFonts.jetbrainsMono,
                             fontSize = 11.sp,
                             letterSpacing = (0.14).em,
-                            color = FgTertiary
+                            color = ForgeTheme.colors.fgTertiary
                         )
                     )
                     Spacer(Modifier.width(8.dp))
@@ -100,7 +101,7 @@ fun OnboardingMechanicScreen(modifier: Modifier = Modifier) {
                         Icons.Default.AcUnit,
                         null,
                         modifier = Modifier.size(16.dp),
-                        tint = FgTertiary
+                        tint = ForgeTheme.colors.fgTertiary
                     )
                 }
             }
@@ -121,11 +122,11 @@ fun OnboardingMechanicScreen(modifier: Modifier = Modifier) {
                         .height(14.dp)
                         .border(
                             1.dp,
-                            Color(0xFFF5EDDE).copy(alpha = 0.10f),
+                            ForgeTheme.colors.borderDefault,
                             RoundedCornerShape(percent = 50)
                         )
                         .clip(RoundedCornerShape(percent = 50))
-                        .background(Color(0xFF251F14))
+                        .background(ForgeTheme.colors.bgElev)
                         .background(
                             Brush.horizontalGradient(
                                 0f    to Color(0xFF6E3500),
@@ -148,7 +149,7 @@ fun OnboardingMechanicScreen(modifier: Modifier = Modifier) {
                         center = center,
                         radius = 36.dp.toPx(),
                         brush = Brush.radialGradient(
-                            colors = listOf(Amber.copy(alpha = 0.4f), Color.Transparent),
+                            colors = listOf(amber.copy(alpha = 0.4f), Color.Transparent),
                             center = center,
                             radius = 36.dp.toPx()
                         )
@@ -158,7 +159,7 @@ fun OnboardingMechanicScreen(modifier: Modifier = Modifier) {
                         center = center,
                         radius = 18.dp.toPx(),
                         brush = Brush.radialGradient(
-                            colors = listOf(Amber.copy(alpha = 0.8f), Color.Transparent),
+                            colors = listOf(amber.copy(alpha = 0.8f), Color.Transparent),
                             center = center,
                             radius = 18.dp.toPx()
                         )
@@ -170,7 +171,7 @@ fun OnboardingMechanicScreen(modifier: Modifier = Modifier) {
                         brush = Brush.radialGradient(
                             0.00f to Color(0xFFFFE0A8),
                             0.30f to Color(0xFFFFAA2E),
-                            0.65f to Amber,
+                            0.65f to amber,
                             1.00f to Color(0xFFA85100),
                             center = Offset(
                                 center.x - radius * 0.20f,
@@ -183,7 +184,7 @@ fun OnboardingMechanicScreen(modifier: Modifier = Modifier) {
                     drawCircle(
                         radius = radius,
                         center = center,
-                        color = Color(0xFF14110C),
+                        color = bgBase,
                         style = Stroke(width = 1.5.dp.toPx())
                     )
                 }
@@ -204,7 +205,7 @@ fun OnboardingMechanicScreen(modifier: Modifier = Modifier) {
                             fontFamily = ForgeFonts.jetbrainsMono,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.W500,
-                            color = if (index == 2) Amber else Color(0xFF7A7060)
+                            color = if (index == 2) ForgeTheme.colors.amber else ForgeTheme.colors.fgTertiary
                         )
                     )
                 }
@@ -225,7 +226,7 @@ fun OnboardingMechanicScreen(modifier: Modifier = Modifier) {
                     fontFamily = ForgeFonts.jetbrainsMono,
                     fontSize = 11.sp,
                     letterSpacing = (0.18).em,
-                    color = Amber
+                    color = ForgeTheme.colors.amber
                 )
             )
             Spacer(Modifier.height(12.dp))
@@ -237,7 +238,7 @@ fun OnboardingMechanicScreen(modifier: Modifier = Modifier) {
                     fontWeight = FontWeight.W600,
                     lineHeight = (1.1).em,
                     letterSpacing = (-0.025).em,
-                    color = Color(0xFFF5EDDE)
+                    color = ForgeTheme.colors.fgPrimary
                 )
             )
             Spacer(Modifier.height(12.dp))
@@ -247,7 +248,7 @@ fun OnboardingMechanicScreen(modifier: Modifier = Modifier) {
                     fontFamily = ForgeFonts.spaceGrotesk,
                     fontSize = 16.sp,
                     lineHeight = (1.45).em,
-                    color = Color(0xFFB5A990)
+                    color = ForgeTheme.colors.fgSecondary
                 )
             )
             Spacer(Modifier.height(28.dp))

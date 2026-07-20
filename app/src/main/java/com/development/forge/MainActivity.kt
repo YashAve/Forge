@@ -4,8 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.createFontFamilyResolver
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.development.forge.core.datastore.ForgePreferences
 import com.development.forge.core.designsystem.ForgeFonts
 import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.navigation.ForgeNavHost
@@ -13,9 +17,14 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var forgePreferences: ForgePreferences
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -30,7 +39,9 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            ForgeTheme {
+            val isDark by remember { forgePreferences.isDarkTheme() }
+                .collectAsStateWithLifecycle(initialValue = true)
+            ForgeTheme(darkTheme = isDark) {
                 ForgeNavHost(modifier = Modifier)
             }
         }

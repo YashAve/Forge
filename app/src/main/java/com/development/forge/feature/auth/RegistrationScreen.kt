@@ -19,7 +19,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -36,6 +35,7 @@ import com.development.forge.core.components.ForgeButton
 import com.development.forge.core.components.ForgePasswordField
 import com.development.forge.core.components.ForgeTextField
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 
 val validEmailRegularExpression = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
 
@@ -70,7 +70,7 @@ fun RegistrationScreen(modifier: Modifier = Modifier, onRegister: () -> Unit = {
                 fontWeight = FontWeight.W600,
                 lineHeight = 1.05.em,
                 letterSpacing = (-0.03).em,
-                color = Color(0xFFF5EDDE)
+                color = ForgeTheme.colors.fgPrimary
             )
         )
         Spacer(Modifier.height(14.dp))
@@ -81,7 +81,7 @@ fun RegistrationScreen(modifier: Modifier = Modifier, onRegister: () -> Unit = {
                 fontSize = 16.sp,
                 fontWeight = FontWeight.W400,
                 lineHeight = 1.45.em,
-                color = Color(0xFFB5A990)
+                color = ForgeTheme.colors.fgSecondary
             )
         )
 
@@ -141,7 +141,7 @@ private fun TermsMicrocopy(
     onPrivacy: () -> Unit
 ) {
     val linkStyle = SpanStyle(
-        color = Color(0xFFB5A990),                    // fg-secondary
+        color = ForgeTheme.colors.fgSecondary,                    // fg-secondary
         textDecoration = TextDecoration.Underline
     )
     val annotated = buildAnnotatedString {
@@ -162,7 +162,7 @@ private fun TermsMicrocopy(
             fontFamily = ForgeFonts.spaceGrotesk,
             fontSize = 12.sp,
             lineHeight = 1.5.em,
-            color = Color(0xFF7A7060),                // fg-tertiary
+            color = ForgeTheme.colors.fgTertiary,     // fg-tertiary
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     )

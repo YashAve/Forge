@@ -17,7 +17,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.domain.model.Priority
 import com.development.forge.domain.model.Task
 
@@ -168,7 +168,7 @@ fun ForgeTaskRow(
                     fontWeight = FontWeight.W500,
                     letterSpacing = (-0.01).em,
                     fontSize = if (compact) 14.5.sp else 15.5.sp,
-                    color = Color(0xFFF5EDDE),
+                    color = ForgeTheme.colors.fgPrimary,
                 ), maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textDecoration = if (task.done) TextDecoration.LineThrough else null
@@ -183,7 +183,7 @@ fun ForgeTaskRow(
                             text = task.project, style = TextStyle(
                                 fontFamily = ForgeFonts.spaceGrotesk,
                                 fontSize = 12.sp,
-                                color = FgTertiary
+                                color = ForgeTheme.colors.fgTertiary
                             )
                         )
                     }

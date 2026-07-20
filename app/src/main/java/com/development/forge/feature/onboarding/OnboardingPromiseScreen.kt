@@ -33,8 +33,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.development.forge.core.components.Amber
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 
 @Preview
 @Composable
@@ -47,6 +47,8 @@ fun OnboardingPromiseScreen(modifier: Modifier = Modifier) {
     val alpha2 by transition.ringAlpha(700)
     val scale3 by transition.ringScale(1400)
     val alpha3 by transition.ringAlpha(1400)
+
+    val amber = ForgeTheme.colors.amber   // captured for the DrawScope Canvas + drawRing below
 
     Column(
         modifier = modifier
@@ -66,9 +68,9 @@ fun OnboardingPromiseScreen(modifier: Modifier = Modifier) {
                 val radiusAmber = 28.dp.toPx()
 
                 // three staggered pulsing rings
-                drawRing(center, 90.dp.toPx(), scale1, alpha1)
-                drawRing(center, 65.dp.toPx(), scale2, alpha2)
-                drawRing(center, 45.dp.toPx(), scale3, alpha3)
+                drawRing(center, 90.dp.toPx(), scale1, alpha1, amber)
+                drawRing(center, 65.dp.toPx(), scale2, alpha2, amber)
+                drawRing(center, 45.dp.toPx(), scale3, alpha3, amber)
 
                 // outer glow — wider, fainter
                 drawCircle(
@@ -76,7 +78,7 @@ fun OnboardingPromiseScreen(modifier: Modifier = Modifier) {
                     radius = 80.dp.toPx(),
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            Amber.copy(alpha = 0.50f),   // bumped from 0.35
+                            amber.copy(alpha = 0.50f),   // bumped from 0.35
                             Color.Transparent
                         ),
                         center = center,
@@ -90,7 +92,7 @@ fun OnboardingPromiseScreen(modifier: Modifier = Modifier) {
                     radius = 40.dp.toPx(),
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            Amber.copy(alpha = 0.85f),   // bumped from 0.70
+                            amber.copy(alpha = 0.85f),   // bumped from 0.70
                             Color.Transparent
                         ),
                         center = center,
@@ -105,7 +107,7 @@ fun OnboardingPromiseScreen(modifier: Modifier = Modifier) {
                     brush = Brush.radialGradient(
                         0.00f to Color(0xFFFFE0A8),
                         0.30f to Color(0xFFFFAA2E),
-                        0.65f to Amber,
+                        0.65f to amber,
                         1.00f to Color(0xFFA85100),
                         center = Offset(
                             center.x - radiusAmber * 0.20f,
@@ -129,7 +131,7 @@ fun OnboardingPromiseScreen(modifier: Modifier = Modifier) {
                     fontFamily = ForgeFonts.jetbrainsMono,
                     fontSize = 11.sp,
                     letterSpacing = (0.18).em,
-                    color = Amber
+                    color = ForgeTheme.colors.amber
                 )
             )
             Spacer(Modifier.height(12.dp))
@@ -141,7 +143,7 @@ fun OnboardingPromiseScreen(modifier: Modifier = Modifier) {
                     fontWeight = FontWeight.W600,
                     lineHeight = (1.1).em,
                     letterSpacing = (-0.025).em,
-                    color = Color(0xFFF5EDDE)
+                    color = ForgeTheme.colors.fgPrimary
                 )
             )
             Spacer(Modifier.height(12.dp))
@@ -151,7 +153,7 @@ fun OnboardingPromiseScreen(modifier: Modifier = Modifier) {
                     fontFamily = ForgeFonts.spaceGrotesk,
                     fontSize = 16.sp,
                     lineHeight = (1.45).em,
-                    color = Color(0xFFB5A990)
+                    color = ForgeTheme.colors.fgSecondary
                 )
             )
             Spacer(Modifier.height(28.dp))
@@ -163,7 +165,8 @@ private fun DrawScope.drawRing(
     center: Offset,
     baseRadius: Float,
     scale: Float,
-    alpha: Float
+    alpha: Float,
+    color: Color
 ) {
     val r = baseRadius * scale
     drawCircle(
@@ -171,7 +174,7 @@ private fun DrawScope.drawRing(
         center = center,
         brush = Brush.radialGradient(
             colors = listOf(
-                Amber.copy(alpha = 0.28f * alpha),   // bumped from 0.16f
+                color.copy(alpha = 0.28f * alpha),   // bumped from 0.16f
                 Color.Transparent
             ),
             center = center,

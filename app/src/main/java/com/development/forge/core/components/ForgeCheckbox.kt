@@ -29,6 +29,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import com.development.forge.core.designsystem.ForgeTheme
 
 /**
  * DESIGN SPECIFICATION — ForgeCheckbox
@@ -136,11 +137,11 @@ fun ForgeCheckbox(
     size: Dp = 24.dp
 ) {
     val backgroundColor by animateColorAsState(
-        targetValue = if (checked) Amber else Color.Transparent,
+        targetValue = if (checked) ForgeTheme.colors.amber else Color.Transparent,
         animationSpec = tween(160, easing = EaseOut)
     )
     val borderColor by animateColorAsState(
-        targetValue = if (checked) Amber else Color(0xFFF5EDDE).copy(alpha = 0.18f),
+        targetValue = if (checked) ForgeTheme.colors.amber else ForgeTheme.colors.borderStrong,
         animationSpec = tween(160, easing = EaseOut)
     )
     val checkBoxSpring by animateFloatAsState(
@@ -165,7 +166,7 @@ fun ForgeCheckbox(
                     shadow = Shadow(
                         radius = 12.dp,
                         offset = DpOffset(0.dp, 0.dp),
-                        color = Amber.copy(alpha = 0.40f)
+                        color = ForgeTheme.colors.amber.copy(alpha = 0.40f)
                     )
                 )
                 else Modifier
@@ -197,7 +198,7 @@ fun ForgeCheckbox(
                     scaleY = checkBoxSpring
                     alpha = checkBoxAlpha
                 },
-            tint = Color(0xFF1A1207)
+            tint = ForgeTheme.colors.fgOnAmber
         )
     }
 }

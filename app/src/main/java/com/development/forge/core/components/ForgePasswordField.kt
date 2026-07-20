@@ -18,6 +18,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.development.forge.core.designsystem.ForgeTheme
 
 @Preview
 @Composable
@@ -46,7 +47,7 @@ fun ForgePasswordField(
                 Icon(
                     if (visible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                     contentDescription = if (visible) "Hide password" else "Show password",
-                    tint = FgTertiary
+                    tint = ForgeTheme.colors.fgTertiary
                 )
             }
         }

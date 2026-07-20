@@ -7,19 +7,14 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation3.runtime.NavKey
-import com.development.forge.core.components.Amber
-import com.development.forge.core.components.FgTertiary
 import kotlinx.serialization.Serializable
 
 interface BottomNavigationSpecifications {
     val label: String
     val activeIcon: ImageVector
     val inactiveIcon: ImageVector
-    val activeColor: Color get() = Amber
-    val inactiveColor: Color get() = FgTertiary
 }
 
 sealed interface ForgeNavKey : NavKey {

@@ -29,7 +29,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
@@ -41,19 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
-
-// TODO: move these to core/designsystem as your real token objects.
-private val BgRaised = Color(0xFF1C180F)
-val Amber = Color(0xFFF58A00)
-val Amber500 = Color(0xFFD46E00)
-private val FgPrimary = Color(0xFFF5EDDE)
-private val FgSecondary = Color(0xFFB5A990)
-val FgTertiary = Color(0xFF7A7060)
-private val BorderStrong = Color(0xFFF5EDDE).copy(alpha = 0.18f)
-private val Danger = Color(0xFFE5484D)   // replace with the design's danger token
-val DeepEarthBrown = Color(0xFF3A3020)
-val DarkEspresso = Color(0xFF1A1207)
-val AgedBrass = Color(0xFF4A4338)
+import com.development.forge.core.designsystem.ForgeTheme
 
 @Preview
 @Composable
@@ -79,14 +66,14 @@ fun ForgeTextField(
 
     val borderColor by animateColorAsState(
         targetValue = when {
-            error != null -> Danger
-            focused -> Amber
-            else -> BorderStrong
+            error != null -> ForgeTheme.colors.danger
+            focused -> ForgeTheme.colors.amber
+            else -> ForgeTheme.colors.borderStrong
         },
         label = "border"
     )
-    val iconColor = if (focused) Amber else FgTertiary
-    val labelColor = if (focused) Amber else FgSecondary
+    val iconColor = if (focused) ForgeTheme.colors.amber else ForgeTheme.colors.fgTertiary
+    val labelColor = if (focused) ForgeTheme.colors.amber else ForgeTheme.colors.fgSecondary
     val shape = RoundedCornerShape(16.dp)
 
     Column(modifier = modifier) {
@@ -95,7 +82,7 @@ fun ForgeTextField(
                 .fillMaxWidth()
                 .height(64.dp)                      // fixed — single-line field is always 64
                 .drawBehind { /* focus ring, unchanged */ }
-                .background(BgRaised, shape)
+                .background(ForgeTheme.colors.bgRaised, shape)
                 .border(1.5.dp, borderColor, shape)
                 .padding(horizontal = 18.dp)
         ) {
@@ -132,9 +119,9 @@ fun ForgeTextField(
                             .fillMaxWidth()
                             .align(if (label != null) Alignment.TopStart else Alignment.CenterStart)
                             .padding(top = if (label != null) 28.dp else 0.dp),   // FIXED input position
-                        textStyle = TextStyle(color = FgPrimary, fontSize = 16.sp),
+                        textStyle = TextStyle(color = ForgeTheme.colors.fgPrimary, fontSize = 16.sp),
                         singleLine = true,
-                        cursorBrush = SolidColor(Amber),
+                        cursorBrush = SolidColor(ForgeTheme.colors.amber),
                         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                         visualTransformation = visualTransformation,
                         interactionSource = interactionSource,
@@ -152,7 +139,7 @@ fun ForgeTextField(
         (error ?: helper)?.let { supporting ->
             Text(
                 text = supporting,
-                color = if (error != null) Danger else FgTertiary,
+                color = if (error != null) ForgeTheme.colors.danger else ForgeTheme.colors.fgTertiary,
                 fontSize = 13.sp,
                 modifier = Modifier.padding(top = 6.dp, start = 18.dp)
             )

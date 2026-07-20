@@ -29,7 +29,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -37,10 +36,8 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.development.forge.core.components.Amber
-import com.development.forge.core.components.FgTertiary
 import com.development.forge.core.designsystem.ForgeFonts
-import com.development.forge.core.designsystem.Oil
+import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.navigation.BottomNavigationSpecifications
 import com.development.forge.navigation.ForgeNavKey
 
@@ -192,14 +189,14 @@ fun ForgeBottomNavigationBarAddButton(modifier: Modifier = Modifier, onSelect: (
                     shadow = Shadow(
                         radius = 14.dp,
                         offset = DpOffset(0.dp, 4.dp),
-                        color = Amber.copy(alpha = 0.35f)
+                        color = ForgeTheme.colors.amber.copy(alpha = 0.35f)
                     )
                 )
                 .clip(RoundedCornerShape(12.dp))
-                .background(Amber),
+                .background(ForgeTheme.colors.amber),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Filled.Add, null, modifier = Modifier.size(24.dp), tint = Color(0xFF1A1207))
+            Icon(Icons.Filled.Add, null, modifier = Modifier.size(24.dp), tint = ForgeTheme.colors.fgOnAmber)
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
@@ -208,7 +205,7 @@ fun ForgeBottomNavigationBarAddButton(modifier: Modifier = Modifier, onSelect: (
             fontSize = (10.5).sp,
             fontWeight = FontWeight.W600,
             letterSpacing = (0.02).em,
-            color = FgTertiary
+            color = ForgeTheme.colors.fgTertiary
         )
     }
 }
@@ -223,7 +220,7 @@ fun ForgeBottomNavigationBarItem(
 ) {
     val item = navigations[selection] as BottomNavigationSpecifications
     val color by animateColorAsState(
-        targetValue = if (current == navigations[selection]) Amber else FgTertiary,
+        targetValue = if (current == navigations[selection]) ForgeTheme.colors.amber else ForgeTheme.colors.fgTertiary,
         animationSpec = tween(160, easing = EaseOut),
         label = "label"
     )
@@ -268,15 +265,16 @@ fun ForgeBottomNavigationBar(
      * Not a full border, just the top hairline separating the bar from the content
      * above it. In Compose this is easiest as a drawBehind that draws a single line
      * across the top edge, or a thin Box above the Row.*/
+    val topBorder = ForgeTheme.colors.borderDefault
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(color = Oil)
+            .background(color = ForgeTheme.colors.oil)
             .drawBehind {
                 drawLine(
                     start = Offset(0f, 0f),
                     end = Offset(size.width, 0f),
-                    color = Color(0xFFF5EDDE).copy(alpha = 0.10f),
+                    color = topBorder,
                     strokeWidth = 1.dp.toPx()
                 )
             }

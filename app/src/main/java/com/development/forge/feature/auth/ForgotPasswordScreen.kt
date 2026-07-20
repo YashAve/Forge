@@ -17,7 +17,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -28,6 +27,7 @@ import com.development.forge.core.components.ForgeButton
 import com.development.forge.core.components.ForgeTextButton
 import com.development.forge.core.components.ForgeTextField
 import com.development.forge.core.designsystem.ForgeFonts
+import com.development.forge.core.designsystem.ForgeTheme
 
 /**
  * DESIGN SPEC — Forgot Password screen (Screens.jsx → ForgotPasswordScreen).
@@ -83,7 +83,7 @@ fun ForgotPasswordScreen(
                 lineHeight = (1.05).em,
                 letterSpacing = (-0.003).em
             ),
-            color = Color(0xFFF5EDDE)
+            color = ForgeTheme.colors.fgPrimary
         )
         Spacer(modifier = Modifier.height(14.dp))
         Text(
@@ -92,7 +92,7 @@ fun ForgotPasswordScreen(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.W400,
                 lineHeight = (1.45).em,
-                color = Color(0xFFB5A990)
+                color = ForgeTheme.colors.fgSecondary
             )
         )
         Spacer(modifier = Modifier.height(40.dp))
@@ -125,7 +125,7 @@ fun ForgotPasswordScreen(
                     fontFamily = ForgeFonts.spaceGrotesk,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.W400,
-                    color = Color(0xFFB5A990)
+                    color = ForgeTheme.colors.fgSecondary
                 )
             )
             ForgeTextButton(text = "Log in") {
