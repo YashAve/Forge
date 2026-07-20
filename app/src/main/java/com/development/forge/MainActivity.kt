@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.createFontFamilyResolver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,8 +42,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             val isDark by remember { forgePreferences.isDarkTheme() }
                 .collectAsStateWithLifecycle(initialValue = true)
+            val coroutineScope = rememberCoroutineScope()
             ForgeTheme(darkTheme = isDark) {
-                ForgeNavHost(modifier = Modifier)
+                ForgeNavHost(
+                    modifier = Modifier,
+                    isDark = isDark,
+                    onToggleTheme = {
+                        coroutineScope.launch { forgePreferences.setDarkTheme(!isDark) }
+                    }
+                )
             }
         }
     }

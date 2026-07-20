@@ -55,7 +55,11 @@ import com.development.forge.navigation.ForgeNavKey.Splash
 import com.development.forge.navigation.ForgeNavKey.Success
 
 @Composable
-fun ForgeNavHost(modifier: Modifier = Modifier) {
+fun ForgeNavHost(
+    modifier: Modifier = Modifier,
+    isDark: Boolean = true,
+    onToggleTheme: () -> Unit = {}
+) {
     val context = LocalContext.current
     val backStack = rememberNavBackStack(Splash)
     val currentDestination = backStack.lastOrNull()
@@ -259,7 +263,15 @@ fun ForgeNavHost(modifier: Modifier = Modifier) {
                     }
 
                     entry<ForgeNavKey.Settings> {
-                        SettingsScreen(basicModifier)
+                        SettingsScreen(
+                            modifier = basicModifier,
+                            isDark = isDark,
+                            onToggleTheme = onToggleTheme,
+                            onSignOut = {
+                                backStack.clear()
+                                backStack.add(Login)
+                            }
+                        )
                     }
 
                     entry<ForgeNavKey.TaskList> {
