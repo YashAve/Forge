@@ -1,133 +1,121 @@
-# Handoff note — laptop → desktop
+# Handoff note — desktop → laptop
 
-**From:** laptop Claude session · **Date:** 2026-07-20
+**From:** desktop Claude session · **Date:** 2026-07-21 · **On top of:** `d23700a`
 
-Tree is green at each push below: `./gradlew :app:compileDebugKotlin --rerun-tasks` →
-**BUILD SUCCESSFUL** (17/17) and `./gradlew :app:lintDebug` → **BUILD SUCCESSFUL**, no new
-warnings. **Compile + lint only — the app was not launched on device/emulator.**
+Tree is green: `./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**, no Kotlin warnings.
+Compile-only — not launched on device.
 
----
+## What this push adds (Yash's code)
 
-## Push 2 — `ForgePreferences` migrated to real DataStore (latest, on top of `3e4c0b3`)
+**The Add / Edit Task bottom sheet gets its first real build** (`AddTaskSheet.kt`, was a stub):
 
-The earlier SharedPreferences shim is gone; `ForgePreferences` now uses Jetpack
-**DataStore Preferences**, as STEP 5 of the colour brief originally asked. This is the one
-push in this run that **touches Gradle** — done under an explicit instruction to add the
-dependency.
+- `AddTaskSheet` — a Material3 `ModalBottomSheet` with a custom 40×4 drag handle, the
+  `~55%` black scrim, `bgElev` container, and top-rounded shape. It hosts `AddTaskContent`.
+- `AddTaskContent` — the scrolling body: the ambient amber radial-glow `drawBehind`, the
+  header (`"New task"` / `"Edit task"` + subtitle + close X), the hero Title field, the Notes
+  field, a "Due" section label, and the four quick-date chips in a `FlowRow`.
+- **`ForgeSelectionChip.kt`** (new) — a real fully-rounded pill with animated background/text
+  colour (140ms ease-out) for the quick-date chips. The single-select-with-toggle-off logic in
+  `AddTaskContent` (clear all, then set the tapped one unless it was already active) is clean.
+- **`ForgePrioritySegment.kt`** (new) — spec-only for now: a full KDoc describing the sliding
+  amber-indicator segmented control, but `ForgePrioritySegmented(...)` has an **empty body** and
+  isn't called yet. Spec-first placeholder, same pattern as everything else.
+- **`ForgeTextField`** — gains `big: Boolean` (72dp/18sp vs 64dp/16sp) and `autoFocus: Boolean`
+  (a `FocusRequester` + `LaunchedEffect(Unit)` that requests focus on first composition). Also
+  `modifier` moved to the **first** parameter position.
 
-- **Gradle:** added `datastore = "1.1.7"` + `androidx-datastore-preferences` to
-  `gradle/libs.versions.toml`, and `implementation(libs.androidx.datastore.preferences)` to
-  `app/build.gradle.kts`. No other build changes. Dependency resolves (`--rerun-tasks` clean).
-- **`ForgePreferences.kt`** — rewritten body-only; the **public API is byte-for-byte the same**
-  (`isDarkTheme(): Flow<Boolean>`, `suspend setDarkTheme(Boolean)`, default dark), so
-  `MainActivity` and every other call site are untouched. Now: a top-level
-  `Context.dataStore by preferencesDataStore(name = "forge_preferences")` delegate;
-  `isDarkTheme()` = `dataStore.data.map { it[KEY] ?: true }.distinctUntilChanged()`;
-  `setDarkTheme()` = `dataStore.edit { it[KEY] = isDark }`. The `callbackFlow`
-  /`OnSharedPreferenceChangeListener` plumbing is gone — DataStore's `.data` Flow gives change
-  notification for free.
-- **⚠️ No data migration.** The old shim wrote `forge_preferences.xml` (SharedPreferences);
-  DataStore writes `forge_preferences.preferences_pb` — different file, same name. Any flag a
-  user had already stored under the shim does **not** carry over. Harmless here: nothing
-  shipped, and the default is dark either way. If you ever need it, DataStore has
-  `SharedPreferencesMigration(context, "forge_preferences")` — one line in the
-  `preferencesDataStore(...)` `produceMigrations` arg — but I left it out as dead weight.
+## A real wiring gap (compiles clean, wrong on screen)
 
-Everything below this line describes Push 1 (`3e4c0b3`) and is still accurate **except** the
-old ⚠️ "SharedPreferences-backed, not DataStore" caveat, which Push 2 resolves.
+`AddTaskSheet` passes **nothing** into `AddTaskContent()`:
 
----
+```kotlin
+) {
+    AddTaskContent()          // editingTask, onSave, onDismiss all dropped
+}
+```
 
-## Push 1 — Settings screen + working theme toggle (`3e4c0b3`, on top of `846ad76`)
+Because every `AddTaskContent` parameter has a default, this compiles — but two things are
+wrong at runtime:
 
-**The theme switch now has a real UI.** The previous push centralised colours and added
-`ForgePreferences` (the persisted dark/light flag), but nothing called `setDarkTheme()` yet.
-This push builds the Settings screen for real and wires a working toggle end to end.
+- **The X button doesn't close the sheet.** The `IconButton` inside `AddTaskContent` calls the
+  content's own `onDismiss`, which here is the defaulted no-op `{ }` — not `AddTaskSheet`'s real
+  `onDismiss`. Scrim-tap and drag-down still dismiss (those go through `ModalBottomSheet`'s
+  `onDismissRequest`), but tapping X does nothing.
+- **Editing never prefills.** `editingTask` never reaches the content, so the header is always
+  `"New task"` and the fields always start empty, even when a task is being edited.
 
-## What changed
+`onSave` is also never threaded (and `AddTaskContent` has no `onSave` param + no Save button
+yet — see WIP below). Threading `editingTask`/`onSave`/`onDismiss` from `AddTaskSheet` into
+`AddTaskContent(...)` is the fix.
 
-- **`ForgeToggle.kt`** — was a `Text("ForgeToggle")` stub. Now a real pill switch:
-  `checked: Boolean`, `onChange: (Boolean) -> Unit`, animated track colour
-  (`amber` ↔ `bgPress`, 200ms) and animated knob position/colour via
-  `animateFloatAsState` + `BiasAlignment`. Own `clickable` with `indication = null` so it
-  doesn't inherit ripple from a parent row.
-- **`SettingRow.kt`** — was a stub. Now the shared row used by the whole screen: icon +
-  title (+ optional `value` text) + optional `trailing` slot, `danger` flag (recolours icon
-  + title to `colors.danger`), press-state background wash to `colors.bgPress` over 120ms
-  (`collectIsPressedAsState` + `animateColorAsState`), trailing chevron when clickable with
-  no trailing slot.
-- **`SettingsScreen.kt`** — fully built out: profile card (unchanged from before) then
-  **Preferences** (Notifications toggle — remembered, default on; Completion sound toggle —
-  remembered, default off; **Theme row** — icon/value follow `isDark`, `onClick =
-  onToggleTheme`; Focus preferences, static), **About** (About Forge, Privacy), **Sign out**
-  (`danger = true`), and a centred `"FORGE · V1.0.0"` version footer. Screen no longer owns
-  theme state — it takes `isDark: Boolean` + `onToggleTheme: () -> Unit` and just renders +
-  triggers.
-- **`ForgeNavHost.kt`** — now takes `isDark: Boolean` and `onToggleTheme: () -> Unit`
-  parameters and threads them into the `Settings` entry. Also wired `onSignOut` there
-  (clears the back stack, lands on `Login`) since it was a free correctness win sitting right
-  next to the theme work.
-- **`MainActivity.kt`** — added `rememberCoroutineScope()` in `setContent`; `onToggleTheme`
-  now does `coroutineScope.launch { forgePreferences.setDarkTheme(!isDark) }`. That's the
-  whole loop: tap the Theme row → flips the stored flag → `isDarkTheme()` Flow emits →
-  `collectAsStateWithLifecycle` recomposes → `ForgeTheme(darkTheme = isDark)` re-provides
-  `LocalForgeColors` → **everything on screen recolours**, including the Settings screen
-  itself (icon swaps light_mode/dark_mode, value text swaps Light/Dark).
+## Spec-vs-code drifts
 
-## ⚠️ Read first
+- **Notes field is `big = true`.** The spec is explicit that only the Title is the `big` hero
+  (72dp/18sp) and Notes is a normal field (64dp/16sp). Right now both render as 72dp heroes —
+  looks like a copy-paste from the Title field. `autoFocus` is correct on both (Title true,
+  Notes false).
+- **Asymmetric top corners on the sheet.** `RoundedCornerShape(topStart = 14.dp, topEnd = 24.dp)`
+  — the two top corners get different radii; the spec says both top corners are 24dp. `14` reads
+  like a typo for `24`.
 
-**1. Not yet verified by eye.** Compile + lint only. Nobody has tapped the toggle on a
-device/emulator to confirm the animation, the recomposition, and the light-theme palette
-actually look right together. That's the natural next step before trusting this fully.
+## WIP / not built yet (expected — spec-first)
 
-**2. ~~`ForgePreferences` is SharedPreferences-backed~~ — RESOLVED in Push 2 above.** It is
-now real Jetpack DataStore. (When Push 1 landed it was still the shim; left here for history.)
+- `AddTaskContent` stops after the quick-date chips. The picker-fields Row (date + time) is an
+  empty `Row { }`; and the whole **Reminder group (§4)**, **Priority segment (§5)**, and **Save
+  button (§6)** from the spec aren't in the body at all.
+- `ForgePickerField` (the tappable date/time pill the spec calls for) doesn't exist yet.
+- `ForgePrioritySegmented` exists but is an empty stub, not yet called.
+- `AddTaskSheet` isn't wired into `ForgeNavHost` or the bottom-nav Add button — still a
+  standalone component. The Add button's `onAddClick` remains inert (carried from before).
 
-**3. Notifications / Completion-sound toggles are cosmetic only.** Their state is a local
-`remember { mutableStateOf(...) }` in `SettingsScreen` — nothing persists them and nothing
-reads them elsewhere. Only the Theme row is wired to a real system (DataStore +
-recomposition). That's by design per the brief (only the theme switch needed to be real) but
-worth knowing if asked "does the sound toggle do anything" — no.
+## Minor
 
-**4. "Focus preferences", "About Forge", "Privacy" rows are inert** (`onClick = { }`), same
-status as lots of other rows across the app (add-task sheets, edit sheets, etc. — see the
-carried-over TODO list below). Not a regression, just not built yet.
+- **`ForgePreferences.kt`** gained a redundant self-import:
+  `import ...ForgePreferences.Companion.DEFAULT_IS_DARK`. `DEFAULT_IS_DARK` lives in this class's
+  own `private companion object`, so `isDarkTheme()` already reaches it via companion scope — the
+  import is dead weight (almost certainly an IDE auto-add). Harmless, compiles clean, no warning.
+  Behaviour is byte-for-byte identical to your DataStore version.
+- `ForgeBottomNavigationBar.kt` — formatting-only reflow this round, no logic change.
+- The `modifier`-first reorder on `ForgeTextField` broke no call sites — every caller
+  (`ForgePasswordField`, the three auth screens, both `AddTaskSheet` fields) uses named args.
+  Verified by grep + clean build.
 
-## Carried over (still open — untouched by this push)
+## Carried over (still open)
 
-- **Task List bucket overlap crash**: `overdue && due == null` lands in both TODAY and
-  SOMEDAY → duplicate `LazyColumn` key → crash. One-liner:
-  `someday = active.filter { it.due == null && !it.overdue }`.
-- **No mutable state anywhere for tasks** — `onToggle`/`onComplete`/`onAdd`/etc. are all TODO
-  stubs over the immutable top-level `val tasks`. A ViewModel (or hoisted
-  `mutableStateListOf`) is still the one change that brings the app to life.
-- **Stats week chart data is still mostly fake** — six hardcoded ints, "Done this week"
-  hardpins `"1"`, "Best day: Thursday" is a hardcoded string. Unchanged.
-- **`BackHandler`** swallows hardware back on Home/Stats/Settings/Splash/Onboarding; needs an
-  on-device check. Top-bar back works.
-- Onboarding finish/skip → `Login` vs spec's `Registration`; `Motion.kt` empty TODO;
-  `SuccessScreen` "Reset prototype" button not deleted; `codelabs/original/` drift unreverted
-  (`git checkout 55575c3 -- codelabs/original/`).
-- **ForgeTextField focus ring still deleted** (running note — restore block at
-  `git show 0c6ffa9:docs/HANDOFF.md`).
+- **Your flagged Task List bucket-overlap crash is still live** — `overdue && due == null` lands
+  in both TODAY and SOMEDAY → duplicate `LazyColumn` key → crash. Your one-liner
+  (`someday = active.filter { it.due == null && !it.overdue }`) is still the fix. Untouched.
+- **No mutable task state anywhere** — `onToggle`/`onComplete`/`onAdd` still TODO stubs over the
+  immutable top-level `val tasks`. A ViewModel / hoisted `mutableStateListOf` is still the
+  bring-it-to-life change.
+- Stats week-chart data still mostly hardcoded; `BackHandler` still needs an on-device check;
+  onboarding finish/skip → `Login` vs spec's `Registration`; `Motion.kt` empty TODO;
+  `SuccessScreen` "Reset prototype" button not deleted; `codelabs` practice-ground drift
+  (`com/example/jetnews`, `com/codelab/basiclayouts`) unreverted.
+- **ForgeTextField focus ring is STILL an empty stub** — `.drawBehind { /* focus ring, unchanged
+  */ }`. Notable this round because Yash *edited this exact file* (added `big`/`autoFocus`) and
+  the ring didn't come back with it. **15th note running — restore block at
+  `git show 0c6ffa9:docs/HANDOFF.md`.**
 - `gradle.properties`: dead `kapt.*`; deprecated `useClasspathSnapshot` warns.
+
+## Toolchain — untouched this round
+
+No `gradle.properties` / `build.gradle.kts` / version-catalog changes from me. AGP still
+8.13.2. `ksp.incremental=false`, `hilt { enableAggregatingTask = false }`, `:app:compileJava`
+alias all as before. (DataStore dep from your `d23700a` is in and resolving.)
 
 ## Screen status — real vs stub
 
-Auth six near-complete. Onboarding feature-complete. Home / Task List / Task Detail: visually
-complete, navigable, inert below the nav layer. Stats: visually complete (numbers mostly
-placeholder). **Settings: now feature-complete and is the one screen with a real, working
-piece of app state (the theme flag) — everything else on it is still cosmetic.**
+Auth six near-complete. Onboarding feature-complete. Home / Task List / Task Detail visually
+complete, navigable, inert below the nav layer. Stats visually complete (numbers placeholder).
+Settings feature-complete with the one real piece of app state (theme flag). **Add Task sheet:
+container + header + title/notes + quick-date chips built; pickers, reminder, priority, and
+save still to come; not yet wired to the Add button.**
 
 Design source is still the **Forge Design System** (external Claude Design project).
 
 ## Verified
 
-`./gradlew :app:compileDebugKotlin --rerun-tasks` → **BUILD SUCCESSFUL** (17/17).
-`./gradlew :app:lintDebug` → **BUILD SUCCESSFUL**, no new lint warnings. **Not launched on
-device** — the toggle animation, the theme recomposition end-to-end, and the light palette
-are verified to build, not verified to render.
-
-## Toolchain
-
-Unchanged. No Gradle/dependency/toolchain edits.
+`./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**, no Kotlin compiler warnings.
+Compile-only — the `AddTaskContent()` wiring gap, the `big`-Notes drift, and the asymmetric
+sheet corners all compile clean and only show up on screen or by reading the code.

@@ -24,11 +24,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
@@ -42,24 +45,40 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import com.development.forge.core.designsystem.ForgeTheme
 
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * 2. TITLE + NOTES GROUP (26dp top margin, 10dp gap between the two fields)
+ * ═══════════════════════════════════════════════════════════════
+ * Two ForgeTextFields. The design uses a `big` variant for the title so it reads
+ * as the hero:
+ *   - TITLE: your ForgeTextField with a `big` flag — minHeight 72dp (vs 64dp
+ *     normal), leadingIcon `bolt`, label "Title", autofocus. Everything else
+ *     matches your existing field (floating label, focus ring, amber border on
+ *     focus). Add a `big: Boolean = false` param to ForgeTextField if it doesn't
+ *     have one — it only changes minHeight 64→72 and can bump the input text size
+ *     slightly (e.g. 16→18sp).
+ *   - NOTES: normal ForgeTextField, leadingIcon `notes`, label "Notes".*/
 @Preview
 @Composable
 fun ForgeTextField(
+    modifier: Modifier = Modifier,
     value: String = "",
     onValueChange: (String) -> Unit = { },
-    modifier: Modifier = Modifier,
     label: String? = null,
     leadingIcon: ImageVector? = null,
     helper: String? = null,
     error: String? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     visualTransformation: VisualTransformation = VisualTransformation.None,
+    big: Boolean = false,
+    autoFocus: Boolean = false,
     trailing: @Composable (() -> Unit)? = null,
 ) {
     // Focus comes from the field's own interaction stream — the single source of truth.
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
     val floated = focused || value.isNotEmpty()
+    val focusRequester = remember { FocusRequester() }
 
     // ONE 0→1 value drives the whole label transition (position + size + weight).
     val progress by animateFloatAsState(if (floated) 1f else 0f, label = "labelFloat")
@@ -76,11 +95,17 @@ fun ForgeTextField(
     val labelColor = if (focused) ForgeTheme.colors.amber else ForgeTheme.colors.fgSecondary
     val shape = RoundedCornerShape(16.dp)
 
+    LaunchedEffect(Unit) {
+        if (autoFocus) {
+            focusRequester.requestFocus()
+        }
+    }
+
     Column(modifier = modifier) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)                      // fixed — single-line field is always 64
+                .height(if (big) 72.dp else 64.dp)                      // fixed — single-line field is always 64
                 .drawBehind { /* focus ring, unchanged */ }
                 .background(ForgeTheme.colors.bgRaised, shape)
                 .border(1.5.dp, borderColor, shape)
@@ -117,9 +142,13 @@ fun ForgeTextField(
                         onValueChange = onValueChange,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .focusRequester(focusRequester)
                             .align(if (label != null) Alignment.TopStart else Alignment.CenterStart)
                             .padding(top = if (label != null) 28.dp else 0.dp),   // FIXED input position
-                        textStyle = TextStyle(color = ForgeTheme.colors.fgPrimary, fontSize = 16.sp),
+                        textStyle = TextStyle(
+                            color = ForgeTheme.colors.fgPrimary,
+                            fontSize = if (big) 18.sp else 16.sp
+                        ),
                         singleLine = true,
                         cursorBrush = SolidColor(ForgeTheme.colors.amber),
                         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),

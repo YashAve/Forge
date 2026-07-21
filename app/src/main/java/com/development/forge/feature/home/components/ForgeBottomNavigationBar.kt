@@ -196,7 +196,12 @@ fun ForgeBottomNavigationBarAddButton(modifier: Modifier = Modifier, onSelect: (
                 .background(ForgeTheme.colors.amber),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Filled.Add, null, modifier = Modifier.size(24.dp), tint = ForgeTheme.colors.fgOnAmber)
+            Icon(
+                Icons.Filled.Add,
+                null,
+                modifier = Modifier.size(24.dp),
+                tint = ForgeTheme.colors.fgOnAmber
+            )
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
@@ -318,9 +323,11 @@ fun ForgeBottomNavigationBar(
             selection = 0,
             onSelect = { onSelect(ForgeNavKey.Home) }
         )
-        ForgeBottomNavigationBarAddButton(Modifier
-            .padding(top = 10.dp, bottom = 8.dp)
-            .weight(1f)) {
+        ForgeBottomNavigationBarAddButton(
+            Modifier
+                .padding(top = 10.dp, bottom = 8.dp)
+                .weight(1f)
+        ) {
         }
         ForgeBottomNavigationBarItem(
             Modifier
