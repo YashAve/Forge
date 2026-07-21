@@ -1,6 +1,7 @@
 package com.development.forge.domain.model
 
 import kotlinx.serialization.Serializable
+import kotlin.time.Instant
 
 @Serializable
 enum class Priority(val label: String) {
@@ -26,7 +27,8 @@ data class Task(
     val overdue: Boolean = false,
     val project: String? = null,
     val notes: String? = null,
-    val subtasks: List<Subtask> = emptyList()
+    val subtasks: List<Subtask> = emptyList(),
+    val dueAt: Instant? = null
 )
 
 // sample data unchanged below — all 20 tasks

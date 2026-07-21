@@ -1,121 +1,78 @@
 # Handoff note — desktop → laptop
 
-**From:** desktop Claude session · **Date:** 2026-07-21 · **On top of:** `d23700a`
+**From:** desktop Claude session · **Date:** 2026-07-21 · **On top of:** `9869da5`
 
 Tree is green: `./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**, no Kotlin warnings.
-Compile-only — not launched on device.
+Compile-only — not launched on device. Small round.
 
 ## What this push adds (Yash's code)
 
-**The Add / Edit Task bottom sheet gets its first real build** (`AddTaskSheet.kt`, was a stub):
+**`Task` gains a real timestamp field** — `val dueAt: Instant? = null` (`kotlin.time.Instant`).
+This is the "model a proper `Instant`, not a display string" groundwork the Home spec asked for.
 
-- `AddTaskSheet` — a Material3 `ModalBottomSheet` with a custom 40×4 drag handle, the
-  `~55%` black scrim, `bgElev` container, and top-rounded shape. It hosts `AddTaskContent`.
-- `AddTaskContent` — the scrolling body: the ambient amber radial-glow `drawBehind`, the
-  header (`"New task"` / `"Edit task"` + subtitle + close X), the hero Title field, the Notes
-  field, a "Due" section label, and the four quick-date chips in a `FlowRow`.
-- **`ForgeSelectionChip.kt`** (new) — a real fully-rounded pill with animated background/text
-  colour (140ms ease-out) for the quick-date chips. The single-select-with-toggle-off logic in
-  `AddTaskContent` (clear all, then set the tapped one unless it was already active) is clean.
-- **`ForgePrioritySegment.kt`** (new) — spec-only for now: a full KDoc describing the sliding
-  amber-indicator segmented control, but `ForgePrioritySegmented(...)` has an **empty body** and
-  isn't called yet. Spec-first placeholder, same pattern as everything else.
-- **`ForgeTextField`** — gains `big: Boolean` (72dp/18sp vs 64dp/16sp) and `autoFocus: Boolean`
-  (a `FocusRequester` + `LaunchedEffect(Unit)` that requests focus on first composition). Also
-  `modifier` moved to the **first** parameter position.
+- Additive with a `= null` default, so all 20 sample tasks and every construction site are
+  untouched.
+- Compiles clean on Kotlin 2.3.21: `kotlin.time.Instant` is **stable** here (no
+  `@OptIn(ExperimentalTime)` needed), and **kotlinx-serialization 1.9.0 resolves a built-in
+  serializer for it** — no missing-serializer error on the `@Serializable` class, verified by
+  forcing a recompile of `Task.kt` and grepping for opt-in/serializer diagnostics (none).
 
-## A real wiring gap (compiles clean, wrong on screen)
+**`AddTaskSheet.kt`** — whitespace only this round (a blank line moved above the `labels`
+declaration). No functional change.
 
-`AddTaskSheet` passes **nothing** into `AddTaskContent()`:
+## Worth knowing
 
-```kotlin
-) {
-    AddTaskContent()          // editingTask, onSave, onDismiss all dropped
-}
-```
+- **`dueAt` is defined but not yet wired.** Nothing writes it (the sheet still tracks quick-date
+  selection as a local `mutableStateListOf(false,false,false,false)` and doesn't populate
+  `dueAt`), and nothing reads it yet. Pure groundwork.
+- **`Task` now holds two parallel "due" representations:** the old display-oriented
+  `due: String?` + `overdue: Boolean`, and the new `dueAt: Instant?`. Fine as a migration step,
+  but they'll want a single source of truth eventually — deriving `due`/`overdue` from `dueAt`
+  — or they can drift apart.
 
-Because every `AddTaskContent` parameter has a default, this compiles — but two things are
-wrong at runtime:
+## Carried over (still open — untouched this round)
 
-- **The X button doesn't close the sheet.** The `IconButton` inside `AddTaskContent` calls the
-  content's own `onDismiss`, which here is the defaulted no-op `{ }` — not `AddTaskSheet`'s real
-  `onDismiss`. Scrim-tap and drag-down still dismiss (those go through `ModalBottomSheet`'s
-  `onDismissRequest`), but tapping X does nothing.
-- **Editing never prefills.** `editingTask` never reaches the content, so the header is always
-  `"New task"` and the fields always start empty, even when a task is being edited.
-
-`onSave` is also never threaded (and `AddTaskContent` has no `onSave` param + no Save button
-yet — see WIP below). Threading `editingTask`/`onSave`/`onDismiss` from `AddTaskSheet` into
-`AddTaskContent(...)` is the fix.
-
-## Spec-vs-code drifts
-
-- **Notes field is `big = true`.** The spec is explicit that only the Title is the `big` hero
-  (72dp/18sp) and Notes is a normal field (64dp/16sp). Right now both render as 72dp heroes —
-  looks like a copy-paste from the Title field. `autoFocus` is correct on both (Title true,
-  Notes false).
-- **Asymmetric top corners on the sheet.** `RoundedCornerShape(topStart = 14.dp, topEnd = 24.dp)`
-  — the two top corners get different radii; the spec says both top corners are 24dp. `14` reads
-  like a typo for `24`.
-
-## WIP / not built yet (expected — spec-first)
-
-- `AddTaskContent` stops after the quick-date chips. The picker-fields Row (date + time) is an
-  empty `Row { }`; and the whole **Reminder group (§4)**, **Priority segment (§5)**, and **Save
-  button (§6)** from the spec aren't in the body at all.
-- `ForgePickerField` (the tappable date/time pill the spec calls for) doesn't exist yet.
-- `ForgePrioritySegmented` exists but is an empty stub, not yet called.
-- `AddTaskSheet` isn't wired into `ForgeNavHost` or the bottom-nav Add button — still a
-  standalone component. The Add button's `onAddClick` remains inert (carried from before).
-
-## Minor
-
-- **`ForgePreferences.kt`** gained a redundant self-import:
-  `import ...ForgePreferences.Companion.DEFAULT_IS_DARK`. `DEFAULT_IS_DARK` lives in this class's
-  own `private companion object`, so `isDarkTheme()` already reaches it via companion scope — the
-  import is dead weight (almost certainly an IDE auto-add). Harmless, compiles clean, no warning.
-  Behaviour is byte-for-byte identical to your DataStore version.
-- `ForgeBottomNavigationBar.kt` — formatting-only reflow this round, no logic change.
-- The `modifier`-first reorder on `ForgeTextField` broke no call sites — every caller
-  (`ForgePasswordField`, the three auth screens, both `AddTaskSheet` fields) uses named args.
-  Verified by grep + clean build.
-
-## Carried over (still open)
-
-- **Your flagged Task List bucket-overlap crash is still live** — `overdue && due == null` lands
-  in both TODAY and SOMEDAY → duplicate `LazyColumn` key → crash. Your one-liner
-  (`someday = active.filter { it.due == null && !it.overdue }`) is still the fix. Untouched.
+- **The `AddTaskContent()` wiring gap from last push is still there:** `AddTaskSheet` calls
+  `AddTaskContent()` with no args, so the X button (wired to the content's no-op default
+  `onDismiss`) doesn't close the sheet, and editing never prefills (`editingTask` never reaches
+  the content). `onSave` still not threaded; no Save button yet.
+- **Notes field still `big = true`** (spec: only Title is the hero); **sheet top corners still
+  asymmetric** (`topStart = 14.dp, topEnd = 24.dp`, likely a typo for 24/24).
+- `AddTaskContent` still stops after the quick-date chips — picker Row is empty; reminder,
+  priority segment, and Save button unbuilt; `ForgePickerField` doesn't exist;
+  `ForgePrioritySegmented` is still an empty stub. `AddTaskSheet` not wired to the Add button.
+- **Your Task List bucket-overlap crash is still live** (`overdue && due == null` → both TODAY
+  and SOMEDAY → duplicate `LazyColumn` key). Fix:
+  `someday = active.filter { it.due == null && !it.overdue }`.
 - **No mutable task state anywhere** — `onToggle`/`onComplete`/`onAdd` still TODO stubs over the
-  immutable top-level `val tasks`. A ViewModel / hoisted `mutableStateListOf` is still the
-  bring-it-to-life change.
-- Stats week-chart data still mostly hardcoded; `BackHandler` still needs an on-device check;
-  onboarding finish/skip → `Login` vs spec's `Registration`; `Motion.kt` empty TODO;
-  `SuccessScreen` "Reset prototype" button not deleted; `codelabs` practice-ground drift
-  (`com/example/jetnews`, `com/codelab/basiclayouts`) unreverted.
-- **ForgeTextField focus ring is STILL an empty stub** — `.drawBehind { /* focus ring, unchanged
-  */ }`. Notable this round because Yash *edited this exact file* (added `big`/`autoFocus`) and
-  the ring didn't come back with it. **15th note running — restore block at
-  `git show 0c6ffa9:docs/HANDOFF.md`.**
+  immutable top-level `val tasks`. Note the sheet is deliberately shaped stateless-for-a-ViewModel,
+  so it's already set up to plug into whatever hoisted state you build.
+- Stats week-chart data mostly hardcoded; `BackHandler` on-device check; onboarding finish/skip
+  → `Login` vs spec's `Registration`; `Motion.kt` empty TODO; `SuccessScreen` "Reset prototype"
+  button not deleted; `codelabs` practice-ground drift unreverted.
+- **ForgeTextField focus ring STILL an empty `drawBehind { /* focus ring, unchanged */ }` stub
+  — 16th note running.** Restore block at `git show 0c6ffa9:docs/HANDOFF.md`.
 - `gradle.properties`: dead `kapt.*`; deprecated `useClasspathSnapshot` warns.
 
 ## Toolchain — untouched this round
 
-No `gradle.properties` / `build.gradle.kts` / version-catalog changes from me. AGP still
-8.13.2. `ksp.incremental=false`, `hilt { enableAggregatingTask = false }`, `:app:compileJava`
-alias all as before. (DataStore dep from your `d23700a` is in and resolving.)
+No `gradle.properties` / `build.gradle.kts` / version-catalog changes. AGP still 8.13.2.
+`ksp.incremental=false`, `hilt { enableAggregatingTask = false }`, `:app:compileJava` alias all
+as before. (No new dep needed for `kotlin.time.Instant` — it's stdlib.)
 
 ## Screen status — real vs stub
 
-Auth six near-complete. Onboarding feature-complete. Home / Task List / Task Detail visually
-complete, navigable, inert below the nav layer. Stats visually complete (numbers placeholder).
-Settings feature-complete with the one real piece of app state (theme flag). **Add Task sheet:
-container + header + title/notes + quick-date chips built; pickers, reminder, priority, and
-save still to come; not yet wired to the Add button.**
+Unchanged from last push except the `Task` model now carries `dueAt`. Auth six near-complete;
+onboarding feature-complete; Home / Task List / Task Detail visually complete + navigable but
+inert below the nav layer; Stats visually complete (placeholder numbers); Settings
+feature-complete with the live theme flag; Add Task sheet = container + header + title/notes +
+quick-date chips (pickers/reminder/priority/save still to come, not wired to the Add button).
 
 Design source is still the **Forge Design System** (external Claude Design project).
 
 ## Verified
 
-`./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**, no Kotlin compiler warnings.
-Compile-only — the `AddTaskContent()` wiring gap, the `big`-Notes drift, and the asymmetric
-sheet corners all compile clean and only show up on screen or by reading the code.
+`./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**, no Kotlin compiler warnings
+(including a forced `Task.kt` recompile to confirm `kotlin.time.Instant` needs no opt-in and
+serializes cleanly). Compile-only — the two-representations-of-due observation and the
+carried-over wiring gaps don't surface as compile errors, only by reading or running.

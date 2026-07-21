@@ -302,8 +302,8 @@ fun AddTaskContent(
     var title by rememberSaveable { mutableStateOf(editingTask?.title ?: "") }
     var notes by rememberSaveable { mutableStateOf(editingTask?.notes ?: "") }
     val selections = rememberSaveable { mutableStateListOf(false, false, false, false) }
-    val labels = listOf("Today", "Tomorrow", "This weekend", "Next week")
 
+    val labels = listOf("Today", "Tomorrow", "This weekend", "Next week")
     val glowColor = ForgeTheme.colors.amber
 
     Column(
