@@ -46,10 +46,12 @@ import com.development.forge.core.components.ForgeTaskTopBar
 import com.development.forge.core.components.OnForgeOnBack
 import com.development.forge.core.designsystem.ForgeFonts
 import com.development.forge.core.designsystem.ForgeTheme
+import com.development.forge.domain.model.Priority
 import com.development.forge.domain.model.Task
 import com.development.forge.domain.model.tasks
 import com.development.forge.feature.tasks.components.ForgeDatePickerDialog
 import com.development.forge.feature.tasks.components.ForgePickerField
+import com.development.forge.feature.tasks.components.ForgePrioritySegmented
 import com.development.forge.feature.tasks.components.ForgeSelectionChip
 import com.development.forge.feature.tasks.components.ForgeTimePickerDialog
 
@@ -274,6 +276,8 @@ fun AddOrEditTaskScreen(
     var isShowDate by rememberSaveable { mutableStateOf(false) }
     var isShowTime by rememberSaveable { mutableStateOf(false) }
 
+    var priority by rememberSaveable { mutableStateOf(Priority.HIGH) }
+
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
@@ -400,6 +404,14 @@ fun AddOrEditTaskScreen(
                     isShowTime = false
                 }
             )
+            Spacer(modifier = Modifier.height(30.dp))
+            ForgeSectionLabel(label = "Priority")
+            Spacer(modifier = Modifier.height(10.dp))
+            ForgePrioritySegmented(
+                value = priority
+            ) { value ->
+                priority = value
+            }
         }
     }
 }
