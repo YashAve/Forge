@@ -2,7 +2,9 @@ package com.development.forge.feature.tasks.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.EaseOut
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,10 +16,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.development.forge.core.designsystem.ForgeFonts
@@ -42,6 +46,7 @@ import com.development.forge.core.designsystem.ForgeTheme
  *        shows the formatted date or "Pick a date"
  *      - time picker (weight 1f): ForgePickerField, icon `schedule`, shows the
  *        time or "Time"*/
+@Preview
 @Composable
 fun ForgeSelectionChip(
     modifier: Modifier = Modifier,
@@ -49,40 +54,45 @@ fun ForgeSelectionChip(
     selected: Boolean = false,
     onClick: () -> Unit = { }
 ) {
-    val backgroundColor by animateColorAsState(
+    val chipColor by animateColorAsState(
         targetValue = if (selected) ForgeTheme.colors.amber else ForgeTheme.colors.bgRaised,
         animationSpec = tween(140, easing = EaseOut),
-        label = "chipBg"
+        label = "chip color"
     )
-    val textColor by animateColorAsState(
-        targetValue = if (selected) ForgeTheme.colors.fgOnAmber else ForgeTheme.colors.fgSecondary,
+    val chipBorder by animateDpAsState(
+        targetValue = if (selected) 0.dp else (1.5).dp,
         animationSpec = tween(140, easing = EaseOut),
-        label = "chipText"
+        label = "chip border"
     )
 
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(percent = 100))
-            .background(backgroundColor)
-            .then(
-                if (!selected) Modifier.border(
-                    1.5.dp, ForgeTheme.colors.borderDefault, RoundedCornerShape(percent = 100)
-                ) else Modifier
+            .background(chipColor)
+            .border(
+                border = BorderStroke(
+                    width = chipBorder,
+                    color = ForgeTheme.colors.borderDefault
+                ),
+                shape = RoundedCornerShape(percent = 100)
             )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-                onClick = onClick
+                enabled = true,
+                onClick = {
+                    onClick()
+                }
             )
-            .padding(vertical = 8.dp, horizontal = 14.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
     ) {
         Text(
-            text = label,
-            style = TextStyle(
+            text = label, style = TextStyle(
                 fontFamily = ForgeFonts.spaceGrotesk,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.W600,
-                color = textColor
+                color = if (selected) ForgeTheme.colors.fgOnAmber else ForgeTheme.colors.fgSecondary
             )
         )
     }

@@ -44,6 +44,7 @@ import com.development.forge.feature.onboarding.OnboardingFlowScreen
 import com.development.forge.feature.settings.SettingsScreen
 import com.development.forge.feature.splash.SplashScreen
 import com.development.forge.feature.stats.StatsScreen
+import com.development.forge.feature.tasks.AddOrEditTaskScreen
 import com.development.forge.feature.tasks.TaskDetailScreen
 import com.development.forge.feature.tasks.TaskListScreen
 import com.development.forge.navigation.ForgeNavKey.EmailSent
@@ -70,7 +71,7 @@ fun ForgeNavHost(
         when (currentDestination) {
             Login, Registration -> backStack.clear()
             ForgeNavKey.TaskList -> backStack.removeLastOrNull()
-            else -> {}
+            else -> { }
         }
     }
 
@@ -104,7 +105,8 @@ fun ForgeNavHost(
                     is ForgeNavKey.OnboardingFlow,
                     is ForgeNavKey.Home,
                     is ForgeNavKey.Statistics,
-                    is ForgeNavKey.Settings -> {}
+                    is ForgeNavKey.Settings,
+                    is ForgeNavKey.AddOrEditTask -> { }
 
                     is Login,
                     is Registration -> ForgeTopBar()
@@ -118,7 +120,7 @@ fun ForgeNavHost(
                     is ForgeNavKey.TaskDetail -> ForgeTaskTopBar(
                         label = "Task",
                         onStart = { OnForgeOnBack { backStack.removeLastOrNull() } },
-                        onEnd = { OnForgeOnEdit { /* TODO: open edit sheet */ } }
+                        onEnd = { OnForgeOnEdit { backStack.add(ForgeNavKey.AddOrEditTask) } }
                     )
 
                     else -> ForgeTopBar(
@@ -138,10 +140,11 @@ fun ForgeNavHost(
                                 backStack.add(key)
                             },
                             onAddClick = {
-                                // TODO: flip add sheet visibility state
+                                backStack.add(ForgeNavKey.AddOrEditTask)
                             }
                         )
                     }
+
                     else -> {}
                 }
             }
@@ -222,7 +225,8 @@ fun ForgeNavHost(
                             onResetPassword = {
                                 // clear the whole forgot/reset chain, land on Login
                                 while (backStack.lastOrNull() !is Login &&
-                                    backStack.size > 1) {
+                                    backStack.size > 1
+                                ) {
                                     backStack.removeLastOrNull()
                                 }
                                 backStack.add(Login)
@@ -253,7 +257,7 @@ fun ForgeNavHost(
                                 // TODO: toggle task done state
                             },
                             onAdd = {
-                                // TODO: open add sheet
+
                             }
                         )
                     }
@@ -285,7 +289,7 @@ fun ForgeNavHost(
                                 // TODO: toggle task done state
                             },
                             onAdd = {
-                                // TODO: open add sheet
+                                backStack.add(ForgeNavKey.AddOrEditTask)
                             }
                         )
                     }
@@ -307,10 +311,15 @@ fun ForgeNavHost(
                                     // TODO: toggle subtask
                                 },
                                 onEdit = {
-                                    // TODO: open edit sheet
+
                                 }
                             )
                         }
+                    }
+                    entry<ForgeNavKey.AddOrEditTask> {
+                        AddOrEditTaskScreen(basicModifier, onBack = {
+                            backStack.removeLastOrNull()
+                        })
                     }
                 }
             )

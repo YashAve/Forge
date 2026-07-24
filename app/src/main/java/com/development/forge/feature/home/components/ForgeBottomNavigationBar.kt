@@ -328,6 +328,7 @@ fun ForgeBottomNavigationBar(
                 .padding(top = 10.dp, bottom = 8.dp)
                 .weight(1f)
         ) {
+            onAddClick()
         }
         ForgeBottomNavigationBarItem(
             Modifier

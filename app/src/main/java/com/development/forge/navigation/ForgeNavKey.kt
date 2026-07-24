@@ -52,4 +52,7 @@ sealed interface ForgeNavKey : NavKey {
         override val activeIcon = Icons.Filled.Person
         override val inactiveIcon = Icons.Outlined.Person
     }
+
+    @Serializable
+    data object AddOrEditTask: ForgeNavKey
 }
