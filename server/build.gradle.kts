@@ -18,6 +18,15 @@ dependencies {
     implementation(libs.ktor.server.status.pages)
     implementation(libs.logback.classic)
 
+    // JWT auth + CORS for the local Android client
+    implementation(libs.ktor.server.auth)
+    implementation(libs.ktor.server.auth.jwt)
+    implementation(libs.ktor.server.cors)
+
+    // MongoDB (coroutine driver) + BCrypt password hashing
+    implementation(libs.mongodb.driver.kotlin.coroutine)
+    implementation(libs.bcrypt)
+
     implementation(libs.koin.ktor)
     implementation(libs.koin.logger.slf4j)
 
