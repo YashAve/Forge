@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -26,7 +27,7 @@ import com.development.forge.core.designsystem.ForgeTheme
 
 @Preview
 @Composable
-fun NakedValidationText(
+fun ForgeNakedValidationText(
     modifier: Modifier = Modifier,
     input: String = "",
     placeholder: String = "What needs forging?",
@@ -34,6 +35,7 @@ fun NakedValidationText(
     maxLines: Int = 3,
     isTakeFocus: Boolean = false,
     inputLength: Int = 120,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
     onValueChange: (String) -> Unit = { }
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -64,6 +66,7 @@ fun NakedValidationText(
                 innerTextField()
             },
             maxLines = maxLines,
+            keyboardActions = keyboardActions,
             modifier = Modifier
                 .fillMaxWidth()
                 .then(

@@ -1,94 +1,90 @@
 # Handoff note — laptop → desktop
 
-**From:** laptop Claude session · **Date:** 2026-07-25 · **On top of:** `a7f1ca8`
+**From:** laptop Claude session · **Date:** 2026-07-25 · **On top of:** `c82703b`
 
-Tree is green: `./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**, only the benign
-Hilt/KSP `ComponentTreeDeps` note. **Compile-only — not launched on device.** This push is
-Yash's WIP off the laptop: it **resolves the Priority-segment bugs you flagged** last round
-and builds new pieces on top.
+Tree is green: forced `./gradlew :app:compileDebugKotlin --rerun-tasks` → **BUILD SUCCESSFUL**
+(17/17 executed), only the benign Hilt/KSP `ComponentTreeDeps` note. **Compile-only — not
+launched on device.**
 
-## Priority segment — your flagged bugs are FIXED
+## 🎉 THE UI IS COMPLETE
 
-Your `a7f1ca8` handoff called out four things on `ForgePrioritySegmented`. All addressed:
+Every screen in the app is now visually built. The Add / Edit Task screen — the last one with
+unbuilt pieces — is finished, which means the **UI-construction phase is done**. The whole
+design system (Forge Design System, the external Claude Design project) has been translated to
+Compose: auth (6), onboarding, splash, home, task list, task detail, stats, settings, and the
+full-screen add/edit flow.
 
-- **Label-colour bug (the real one) — fixed.** The loop now computes
-  `val isActive = priority == value` and keys both the text colour and dot colour off
-  `isActive`. The old `if (value == selected)` (which ignored the loop variable) is gone.
-- **Dual source of truth — removed.** The internal `var selected by rememberSaveable` is
-  deleted; the component is now fully controlled off the `value` prop. Tap just calls
-  `onChange(priority)` — no second state to drift out of sync on first render.
-- **Indicator now slides — fixed.** `bias` goes through `animateFloatAsState` with
-  `CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f)` over 240ms, so the amber block springs
-  (with overshoot) between thirds instead of snapping.
-- **Invisible dot + missing glow — fixed.** The 7dp dot got `.background(dotColor)`
-  (`fgOnAmber` active / `fgTertiary` inactive), and the indicator got the amber @35%
-  `dropShadow` before its clip.
-- **Default is now `Priority.MED`** (was HIGH), matching the spec.
+**Read this carefully — "UI complete" ≠ "app complete".** It means every screen renders and is
+navigable. It does **not** mean the app is functional: there is still **no ViewModel / no real
+mutable task state**, Save is inert, pickers aren't plumbed back, and several correctness bugs
+remain (all listed under "The remaining phase" below). The next phase is **wiring**, not
+drawing. Please don't read "UI complete" as license to skip the open items — they're the whole
+of what's left.
 
-## Also new this push
+## What this push finishes (the MORE DETAILS section)
 
-- **`amber200` token** (`0xFFFFC766`) added to `ForgeColorScheme` — same value in both
-  `ForgeDarkColors` and `ForgeLightColors`. It's the light end of the amber ramp, pulled into
-  the scheme so gradients can reference it as a token.
-- **Settings avatar is now a gradient.** The profile avatar in `SettingsScreen` went from flat
-  `colors.amber` to `Brush.linearGradient(amber200 → amber → amberA500)`.
-- **`NakedValidationText` (new component)** — `feature/tasks/components/NakedValidationText.kt`.
-  A borderless `BasicTextField` for the big title/notes inputs: Space Grotesk W600, amber
-  cursor, placeholder via `decorationBox`, hard length cap (`value.take(inputLength)`), and a
-  `n/limit` counter that appears in the last 18 chars and turns `colors.danger` at the limit.
-  `isTakeFocus` wires an optional `FocusRequester` (note: the requester is created and attached
-  but nothing calls `.requestFocus()` yet — autofocus is not actually triggered).
-- **`AddOrEditTaskScreen` — "MORE DETAILS" section built.** The title field now uses
-  `NakedValidationText`. Added a "MORE DETAILS" toggle row (label + `KeyboardArrowDown` chevron)
-  that expands/collapses an `AnimatedVisibility` (`expandVertically`/`shrinkVertically`, tween
-  320 EaseOut). Inside it, the **Project** sub-section is built: chips + a project text field
-  **share one `project: String` source of truth** — a chip is selected when `project == chipName`,
-  tapping sets/clears it, and the text field reads+writes the same variable (type "Work" → the
-  Work chip lights up). This knocks out the Project part of your "expanded section unbuilt"
-  carry-over; Subtasks / Reminder / Notes are still TODO.
+Last push built Project inside MORE DETAILS; this one builds the other three and closes it out:
 
-## Notes / things to know
+- **Subtasks** — a dynamic, add/remove list backed by
+  `mutableStateListOf<DynamicSubTaskUiItem>` (seeded from `editingTask?.subtasks`). New
+  component **`ForgeSubTaskRow`** (`feature/tasks/components/ForgeSubTaskRow.kt`): a 7dp dot +
+  a naked input (weight 1f) + a 32dp delete button (Close icon). Rows are **stateless** — the
+  title lives in the parent list, so Save always sees current text. Behaviours: a freshly added
+  row autofocuses (`isNew` → `isTakeFocus`); pressing **Done** on a row adds another empty row
+  (`KeyboardActions(onDone = onAddSubTask)`, which also clears every other row's `isNew`); an
+  "Add subtask" button does the same; the section label shows a live `· N` count.
+- **Reminder** — a `remind` toggle plus `remindStart` / `remindEnd` time strings (defaults
+  "9:00 AM" / "6:00 PM") with their own show-picker flags. `formatTime(hour, minute)` helper
+  added.
+- **Notes** — a normal-size `ForgeNakedValidationText` bound to `notes`, capped at 500 chars.
 
-- **`androidx.compose.foundation:foundation-layout` was added** to the version catalog +
-  `app/build.gradle.kts` (1.11.4, matching the sibling explicit `foundation`/`animation-core`/
-  `ui-unit` pins). It's **redundant** — `compose-foundation` already pulls `foundation-layout`
-  transitively and 54 files import it fine without the explicit dep — but it's harmless, same
-  version, and consistent with the existing explicit-module pattern, so I left it as Yash added
-  it. Drop it if you're tidying deps; it changes nothing either way.
-- **Reverted a debug pin:** `ForgeNavHost`'s start destination was left at
-  `rememberNavBackStack(ForgeNavKey.AddOrEditTask)` (so the app boots straight into Add Task for
-  testing the segment). Put back to `Splash` for the commit — same debug-pin revert we've done
-  before. Re-pin locally if you want to keep iterating on that screen.
-- **`.idea/` still uncommitted, intentionally.** Your JDK/bytecode **11 → 17** flip in
-  `misc.xml`/`compiler.xml` and the stale `gradle.xml` `lib` entry are still modified in the
-  working tree and I did **not** stage them — same as your standing note, still your call.
+Supporting changes:
+- **`NakedValidationText` renamed → `ForgeNakedValidationText`** (namespacing consistency with
+  the other `Forge*` components) and gained a `keyboardActions: KeyboardActions` param so
+  subtask rows can hook **Done**. All call sites updated; no stale references remain (grep
+  clean).
+- **`DynamicSubTaskUiItem`** (`id: UUID`, `title`, `isNew`) is the UI-list item type, mapped
+  from the domain `Subtask` when editing.
 
-## Carried over (still open — untouched this round)
+## The remaining phase — wiring (all still open, nothing here touches it)
 
-- **New-task capture still unreachable** — `AddOrEditTaskScreen(editingTask = tasks[0])` default +
-  nav never passing `null`, so **+** always opens "Edit Task" on task[0] (`AddOrEditTask` is a
-  `data object`, can't carry an id).
+This is now the entire backlog. The UI is done; everything below is functional work:
+
+- **No ViewModel / no mutable task state anywhere.** `onToggle` / `onComplete` / `onAdd` /
+  `onSave` are all TODO stubs over the immutable top-level `val tasks`. This one change (a
+  ViewModel or hoisted `mutableStateListOf`) is what brings the whole app to life — and would
+  let Stats compute a real week chart instead of the hardcoded ints.
+- **New-task capture still unreachable** — `AddOrEditTaskScreen(editingTask = tasks[0])` default
+  + nav never passing `null`, so **+** always opens "Edit Task" on task[0] (`AddOrEditTask` is a
+  `data object`, can't carry an id). Needs a nav key that carries an optional task id (or a
+  distinct Add vs Edit route).
 - **`ForgeDatePickerDialog` still NPEs** on OK-without-selection (`selectedDateMillis!!`).
-- **Save still hardcoded** (`derivedStateOf { true }`); picker selections still not plumbed back
-  (`onDateSelected`/`onTimeSelected`); MORE DETAILS **Subtasks / Reminder / Notes** still unbuilt.
-- **`AddTaskSheet.kt` (~24KB) still orphaned** (dead since the full-screen pivot).
+- **Save is hardcoded** (`derivedStateOf { true }`); date/time picker selections aren't plumbed
+  back (`onDateSelected`/`onTimeSelected`), and the new Reminder pickers are display-only.
+- **`AddTaskSheet.kt` (~24KB) is still orphaned** (dead since the full-screen pivot) — safe to
+  delete.
 - **Task List bucket-overlap crash still live** (`overdue && due == null` → duplicate
   `LazyColumn` key). Fix: `someday = active.filter { it.due == null && !it.overdue }`.
-- `dueAt: Instant?` still unused; no mutable task state anywhere; Stats hardcoded; onboarding
+- `dueAt: Instant?` still unused (two parallel due notions); Stats numbers hardcoded; onboarding
   finish/skip → `Login` vs spec's `Registration`; `Motion.kt` empty; `SuccessScreen` reset
   button not deleted.
-- **ForgeTextField focus ring STILL an empty `drawBehind { }` stub — 19th note running.** Restore
+- **ForgeTextField focus ring STILL an empty `drawBehind { }` stub — 20th note running.** Restore
   block at `git show 0c6ffa9:docs/HANDOFF.md`.
 - `gradle.properties`: dead `kapt.*`; deprecated `useClasspathSnapshot` warns.
 
+## Housekeeping
+
+- **`.idea/` still uncommitted, intentionally** — the JDK/bytecode **11 → 17** flip in
+  `misc.xml`/`compiler.xml` and the stale `gradle.xml` `lib` entry are modified in the working
+  tree and **not** staged. Still your call, same standing note.
+- **Toolchain unchanged** — no build-file or version-catalog edits this push. **AGP still
+  8.13.2**, `ksp.incremental=false`, `hilt { enableAggregatingTask = false }`, `:app:compileJava`
+  alias all as before. (The redundant `foundation-layout` dep from last push is still there;
+  drop it whenever you tidy deps.)
+
 ## Verified
 
-`./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**, no Kotlin warnings (only the benign
-Hilt/KSP note). **Compile-only** — the springy slide, the gradient avatar, the counter turning
-red, and the MORE DETAILS expand animation are verified to build, not verified to render.
-
-## Toolchain
-
-`foundation-layout` added to the catalog + app module (see Notes). Otherwise unchanged —
-**AGP still 8.13.2**, `ksp.incremental=false`, `hilt { enableAggregatingTask = false }`,
-`:app:compileJava` alias all as before.
+Forced `./gradlew :app:compileDebugKotlin --rerun-tasks` → **BUILD SUCCESSFUL** (17/17), no
+Kotlin warnings. **Compile-only** — subtask autofocus, Done-adds-a-row, the delete button, and
+the reminder pickers are verified to build, not verified to render or behave. The natural next
+session opens the app on a device/emulator and starts the wiring phase.
