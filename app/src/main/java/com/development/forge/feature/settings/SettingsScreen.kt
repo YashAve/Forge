@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -177,7 +178,11 @@ fun SettingsScreen(
                             )
                         )
                         .clip(RoundedCornerShape(percent = 100))
-                        .background(color = ForgeTheme.colors.amber),
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(ForgeTheme.colors.amber200, ForgeTheme.colors.amber, ForgeTheme.colors.amberA500)
+                            )
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(

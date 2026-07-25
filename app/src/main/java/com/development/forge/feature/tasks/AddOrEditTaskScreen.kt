@@ -1,8 +1,13 @@
 package com.development.forge.feature.tasks
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.EaseOut
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -14,12 +19,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,8 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -54,215 +60,290 @@ import com.development.forge.feature.tasks.components.ForgePickerField
 import com.development.forge.feature.tasks.components.ForgePrioritySegmented
 import com.development.forge.feature.tasks.components.ForgeSelectionChip
 import com.development.forge.feature.tasks.components.ForgeTimePickerDialog
+import com.development.forge.feature.tasks.components.NakedValidationText
 
 /**
- * DESIGN SPECIFICATION — Add / Edit Task screen (v3, FULL SCREEN)
- * Source: Forge Design System v3, AppScreens.jsx → AddTaskScreen
+ * DESCRIPTION — AddOrEditTaskScreen
  *
- * The flagship capture screen — a full pushed screen (NOT a sheet). Two-stage:
- * a fast default view (title + due + priority + Save, no scroll) that expands
- * into calm, Task-Detail-style sections. The defining move is "naked inputs" —
- * borderless, transparent text fields directly on the canvas, so the screen
- * reads editorial, not form-like.
- *
- * Receives: the task being edited (or null), and existingProjects: List<String>
- * (the deduplicated project names from all tasks, for the suggestion chips).
+ * This one screen handles BOTH creating a new task AND editing an existing one.
+ * How it knows which mode it's in: it takes a parameter `editingTask: Task?`.
+ * If that is null, the user is creating a new task. If it holds a task, the user
+ * is editing that task. The word "editing" below always means "editingTask is
+ * not null".
  *
  * ═══════════════════════════════════════════════════════════════
- * STRUCTURE — Column filling the screen height
+ * THE STATE THIS SCREEN HOLDS
  * ═══════════════════════════════════════════════════════════════
- *   1. Top bar (fixed): back · title · Save
- *   2. Scroll area (weight 1f + verticalScroll): all the content
- * No bottom nav. editing = (task != null) → title "Edit task" vs "New task",
- * AND the expanded section starts OPEN when editing (you're editing an existing
- * task, so show everything), CLOSED when creating (fast capture first).
+ * "State" here means: values the screen remembers and updates as the user types
+ * and taps. Each one uses `remember { mutableStateOf(...) }`. When editing, each
+ * starts from the existing task's value; when creating, each starts empty/default.
  *
- * ═══════════════════════════════════════════════════════════════
- * 1. TOP BAR (padding 14dp top / 24dp sides / 6dp bottom)
- * ═══════════════════════════════════════════════════════════════
- * A Row, vertically centred:
- *   - back button (44dp tap target, arrow_back 24dp, colors.fgPrimary) → onBack
- *   - title (weight 1f): "New task" / "Edit task" → Space Grotesk, 22sp, W600,
- *     letterSpacing -0.02em, colors.fgPrimary
- *   - "Save" text button → Space Grotesk, 15sp, W700; colour colors.amber when
- *     canSave (title non-blank), else colors.fgDisabled. Disabled until canSave.
- *     Animate the colour 160ms ease-out.
+ *   title        : String  — starts as editingTask?.title ?: ""
+ *   notes        : String  — starts as editingTask?.notes ?: ""
+ *   dueDate      : String  — the picked date, e.g. "2026-07-25". Empty = none.
+ *   dueTime      : String  — the picked time, e.g. "6:00 PM". Empty = none.
+ *   priority     : Priority — starts as editingTask?.priority ?: Priority.MED
+ *   project      : String  — the project name. Empty = none.
+ *   subtasks     : a list of small editable subtask objects (explained below)
+ *   remind       : Boolean — is the reminder window turned on? default false
+ *   remindStart  : String  — e.g. "9:00 AM"
+ *   remindEnd    : String  — e.g. "6:00 PM"
+ *   openPicker   : which picker dialog is currently open. One of:
+ *                  null (none), "date", "dueTime", "remindStart", "remindEnd".
+ *                  This single value decides which dialog shows. Only one dialog
+ *                  can be open at a time, so one variable is enough.
+ *   expanded     : Boolean — is the "More details" section open?
+ *                  IMPORTANT: it starts as `editing`. So when editing an existing
+ *                  task, the details are open immediately (you want to see
+ *                  everything). When creating new, it starts closed (fast capture).
  *
- * ═══════════════════════════════════════════════════════════════
- * SCROLL AREA (padding 18dp top / 24dp sides / 36dp bottom)
- * ═══════════════════════════════════════════════════════════════
- *
- * ── NEW COMPONENT: NakedInput(value, onValueChange, placeholder, big, onKeyDone) ──
- * A BasicTextField with NO box, NO border, NO background — transparent, sitting
- * directly on the canvas. caretColor = colors.amber. Two sizes:
- *   - big = true (title): Space Grotesk, 28sp, W600, letterSpacing -0.02em,
- *     lineHeight 1.3, colour colors.fgPrimary. Placeholder in colors.fgTertiary.
- *   - big = false (project/notes/subtask): Space Grotesk, 15sp, W400,
- *     letterSpacing -0.005em.
- * This is the workhorse of the screen. Build it once from BasicTextField with a
- * placeholder overlay (BasicTextField has no placeholder param — show the
- * placeholder Text when value is empty, in fgTertiary).
- *
- * ── 2a. HERO TITLE ──
- * A NakedInput(big = true), autofocus, placeholder "What needs forging?".
- * No icon, no box — just big type with an amber cursor. This alone is the
- * whole "hero" — the naked big type does the work a boxed field couldn't.
- *
- * ── 2b. DUE (36dp top margin) ──
- * SectionLabel "Due", then:
- *   - 12dp gap, quick-date chips (FlowRow, 8dp gap): Today / Tomorrow /
- *     This weekend / Next week. Use the shared `chip` style (below). Tapping the
- *     active one again clears it.
- *   - 12dp gap, a Row (8dp gap) of two PickerChips:
- *       PickerChip(icon calendar_month, value = formatted date, "Pick a date")
- *       PickerChip(icon schedule, value = dueTime, "Time")
- *
- * ── NEW COMPONENT: PickerChip(icon, value, placeholder, onClick) ──
- * A compact pill (NOT a form box — reads like a DueChip): height 38dp, fully
- * rounded (999), padding 0/14dp, a Row (gap 7dp): icon 17dp + label (JetBrains
- * Mono, 12.5sp, W500). Two states:
- *   - SET (value present): background amber @12%, border amber @35%, icon+text
- *     colors.amberA300.
- *   - EMPTY: background colors.bgRaised, border colors.borderDefault, icon+text
- *     colors.fgTertiary (shows placeholder).
- * Tapping opens a picker dialog.
- *
- * ── shared `chip` style (quick-date + project chips) ──
- * A pill: padding 8dp/14dp, fully rounded, Space Grotesk 13sp W600. Selected →
- * background colors.amber, text colors.fgOnAmber, no border, a soft amber glow
- * (dropShadow amber @28%). Unselected → background colors.bgRaised, text
- * colors.fgSecondary, 1dp border colors.borderDefault. 140ms ease-out.
- * (This is the ForgeSelectionChip you already started building — reuse it.)
- *
- * ── 2c. PRIORITY (30dp top margin) ──
- * SectionLabel "Priority", then ForgePrioritySegmented(slim = true).
- * The SLIM variant: track 1dp border colors.borderSubtle (vs 1.5dp default),
- * corner 12dp, padding 3dp, segment height 38dp (vs 42dp). Sliding amber
- * indicator on ease-spring (your BiasAlignment trick, 3 positions, overshoot).
- * Default value MED.
- *
- * ── 2d. "MORE DETAILS" TOGGLE ROW (34dp top margin) ──
- * A full-width button, 16dp vertical padding, with a 1dp TOP border in
- * colors.borderSubtle (reads like a Task-Detail section break). A Row:
- *   - "MORE DETAILS" (weight 1f, left) → JetBrains Mono, 11sp, W500,
- *     letterSpacing 0.16em, UPPERCASE, colors.fgTertiary
- *   - a chevron (keyboard_arrow_down, 20dp) that ROTATES 180° when expanded,
- *     animated 260ms ease-out.
- * Tapping toggles `expanded`.
+ * canSave : a derived boolean = title.trim().isNotEmpty()
+ *   "derived" means it's computed from title, not stored separately. Use
+ *   `derivedStateOf { title.trim().isNotEmpty() }` so things reading canSave only
+ *   recompose when it flips from false to true, not on every keystroke.
  *
  * ═══════════════════════════════════════════════════════════════
- * EXPANDED SECTION — animate via AnimatedVisibility(expandVertically +
- * shrinkVertically, ~320ms ease-out). Starts open when editing, closed when new.
+ * THE SUBTASK LIST — what each item is
  * ═══════════════════════════════════════════════════════════════
+ * `subtasks` is a list where each item needs three things:
+ *   - title: String (editable text)
+ *   - isDone: Boolean (whether it's checked — but NOT editable on this screen)
+ *   - isNew: Boolean — a flag meaning "this row was just added, so autofocus it"
+ * Since your real Subtask model only has (id, title, isDone), for THIS screen you
+ * can use a small screen-local class OR add a transient `isNew` you strip out on
+ * save. Simplest: a local `data class EditableSubtask(val title, val isDone, val
+ * isNew)` used only inside this screen. On save you convert them to real Subtasks
+ * and drop the empty ones.
  *
- * ── PROJECT (8dp top margin) ──
- * SectionLabel "Project", then:
- *   - 12dp gap, a FlowRow (8dp gap) of `chip`s — one per existingProjects entry.
- *     Selected when project == that name. Tapping toggles (tap active to clear).
- *   - 14dp gap, a NakedInput (not big), placeholder "Or type a new project",
- *     with an 8dp bottom padding and a 1dp bottom border colors.borderDefault
- *     (a single underline, the only "field" affordance — otherwise naked).
- *   Typing here sets project directly; the chips and the input stay in sync
- *   (typing a name that matches a chip highlights it; tapping a chip fills the
- *   input). This is the "suggestion chips + free text, no separate create step"
- *   pattern you designed.
- *
- * ── SUBTASKS (30dp top margin) ──
- * SectionLabel "Subtasks · N" (N = count, omit the · N when empty). Then a
- * Column of subtask rows + an add row:
- *   Each subtask row (Row, 12dp gap, 9dp vertical padding):
- *     - a 7dp dot, colors.fgTertiary
- *     - a NakedInput (not big, flex/weight 1f), placeholder "Subtask". autofocus
- *       when it's a newly-added row. onKeyDone (Enter/IME Done) → ADD ANOTHER
- *       subtask row immediately (rapid entry — the key UX detail).
- *     - a delete button (32dp tap target, close icon 17dp, colors.fgTertiary)
- *   The "Add subtask" row (Row, 12dp gap, 9dp vertical padding, clickable):
- *     - add icon 19dp + "Add subtask" → Space Grotesk 14sp W600, colors.amber.
- *   NOTE: no boxes, no checkboxes here — subtasks are just dot + naked text,
- *   Task-Detail-style. (Completion toggling happens in Task Detail, not here.)
- *
- * ── REMINDER (30dp top margin) ──
- * A Row SpaceBetween: SectionLabel "Remind me" + ForgeToggle (bound to remind).
- * Below, AnimatedVisibility (remind, 280ms) reveals:
- *   - 12dp gap, a Row (8dp gap): PickerChip(notifications, remindStart, "From"),
- *     a "TO" label (JetBrains Mono 11sp, 0.1em, UPPERCASE, fgTertiary),
- *     PickerChip(notifications_active, remindEnd, "To").
- *   - 12dp gap, microcopy → Space Grotesk 13sp, lineHeight 1.45, fgTertiary:
- *     "Forge only nudges you inside this window. No pings before <start> or
- *      after <end>."
- *
- * ── NOTES (30dp top margin) ──
- * SectionLabel "Notes", then a NakedInput (not big), placeholder "Anything else
- * worth noting", with 8dp bottom padding + 1dp bottom border colors.borderDefault
- * (same single-underline affordance as project).
+ * Three operations on this list (all just produce a NEW list — never mutate in
+ * place, because Compose only recomposes when the list reference changes):
+ *   - setSubtaskTitle(index, newText): replace the item at `index` with a copy
+ *     that has the new title.
+ *   - deleteSubtask(index): remove the item at `index`.
+ *   - addSubtask(): append a new empty EditableSubtask(title="", isDone=false,
+ *     isNew=true) to the end.
  *
  * ═══════════════════════════════════════════════════════════════
- * STATE (all local to the screen for now; hoisted to a ViewModel later)
+ * OVERALL LAYOUT — a Column filling the whole screen height
  * ═══════════════════════════════════════════════════════════════
- *   title, notes, dueDate, dueTime, priority (default MED), project,
- *   subtasks: List (each {title, isDone, isNew}), remind (default false),
- *   remindStart ("9:00 AM"), remindEnd ("6:00 PM"),
- *   picker (which dialog is open: date/dueTime/remindStart/remindEnd/null),
- *   expanded (default = editing).
- * canSave = title.trim().isNotEmpty().
- * On Save: assemble the Task — project = project.trim().ifBlank { null },
- *   subtasks = subtasks.filter { it.title.isNotBlank() }, due = composeDue(...).
+ * Top to bottom:
+ *   1. A fixed top bar (does NOT scroll)
+ *   2. A scrolling area below it (takes all remaining height, via weight(1f) +
+ *      verticalScroll) — everything else lives in here.
  *
  * ═══════════════════════════════════════════════════════════════
- * PICKER DIALOGS
+ * 1. THE TOP BAR (fixed at the top, padding: 14dp top, 24dp sides, 6dp bottom)
  * ═══════════════════════════════════════════════════════════════
- * Tapping a PickerChip opens a date or time dialog. For now use Material3
- * DatePicker / TimePicker in a Dialog styled minimally, OR defer custom pickers
- * as a later polish pass. The screen functions without pretty pickers.
+ * A Row, items vertically centered:
+ *   - Back button on the far left. A 44dp tappable circle holding a 24dp
+ *     `arrow_back` icon in colors.fgPrimary. Tapping it calls onBack (leaves the
+ *     screen without saving). Shift it left by about 12dp so the icon lines up
+ *     with the 24dp screen edge padding rather than sitting inset.
+ *   - The title text, taking the remaining width (weight 1f): shows "Edit task"
+ *     when editing, else "New task". Space Grotesk, 22sp, weight 600,
+ *     letterSpacing -0.02em, colors.fgPrimary.
+ *   - A "Save" text button on the far right. Space Grotesk, 15sp, weight 700.
+ *     Its color is colors.amber when canSave is true, else colors.fgDisabled,
+ *     and that color animates over 160ms ease-out. It's only tappable when
+ *     canSave is true. Tapping it runs the save logic (below).
  *
  * ═══════════════════════════════════════════════════════════════
- * NEW COMPONENTS THIS SCREEN NEEDS
+ * THE SCROLL AREA (padding inside: 18dp top, 24dp sides, 36dp bottom)
  * ═══════════════════════════════════════════════════════════════
- *   1. NakedInput           — borderless transparent BasicTextField, big/normal
- *   2. PickerChip           — compact pill that opens a dialog
- *   3. ForgeSelectionChip   — the shared date/project chip (you started this)
- *   4. ForgePrioritySegmented (+ slim variant) — sliding-indicator control
- *   You already have: ForgeToggle, ForgeSectionLabel, ForgeButton.
+ * Everything below is stacked in a Column inside the scroll area.
+ *
+ * ── 2. HERO TITLE ──
+ * A NakedInput (your borderless text field), big variant, autofocus on, with the
+ * placeholder "What needs forging?". Bound to the `title` state. This is the only
+ * required field.
+ *
+ * ── 3. DUE SECTION (36dp gap above it) ──
+ * A ForgeSectionLabel with the text "Due". Then:
+ *   a) A FlowRow (a Row that wraps to a second line if it runs out of width),
+ *      with 8dp horizontal AND 8dp vertical gaps, holding four ForgeSelectionChips:
+ *      "Today", "Tomorrow", "This weekend", "Next week".
+ *      A chip is "selected" when its preset date equals the current dueDate.
+ *      Tapping a chip: if it was already the selected one, clear dueDate (set it
+ *      to empty); otherwise set dueDate to that chip's date. So tapping the active
+ *      chip again turns it off. Only one can be active at a time (because dueDate
+ *      is a single value).
+ *      "preset date" just means: "Today" maps to today's date, "Tomorrow" to
+ *      tomorrow's, etc. — a small helper function does that mapping. For now that
+ *      helper can be simple/placeholder; real date math comes in the data phase.
+ *   b) A 12dp gap, then a Row with an 8dp gap holding two ForgePickerFields (the
+ *      pill that opens a dialog when tapped):
+ *        - date pill: icon calendar_month, shows the formatted dueDate or the
+ *          placeholder "Pick a date". Tapping sets openPicker = "date".
+ *        - time pill: icon schedule, shows dueTime or placeholder "Time".
+ *          Tapping sets openPicker = "dueTime".
+ *
+ * ── 4. PRIORITY SECTION (30dp gap above it) ──
+ * A ForgeSectionLabel "Priority", then your ForgePrioritySegmented, bound to the
+ * `priority` state, slim variant. (You already built this.)
+ *
+ * ── 5. "MORE DETAILS" TOGGLE ROW (34dp gap above it) ──
+ * This is a full-width tappable Row that opens/closes the extra sections. It has
+ * a 1dp line along its TOP edge (colors.borderSubtle) so it reads like a section
+ * divider, and 16dp of vertical padding. Inside:
+ *   - The text "MORE DETAILS" on the left (taking remaining width): JetBrains
+ *     Mono, 11sp, weight 500, letterSpacing 0.16em, all uppercase, colors.fgTertiary.
+ *   - A chevron icon on the right (keyboard_arrow_down, 20dp) that ROTATES 180°
+ *     when `expanded` is true, animated over 260ms ease-out. To rotate it, put
+ *     `Modifier.graphicsLayer { rotationZ = if (expanded) 180f else 0f }` — but
+ *     animate it: `val angle by animateFloatAsState(if (expanded) 180f else 0f,
+ *     tween(260, EaseOut))` and use `rotationZ = angle`.
+ * Tapping this whole row flips `expanded`.
+ *
+ * ── 6. THE EXPANDED BLOCK (only visible when expanded == true) ──
+ * Wrap everything below in AnimatedVisibility with enter = expandVertically() and
+ * exit = shrinkVertically(), both using tween(320, EaseOut). AnimatedVisibility is
+ * the Compose tool that smoothly grows/shrinks content in and out instead of it
+ * popping. (This replaces the web's grid-rows 0fr→1fr trick — same effect, done
+ * the Compose way.) Inside the AnimatedVisibility is a Column holding four
+ * sub-sections:
+ *
+ *   6a. PROJECT (8dp gap above)
+ *     A ForgeSectionLabel "Project". Then:
+ *       - A FlowRow (8dp gaps) of ForgeSelectionChips, ONE per project name in
+ *         `existingProjects` (the list of project names the user has used before,
+ *         passed into the screen). A chip is selected when `project` equals that
+ *         name. Tapping toggles it: if already selected, clear project; else set
+ *         project to that name.
+ *       - A 14dp gap, then a NakedInput (normal size, not big) with placeholder
+ *         "Or type a new project", bound to `project`, with 8dp bottom padding and
+ *         a 1dp bottom line (colors.borderDefault) — a single underline, the only
+ *         visual hint that it's a field. Typing here and tapping a chip both write
+ *         to the same `project` value, so they stay in sync: type a name matching
+ *         a chip and that chip highlights; tap a chip and the text field fills.
+ *
+ *   6b. SUBTASKS (30dp gap above)
+ *     A ForgeSectionLabel. Its text is "Subtasks" when the list is empty, or
+ *     "Subtasks · N" where N is the count when there are some.
+ *     Then a Column holding:
+ *       - One row per subtask. Each row (Row, 12dp gap, 9dp vertical padding,
+ *         vertically centered):
+ *           · a small 7dp filled circle (dot) in colors.fgTertiary
+ *           · a NakedInput taking the remaining width (weight 1f), placeholder
+ *             "Subtask", bound to that subtask's title. If the subtask's isNew
+ *             flag is true, autofocus it (so a freshly-added row is ready to type
+ *             in). When the user presses Enter/Done on the keyboard here, call
+ *             addSubtask() — this instantly adds ANOTHER empty row so the user can
+ *             keep adding several quickly without reaching for the button. (In
+ *             Compose: set keyboardOptions imeAction = ImeAction.Done and
+ *             keyboardActions onDone = { addSubtask() }.)
+ *           · a delete button on the right: a 32dp tappable circle with a 17dp
+ *             `close` icon in colors.fgTertiary. Tapping calls deleteSubtask(index).
+ *       - After all the subtask rows, an "Add subtask" row (Row, 12dp gap, 9dp
+ *         vertical padding, tappable): a 19dp `add` icon + the text "Add subtask",
+ *         both in colors.amber, Space Grotesk 14sp weight 600. Tapping calls
+ *         addSubtask().
+ *     NOTE: there are NO checkboxes here. On this screen subtasks are just a dot
+ *     plus editable text — you're writing what the subtasks ARE, not checking them
+ *     off. Checking them off happens later on the Task Detail screen.
+ *
+ *   6c. REMINDER (30dp gap above)
+ *     A Row with the two ends pushed apart (SpaceBetween): a ForgeSectionLabel
+ *     "Remind me" on the left, and a ForgeToggle on the right bound to `remind`.
+ *     BELOW that, wrapped in its OWN AnimatedVisibility (visible only when
+ *     remind == true, tween 280 EaseOut, expand/shrink vertically), a Column:
+ *       - A 12dp gap, then a Row (8dp gap, vertically centered):
+ *           · a ForgePickerField: icon notifications, value remindStart,
+ *             placeholder "From". Tapping sets openPicker = "remindStart".
+ *           · a small "TO" label: JetBrains Mono, 11sp, letterSpacing 0.1em,
+ *             uppercase, colors.fgTertiary.
+ *           · a ForgePickerField: icon notifications_active, value remindEnd,
+ *             placeholder "To". Tapping sets openPicker = "remindEnd".
+ *       - A 12dp gap, then a line of explaining text: Space Grotesk 13sp,
+ *         lineHeight 1.45, colors.fgTertiary:
+ *         "Forge only nudges you inside this window. No pings before <remindStart>
+ *          or after <remindEnd>." — inserting the two time values into the string.
+ *
+ *   6d. NOTES (30dp gap above)
+ *     A ForgeSectionLabel "Notes". Then a NakedInput (normal size), placeholder
+ *     "Anything else worth noting", bound to `notes`, with 8dp bottom padding and
+ *     a 1dp bottom line (colors.borderDefault) — same single-underline look as the
+ *     project text field.
  *
  * ═══════════════════════════════════════════════════════════════
- * NAVIGATION WIRING
+ * 7. THE PICKER DIALOGS (shown on top of everything, based on openPicker)
  * ═══════════════════════════════════════════════════════════════
- * Add a ForgeNavKey.AddTask (data object, or data class AddTask(taskId: String?)
- * for edit mode). The bottom nav's Add button now PUSHES this key instead of
- * opening a sheet: onAddClick = { backStack.add(ForgeNavKey.AddTask) }.
- * TaskDetail's edit action pushes AddTask(task.id). onBack/onSave pop it.
- * existingProjects is derived: tasks.mapNotNull { it.project }.distinct().
+ * At the very end of the screen's composable body, check openPicker and show the
+ * matching dialog. Only one shows at a time because openPicker holds one value:
+ *   - openPicker == "date"        → your ForgeDatePickerDialog. On confirm, set
+ *                                    dueDate and set openPicker = null.
+ *   - openPicker == "dueTime"     → ForgeTimePickerDialog. On confirm, set dueTime,
+ *                                    openPicker = null.
+ *   - openPicker == "remindStart" → ForgeTimePickerDialog → sets remindStart.
+ *   - openPicker == "remindEnd"   → ForgeTimePickerDialog → sets remindEnd.
+ * Each dialog's dismiss (Cancel or tapping outside) just sets openPicker = null.
  *
  * ═══════════════════════════════════════════════════════════════
- * PARAMETERS
+ * 8. THE SAVE LOGIC (what the Save button does)
  * ═══════════════════════════════════════════════════════════════
- * @param editingTask       the task to edit, or null for new.
- * @param existingProjects  distinct project names, for the suggestion chips.
- * @param onSave            called with the assembled task.
- * @param onBack            pops the screen without saving.
+ * When tapped (and canSave is true), build a Task from the state and hand it to
+ * onSave:
+ *   - title   = title.trimmed
+ *   - notes   = notes (or null if blank, your choice)
+ *   - priority= priority
+ *   - id      = editingTask?.id (keep the same id when editing; when new, the id
+ *               is assigned later by whatever creates it — for now you can pass a
+ *               placeholder or generate one)
+ *   - project = project.trim(), but if that's empty, use null
+ *   - subtasks= the subtasks list, but FILTER OUT any whose title is blank, and
+ *               convert each EditableSubtask into a real Subtask (drop the isNew
+ *               flag)
+ *   - due     = a display string composed from dueDate + dueTime (e.g.
+ *               "Today · 6:00 PM"). A small helper builds this. If both are empty,
+ *               due is null.
+ *   - the reminder values only if remind is true, else null.
+ * Then call onSave(theTask). The parent (the navigation host) takes it from there.
+ *
+ * ═══════════════════════════════════════════════════════════════
+ * PARAMETERS (what the screen receives from outside)
+ * ═══════════════════════════════════════════════════════════════
+ * @param editingTask       the task being edited, or null when creating new.
+ * @param existingProjects  a List<String> of project names the user has used
+ *                          before, for the suggestion chips. The nav host builds
+ *                          this with: tasks.mapNotNull { it.project }.distinct().
+ * @param onSave            called with the finished Task when Save is tapped.
+ * @param onBack            called when the back button is tapped (leaves without
+ *                          saving).
+ * @param modifier          applied to the root Column.
  */
 @Preview
 @Composable
 fun AddOrEditTaskScreen(
     modifier: Modifier = Modifier,
     editingTask: Task? = tasks[0],
+    existingProjects: List<String> = listOf(
+        *tasks.mapNotNull { it.project }.distinct().toTypedArray()
+    ),
     onSave: () -> Unit = { },
     onBack: () -> Unit = { }
 ) {
     var title by rememberSaveable { mutableStateOf(editingTask?.title ?: "") }
+    // PROJECT — one single String is the source of truth.
+    // Chips read from it (selected = project == chipName).
+    // Chips write to it (tap → set or clear project).
+    // The text field reads AND writes to it too.
+    // No separate boolean list needed.
+    var project by rememberSaveable { mutableStateOf(editingTask?.project ?: "") }
     val focusRequester = remember { FocusRequester() }
     val interactionSource = remember { MutableInteractionSource() }
-    val saved by remember {
+    val canSave by remember {
         derivedStateOf {
-            true // I will change it as I design
+            title.trim().isNotEmpty()
         }
     }
     val animateSaveColor by animateColorAsState(
-        targetValue = if (saved) ForgeTheme.colors.amber else ForgeTheme.colors.fgDisabled,
+        targetValue = if (canSave) ForgeTheme.colors.amber else ForgeTheme.colors.fgDisabled,
         animationSpec = tween(160, easing = EaseOut),
         label = "save animate color"
     )
 
+    // due date chips — same pattern: one value (dueLabel), chip is selected when
+    // dueLabel == that chip's label. No boolean list needed here either, but
+    // keeping your existing selections list for now since the due section works.
     val labels = listOf("Today", "Tomorrow", "This weekend", "Next week")
     val selections = remember {
         mutableStateListOf(
@@ -277,6 +358,12 @@ fun AddOrEditTaskScreen(
     var isShowTime by rememberSaveable { mutableStateOf(false) }
 
     var priority by rememberSaveable { mutableStateOf(Priority.HIGH) }
+
+    var expanded by rememberSaveable { mutableStateOf(true) }
+    val angle by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(200, easing = EaseOut)
+    )
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -300,7 +387,7 @@ fun AddOrEditTaskScreen(
                     ),
                     modifier = Modifier.clickable(
                         indication = null, interactionSource = interactionSource,
-                        enabled = saved,
+                        enabled = canSave,
                         onClick = {
                             onSave()
                         }
@@ -322,38 +409,14 @@ fun AddOrEditTaskScreen(
                 lineHeight = (1.3).em,
                 color = ForgeTheme.colors.fgPrimary
             )
-            BasicTextField(
-                value = title, onValueChange = { value ->
-                    title = value.take(120)
-                },
-                textStyle = style,
-                cursorBrush = SolidColor(ForgeTheme.colors.amber),
-                decorationBox = { innerTextField ->
-                    if (title.isEmpty()) {
-                        Text(
-                            text = "What needs forging?",
-                            style = style.copy(color = ForgeTheme.colors.fgTertiary)
-                        )
-                    }
-                    innerTextField()
-                },
+            NakedValidationText(
+                input = title,
+                placeholder = "What needs forging?",
                 maxLines = 3,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(focusRequester)
-            )
-            if (title.length > 96) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "${title.length}/120",
-                    style = TextStyle(
-                        fontFamily = ForgeFonts.jetbrainsMono,
-                        fontSize = 11.sp,
-                        color = if (title.length >= 120) ForgeTheme.colors.danger
-                        else ForgeTheme.colors.fgTertiary
-                    ),
-                    modifier = Modifier.align(Alignment.End)
-                )
+                isTakeFocus = true,
+                inputLength = 120
+            ) { value ->
+                title = value.take(120)
             }
             Spacer(modifier = Modifier.height(36.dp))
             ForgeSectionLabel(
@@ -369,16 +432,17 @@ fun AddOrEditTaskScreen(
                         label = value,
                         selected = selections[index]
                     ) {
-                        selections[index] = !selections[index]
-                        if (selections[index]) selections.indices.forEach { i ->
-                            selections[i] = (i == index)
-                        }
+                        val wasSelected = selections[index]
+                        selections.indices.forEach { i -> selections[i] = false }
+                        if (!wasSelected) selections[index] = true
                     }
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 ForgePickerField(
                     icon = Icons.Outlined.CalendarMonth,
                     value = date,
@@ -411,6 +475,100 @@ fun AddOrEditTaskScreen(
                 value = priority
             ) { value ->
                 priority = value
+            }
+            Spacer(modifier = Modifier.height(34.dp))
+            Spacer(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(ForgeTheme.colors.borderSubtle)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = true,
+                        onClick = {
+                            expanded = !expanded
+                        }
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ForgeSectionLabel(label = "MORE DETAILS", modifier = Modifier.weight(1f))
+                Icon(
+                    Icons.Outlined.KeyboardArrowDown,
+                    null,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .graphicsLayer {
+                            rotationZ = angle
+                        },
+                    ForgeTheme.colors.fgTertiary
+                )
+            }
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(tween(320, easing = EaseOut)),
+                exit = shrinkVertically(tween(320, easing = EaseOut))
+            ) {
+                /**
+                 *   6a. PROJECT (8dp gap above)
+                 *     A ForgeSectionLabel "Project". Then:
+                 *       - A FlowRow (8dp gaps) of ForgeSelectionChips, ONE per project name in
+                 *         `existingProjects` (the list of project names the user has used before,
+                 *         passed into the screen). A chip is selected when `project` equals that
+                 *         name. Tapping toggles it: if already selected, clear project; else set
+                 *         project to that name.
+                 *       - A 14dp gap, then a NakedInput (normal size, not big) with placeholder
+                 *         "Or type a new project", bound to `project`, with 8dp bottom padding and
+                 *         a 1dp bottom line (colors.borderDefault) — a single underline, the only
+                 *         visual hint that it's a field. Typing here and tapping a chip both write
+                 *         to the same `project` value, so they stay in sync: type a name matching
+                 *         a chip and that chip highlights; tap a chip and the text field fills.*/
+                Column {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    ForgeSectionLabel(label = "Project")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    // PROJECT CHIPS — selected when project == chipName.
+                    // No separate pSelections boolean list needed.
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        existingProjects.forEach { projectName ->
+                            ForgeSelectionChip(
+                                label = projectName,
+                                // chip is "selected" when the single project
+                                // variable matches this chip's name
+                                selected = project == projectName
+                            ) {
+                                // tap: if already selected, clear it;
+                                // otherwise set project to this chip's name
+                                project = if (project == projectName) "" else projectName
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    // PROJECT TEXT FIELD — bound to the SAME project variable.
+                    // Typing "Work" highlights the "Work" chip automatically,
+                    // because the chip checks project == "Work".
+                    // Tapping a chip fills this field automatically,
+                    // because it sets project = chipName.
+                    NakedValidationText(
+                        input = project,
+                        placeholder = "Or type a new project",
+                        inputSize = 18.sp,
+                        maxLines = 1,
+                        isTakeFocus = false,
+                        inputLength = 30
+                    ) { value ->
+                        project = value.take(30)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
         }
     }

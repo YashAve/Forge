@@ -36,6 +36,7 @@ data class ForgeColorScheme(
     val borderStrong: Color,
     // accent
     val amber: Color,
+    val amber200: Color,
     val amberA300: Color,
     val amberA500: Color,
     // semantic
@@ -61,6 +62,7 @@ val ForgeDarkColors = ForgeColorScheme(
     borderDefault = Color(0xFFF5EDDE).copy(alpha = 0.10f),
     borderStrong = Color(0xFFF5EDDE).copy(alpha = 0.18f),
     amber = Color(0xFFF58A00),
+    amber200 = Color(0xFFFFC766),
     amberA300 = Color(0xFFFFAA2E),
     amberA500 = Color(0xFFD46E00),
     danger = Color(0xFFE8624D),
@@ -84,6 +86,7 @@ val ForgeLightColors = ForgeColorScheme(
     borderDefault = Color(0xFF1A1207).copy(alpha = 0.10f),
     borderStrong = Color(0xFF1A1207).copy(alpha = 0.18f),
     amber = Color(0xFFF58A00),
+    amber200 = Color(0xFFFFC766),
     amberA300 = Color(0xFFFFAA2E),
     amberA500 = Color(0xFFD46E00),
     danger = Color(0xFFE8624D),

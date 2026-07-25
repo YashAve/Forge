@@ -1,92 +1,94 @@
-# Handoff note — desktop → laptop
+# Handoff note — laptop → desktop
 
-**From:** desktop Claude session · **Date:** 2026-07-24 · **On top of:** `b03175d`
+**From:** laptop Claude session · **Date:** 2026-07-25 · **On top of:** `a7f1ca8`
 
-Tree is green: forced `./gradlew :app:compileDebugKotlin --rerun-tasks` → **BUILD SUCCESSFUL**,
-no Kotlin warnings (only the benign Hilt/KSP `ComponentTreeDeps` note + an environment SDK-XML
-notice). Compile-only — not launched on device. Small round on top of the big one.
+Tree is green: `./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**, only the benign
+Hilt/KSP `ComponentTreeDeps` note. **Compile-only — not launched on device.** This push is
+Yash's WIP off the laptop: it **resolves the Priority-segment bugs you flagged** last round
+and builds new pieces on top.
 
-## What this push adds (Yash's code)
+## Priority segment — your flagged bugs are FIXED
 
-**The Priority segmented control is now built and wired in.** `ForgePrioritySegmented` (previously
-an empty stub) is a real sliding-indicator control, and `AddOrEditTaskScreen` gained a **Priority**
-section after the date/time pickers, with local `priority` state.
+Your `a7f1ca8` handoff called out four things on `ForgePrioritySegmented`. All addressed:
 
-- **`feature/tasks/components/ForgePrioritySegment.kt`** — the track (Box, corner 14dp, bgRaised,
-  1.5dp border, 4dp pad, 50dp tall), an amber indicator sized 1/3 width placed via
-  `BiasAlignment(horizontalBias = targetBias)` where `targetBias` is `-1f / 0f / 1f` for LOW / MED /
-  HIGH, and three weight-1f segments (dot + label) that call `onChange(priority)` on tap.
-- **`AddOrEditTaskScreen.kt`** — `var priority by rememberSaveable { mutableStateOf(Priority.HIGH) }`;
-  `ForgeSectionLabel("Priority")` + `ForgePrioritySegmented(value = priority) { priority = it }`.
+- **Label-colour bug (the real one) — fixed.** The loop now computes
+  `val isActive = priority == value` and keys both the text colour and dot colour off
+  `isActive`. The old `if (value == selected)` (which ignored the loop variable) is gone.
+- **Dual source of truth — removed.** The internal `var selected by rememberSaveable` is
+  deleted; the component is now fully controlled off the `value` prop. Tap just calls
+  `onChange(priority)` — no second state to drift out of sync on first render.
+- **Indicator now slides — fixed.** `bias` goes through `animateFloatAsState` with
+  `CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f)` over 240ms, so the amber block springs
+  (with overshoot) between thirds instead of snapping.
+- **Invisible dot + missing glow — fixed.** The 7dp dot got `.background(dotColor)`
+  (`fgOnAmber` active / `fgTertiary` inactive), and the indicator got the amber @35%
+  `dropShadow` before its clip.
+- **Default is now `Priority.MED`** (was HIGH), matching the spec.
 
-## Real bug (compiles clean, wrong at runtime) — NOT fixed, per our arrangement
+## Also new this push
 
-**The segment label colours are all wired to one condition, so they never highlight per-segment.**
-In the `forEach { priority -> … }` loop:
+- **`amber200` token** (`0xFFFFC766`) added to `ForgeColorScheme` — same value in both
+  `ForgeDarkColors` and `ForgeLightColors`. It's the light end of the amber ramp, pulled into
+  the scheme so gradients can reference it as a token.
+- **Settings avatar is now a gradient.** The profile avatar in `SettingsScreen` went from flat
+  `colors.amber` to `Brush.linearGradient(amber200 → amber → amberA500)`.
+- **`NakedValidationText` (new component)** — `feature/tasks/components/NakedValidationText.kt`.
+  A borderless `BasicTextField` for the big title/notes inputs: Space Grotesk W600, amber
+  cursor, placeholder via `decorationBox`, hard length cap (`value.take(inputLength)`), and a
+  `n/limit` counter that appears in the last 18 chars and turns `colors.danger` at the limit.
+  `isTakeFocus` wires an optional `FocusRequester` (note: the requester is created and attached
+  but nothing calls `.requestFocus()` yet — autofocus is not actually triggered).
+- **`AddOrEditTaskScreen` — "MORE DETAILS" section built.** The title field now uses
+  `NakedValidationText`. Added a "MORE DETAILS" toggle row (label + `KeyboardArrowDown` chevron)
+  that expands/collapses an `AnimatedVisibility` (`expandVertically`/`shrinkVertically`, tween
+  320 EaseOut). Inside it, the **Project** sub-section is built: chips + a project text field
+  **share one `project: String` source of truth** — a chip is selected when `project == chipName`,
+  tapping sets/clears it, and the text field reads+writes the same variable (type "Work" → the
+  Work chip lights up). This knocks out the Project part of your "expanded section unbuilt"
+  carry-over; Subtasks / Reminder / Notes are still TODO.
 
-```kotlin
-targetValue = if (value == selected) fgOnAmber else fgSecondary
-```
+## Notes / things to know
 
-`value == selected` compares the incoming prop against the component's *internal* `selected` state
-and **ignores the loop variable `priority` entirely** — so all three labels compute the identical
-colour. The intent (active segment → `fgOnAmber`, others → `fgSecondary`) needs
-`if (priority == value)` (or `priority == selected`). As written, when the two states happen to
-match all three labels go on-amber; otherwise all three go secondary.
-
-Tangled with a **dual source of truth**: the component is half-controlled. Position (`targetBias`)
-follows the `value` prop, but colour follows an internal `var selected = mutableStateOf(MED)`, and a
-tap sets *both* (`onChange(priority)` **and** `selected = priority`). On first render they disagree
-— indicator sits at HIGH (`value` default) while `selected` is MED — so the colours start out of
-sync until you tap. Pick one source of truth (drop `selected`, drive everything off `value`).
-
-## WIP / spec drift on the segment (deliberate or minor — not fixed)
-
-- **The indicator doesn't animate.** Spec calls for `animateFloatAsState` on the ease-spring curve
-  (CubicBezier 0.34,1.56,0.64,1) so it *slides* with overshoot. `targetBias` is used raw, so the
-  amber block **snaps** between positions instead of sliding. The springy slide (the whole point of
-  the control) is the missing piece.
-- **The 7dp dot is invisible** — `Box(size(7.dp).clip(CircleShape))` has **no `.background`**, so it
-  renders as an empty gap. Spec: `fgOnAmber` when active, else `fgTertiary`.
-- No indicator glow (spec: dropShadow amber @35% before the clip).
-- Default priority is **HIGH** here (screen state and the component's `value` default), while the
-  spec says default **MED** — and the internal `selected` defaults MED, adding to the mismatch above.
+- **`androidx.compose.foundation:foundation-layout` was added** to the version catalog +
+  `app/build.gradle.kts` (1.11.4, matching the sibling explicit `foundation`/`animation-core`/
+  `ui-unit` pins). It's **redundant** — `compose-foundation` already pulls `foundation-layout`
+  transitively and 54 files import it fine without the explicit dep — but it's harmless, same
+  version, and consistent with the existing explicit-module pattern, so I left it as Yash added
+  it. Drop it if you're tidying deps; it changes nothing either way.
+- **Reverted a debug pin:** `ForgeNavHost`'s start destination was left at
+  `rememberNavBackStack(ForgeNavKey.AddOrEditTask)` (so the app boots straight into Add Task for
+  testing the segment). Put back to `Splash` for the commit — same debug-pin revert we've done
+  before. Re-pin locally if you want to keep iterating on that screen.
+- **`.idea/` still uncommitted, intentionally.** Your JDK/bytecode **11 → 17** flip in
+  `misc.xml`/`compiler.xml` and the stale `gradle.xml` `lib` entry are still modified in the
+  working tree and I did **not** stage them — same as your standing note, still your call.
 
 ## Carried over (still open — untouched this round)
 
 - **New-task capture still unreachable** — `AddOrEditTaskScreen(editingTask = tasks[0])` default +
-  nav never passing `null`, so **+** always opens "Edit Task" on task[0]. (`AddOrEditTask` is a
-  `data object`, can't carry a task id.)
+  nav never passing `null`, so **+** always opens "Edit Task" on task[0] (`AddOrEditTask` is a
+  `data object`, can't carry an id).
 - **`ForgeDatePickerDialog` still NPEs** on OK-without-selection (`selectedDateMillis!!`).
 - **Save still hardcoded** (`derivedStateOf { true }`); picker selections still not plumbed back
-  (`onDateSelected`/`onTimeSelected` unset → `date`/`time` never fill); `onSave` inert; the "MORE
-  DETAILS" expanded section (Project / Subtasks / Reminder / Notes) still unbuilt.
-- `entry<Home>` `onAdd = { }` inert vs `entry<TaskList>` wired; `entry<TaskDetail>` inner
-  `onEdit = { }` inert (top-bar edit is wired).
-- **`AddTaskSheet.kt` (≈24KB) still orphaned** (dead since the full-screen pivot).
-- **Task List bucket-overlap crash still live** (`overdue && due == null` → duplicate `LazyColumn`
-  key). Fix: `someday = active.filter { it.due == null && !it.overdue }`.
-- `dueAt: Instant?` still unused (two parallel due notions); no mutable task state anywhere.
-- Stats hardcoded; onboarding finish/skip → `Login` vs spec's `Registration`; `Motion.kt` empty;
-  `SuccessScreen` reset button not deleted.
-- **ForgeTextField focus ring STILL an empty `drawBehind { … }` stub — 18th note running.** Restore
+  (`onDateSelected`/`onTimeSelected`); MORE DETAILS **Subtasks / Reminder / Notes** still unbuilt.
+- **`AddTaskSheet.kt` (~24KB) still orphaned** (dead since the full-screen pivot).
+- **Task List bucket-overlap crash still live** (`overdue && due == null` → duplicate
+  `LazyColumn` key). Fix: `someday = active.filter { it.due == null && !it.overdue }`.
+- `dueAt: Instant?` still unused; no mutable task state anywhere; Stats hardcoded; onboarding
+  finish/skip → `Login` vs spec's `Registration`; `Motion.kt` empty; `SuccessScreen` reset
+  button not deleted.
+- **ForgeTextField focus ring STILL an empty `drawBehind { }` stub — 19th note running.** Restore
   block at `git show 0c6ffa9:docs/HANDOFF.md`.
 - `gradle.properties`: dead `kapt.*`; deprecated `useClasspathSnapshot` warns.
 
-## `.idea/` — still left uncommitted (your call)
-
-The JDK/bytecode **11 → 17** target flip in `.idea/misc.xml` + `.idea/compiler.xml`, and the stale
-`$PROJECT_DIR$/lib` entry in `.idea/gradle.xml`, are still uncommitted. Machine-specific IDE churn —
-decide the JDK target yourself; the `lib` entry self-heals on Gradle re-sync.
-
-## Toolchain — untouched this round
-
-No build-file or version-catalog changes. **AGP still 8.13.2.** `ksp.incremental=false`,
-`hilt { enableAggregatingTask = false }`, `:app:compileJava` alias all as before.
-
 ## Verified
 
-Forced `./gradlew :app:compileDebugKotlin --rerun-tasks` → **BUILD SUCCESSFUL**, no Kotlin
-warnings. Compile-only — the label-colour bug, the un-animated indicator, and the invisible dot
-don't surface at compile time, only by opening the Priority control and tapping between segments.
-`FETCH_HEAD` left untracked; `.idea/*` left uncommitted (above).
+`./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL**, no Kotlin warnings (only the benign
+Hilt/KSP note). **Compile-only** — the springy slide, the gradient avatar, the counter turning
+red, and the MORE DETAILS expand animation are verified to build, not verified to render.
+
+## Toolchain
+
+`foundation-layout` added to the catalog + app module (see Notes). Otherwise unchanged —
+**AGP still 8.13.2**, `ksp.incremental=false`, `hilt { enableAggregatingTask = false }`,
+`:app:compileJava` alias all as before.
