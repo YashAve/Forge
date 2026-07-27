@@ -1,6 +1,9 @@
 package com.development.forge.navigation
 
+import android.annotation.SuppressLint
+import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -11,6 +14,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -55,6 +59,7 @@ import com.development.forge.navigation.ForgeNavKey.ResetPassword
 import com.development.forge.navigation.ForgeNavKey.Splash
 import com.development.forge.navigation.ForgeNavKey.Success
 
+@SuppressLint("SourceLockedOrientationActivity")
 @Composable
 fun ForgeNavHost(
     modifier: Modifier = Modifier,
@@ -62,6 +67,7 @@ fun ForgeNavHost(
     onToggleTheme: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val activity = LocalActivity.current
     val backStack = rememberNavBackStack(Splash)
     val currentDestination = backStack.lastOrNull()
 
@@ -69,9 +75,21 @@ fun ForgeNavHost(
 
     BackHandler {
         when (currentDestination) {
-            Login, Registration -> backStack.clear()
+            Login, Registration, ForgeNavKey.Home -> backStack.clear()
             ForgeNavKey.TaskList -> backStack.removeLastOrNull()
-            else -> { }
+            ForgeNavKey.Statistics, ForgeNavKey.Settings -> {
+                backStack.clear()
+                backStack.add(ForgeNavKey.Home)
+            }
+
+            else -> {}
+        }
+    }
+
+    DisposableEffect(Unit) {
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        onDispose {
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
 
@@ -106,7 +124,8 @@ fun ForgeNavHost(
                     is ForgeNavKey.Home,
                     is ForgeNavKey.Statistics,
                     is ForgeNavKey.Settings,
-                    is ForgeNavKey.AddOrEditTask -> { }
+                    is ForgeNavKey.AddOrEditTask -> {
+                    }
 
                     is Login,
                     is Registration -> ForgeTopBar()

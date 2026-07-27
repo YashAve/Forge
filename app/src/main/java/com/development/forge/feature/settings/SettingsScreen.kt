@@ -134,7 +134,7 @@ import com.development.forge.feature.settings.components.SettingRow
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
-    email: String = "sanmeet.kaur@cosmiq.co.in",
+    email: String = "karishma.kapoor@cosmiq.co.in",
     isDark: Boolean = true,
     onToggleTheme: () -> Unit = { },
     onSignOut: () -> Unit = { }

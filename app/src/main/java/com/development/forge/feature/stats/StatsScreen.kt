@@ -197,7 +197,7 @@ fun StatsScreen(
         modifier
             .fillMaxSize()
             .padding(horizontal = 24.dp)
-            .padding(top = 24.dp, bottom = 32.dp)
+            .padding(top = 24.dp)
             .verticalScroll(rememberScrollState())
     ) {
         // ── Header ────────────────────────────────────────────
@@ -522,5 +522,6 @@ fun StatsScreen(
                 }
             }
         }
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
