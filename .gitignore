@@ -15,3 +15,8 @@
 local.properties
 /server/build
 .kotlin/
+
+# JVM crash dumps — the Gradle daemon (JBR) has SIGSEGV'd here before
+hs_err_pid*.log
+replay_pid*.log
+core.*
