@@ -1,41 +1,69 @@
 package com.development.forge.data.local.entity
 
 import androidx.room.ColumnInfo
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.Relation
+import androidx.room.TypeConverter
 import com.development.forge.domain.model.Priority
 import java.util.UUID
+import kotlin.time.Instant
 
-private val id: String
-    get() = "${System.currentTimeMillis()}-${UUID.randomUUID()}"
+fun getPrimaryId(): String = "${System.currentTimeMillis()}-${UUID.randomUUID()}"
+
+class TypeConverters {
+    @TypeConverter
+    fun fromInstantToMilliseconds(input: Instant?): Long? = input?.toEpochMilliseconds()
+
+    @TypeConverter
+    fun fromMillisecondsToInstant(input: Long?): Instant? =
+        input?.let { Instant.fromEpochMilliseconds(it) }
+}
 
 @Entity(
-    tableName = "tasks", foreignKeys = [
-        ForeignKey(
-            SubTaskEntity::class,
-            childColumns = ["subtask_id"],
-            parentColumns = ["subtask_id"],
-            onDelete = ForeignKey.CASCADE
-        )]
+    tableName = "tasks"
 )
 data class TaskEntity(
     @PrimaryKey
-    @ColumnInfo(name = "task_id") val taskId: String = id,
-    @ColumnInfo(name = "subtask_id") val subtaskId: String? = null,
-    @ColumnInfo(name = "title") val title: String,
+    @ColumnInfo("task_id") val taskId: String = getPrimaryId(),
+    @ColumnInfo("title") val title: String,
     @ColumnInfo("done") val done: Boolean = false,
-    @ColumnInfo(name = "priority") val priority: Priority = Priority.MED,
+    @ColumnInfo("priority") val priority: Priority = Priority.MED,
     @ColumnInfo("due") val due: String? = null,
-    @ColumnInfo(name = "overdue") val overdue: Boolean = false,
+    @ColumnInfo("overdue") val overdue: Boolean = false,
     @ColumnInfo("project") val project: String? = null,
     @ColumnInfo("notes") val notes: String? = null,
+    @ColumnInfo("due_at") val dueAt: Instant? = null
 )
 
-@Entity
+@Entity(
+    tableName = "subtasks", foreignKeys = [
+        ForeignKey(
+            TaskEntity::class,
+            childColumns = ["task_id"],
+            parentColumns = ["task_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("task_id")]
+)
 data class SubTaskEntity(
     @PrimaryKey
-    @ColumnInfo(name = "subtask_id") val subTaskId: String = id,
+    @ColumnInfo("subtask_id") val subTaskId: String = getPrimaryId(),
+    @ColumnInfo("task_id") val taskId: String,
     @ColumnInfo("title") val title: String,
     @ColumnInfo("is_done") val isDone: Boolean = false
+)
+
+data class TaskWithSubTask(
+    @Embedded val task: TaskEntity,
+    @Relation(
+        entity = SubTaskEntity::class,
+        parentColumn = "task_id",
+        entityColumn = "task_id"
+    )
+    val subtasks: List<SubTaskEntity>
 )

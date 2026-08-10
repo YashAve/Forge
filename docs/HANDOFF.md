@@ -1,99 +1,80 @@
-# Handoff note — laptop → desktop
+# Handoff note — desktop → laptop
 
-**From:** laptop Claude session · **Date:** 2026-08-09 · **On top of:** `23a5229`
+**From:** desktop Claude session · **Date:** 2026-08-10 · **On top of:** `989ae41`
 
-`./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL** with your portrait-lock commit and
-this one combined. **Compile-only — not run.** Small round: one WIP checkpoint plus a
-`.gitignore` addition.
+`./gradlew :app:compileDebugKotlin --rerun-tasks` → **BUILD SUCCESSFUL**. Compile-only, same as
+your last note — nothing opens the database yet. This is Yash continuing his own Room work; I
+verified and documented, didn't write or fix any of it.
 
-I rebased onto your `23a5229` rather than merging, so history stays linear.
+## The Room layer grew up — three of your six open items are now resolved
 
-## ⚠️ This push is Yash's in-progress code, committed deliberately unfinished
+Good news first, since you flagged these explicitly last note:
 
-A **checkpoint of work in flight**, not a finished feature. I was explicitly asked to commit it
-*without completing it*, so **nothing here was written, corrected or filled in by me** — the
-scaffolding is exactly as Yash left it. Please **don't finish it either** unless he asks; the
-empty DAOs and unfinished builder below are known gaps he's mid-way through, not oversights for
-a passing agent to tidy.
+1. **FK direction fixed.** `SubTaskEntity` now carries `@ColumnInfo("task_id") val taskId: String`
+   with the `ForeignKey(TaskEntity::class, childColumns = ["task_id"], parentColumns =
+   ["task_id"])` living on the *child* table, plus `indices = [Index("task_id")]` — the missing-
+   index KSP warning you'd have hit is gone. `TaskEntity` no longer holds a `subtask_id` at all.
+   One task → many subtasks now models correctly.
+2. **`StorageModule.provideDatabase` calls `.build()`.** No longer returns a bare builder.
+   `provideTaskDao`/`provideSubtaskDao` were added alongside it, both trivial `database.xDao()`
+   providers.
+3. **`dueAt` is real on the entity now.** `TaskEntity.dueAt: Instant?` (`kotlin.time.Instant`,
+   stdlib — not kotlinx-datetime) with a matching `TypeConverters` class
+   (`fromInstantToMilliseconds`/`fromMillisecondsToInstant`, epoch-millis `Long` under the hood,
+   consistent with the server's timestamp convention). Registered on `AppDatabase` via
+   `@TypeConverters(com.development.forge.data.local.entity.TypeConverters::class)` — note the
+   **fully-qualified reference**: the converter class is also named `TypeConverters`, same simple
+   name as the `androidx.room.TypeConverters` annotation. Yash sidestepped the collision with the
+   FQN rather than renaming either one. Worth knowing if you add a second converter class nearby
+   and reach for an unqualified import — it'll clash.
+4. **New:** `TaskWithSubTask` (`@Embedded task` + `@Relation` list of subtasks) and
+   `TaskDao.getTaskWithSubtask(): Flow<List<TaskWithSubTask>>` — the first real query, and the
+   shape a future repository would actually collect from.
+5. **Priority round-trips with no manual converter**, confirmed — this round added the first
+   `@Upsert`/`@Query` methods that actually exercise `TaskEntity` through KSP, and it compiled
+   clean. Room 2.7.1 has native enum-column support, so your "no Priority converter yet, might
+   not survive being queried" concern doesn't need one after all.
 
-## What landed: the start of a Room persistence layer
+## ⚠️ Read first — one likely mistake, not fixed
 
-Four new files — the app's first local-storage scaffolding:
+**`TaskDao` has two delete-all-in-one-call methods that look like a copy/paste slip:**
 
-- **`data/local/entity/Entities.kt`** — `TaskEntity` (title, done, priority, due, overdue,
-  project, notes) and `SubTaskEntity` (title, isDone). Both use `String` primary keys defaulted
-  from a private top-level `id` generator (`"${currentTimeMillis}-${UUID}"`).
-- **`data/local/dao/Daos.kt`** — `TaskDao` and `SubtaskDao`, both `@Dao` and **completely empty**.
-- **`data/local/database/AppDatabase.kt`** — `@Database(entities = [TaskEntity, SubTaskEntity],
-  version = 1)` exposing both DAOs.
-- **`di/StorageModule.kt`** — Hilt `@Module` providing the database.
+```kotlin
+@Delete
+suspend fun deleteTask(vararg task: TaskEntity)
+...
+@Delete
+fun deleteTasks(vararg task: TaskEntity)   // same signature, not suspend
+```
 
-Room was already a dependency (`room-runtime`, `room-ktx`, `room-compiler` via KSP) — **no build
-file or catalog changes**.
+Identical `@Delete`, identical `vararg task: TaskEntity` parameter — the only difference is
+`deleteTasks` isn't `suspend`. Room still generates it, so it compiles clean and calling it from
+a background thread works fine. The trap is the name: whoever wires the repository later
+(possibly you) has a ~50/50 shot of reaching for `deleteTasks` on the plural-sounding call site
+and getting `IllegalStateException: Cannot access database on the main thread` on a UI-thread
+call, since nothing stops you calling a non-suspend Room method from `onClick`. Didn't touch it —
+not clear if `deleteTasks` was meant to be deleted, meant to become the batch-suspend version
+with `deleteTask` renamed/removed, or is deliberate for some synchronous-transaction use case.
 
-## Known-unfinished points (deliberate — do not fix unprompted)
+## Still open on the Room layer (unchanged, carried from your note)
 
-1. **Both DAOs are empty interfaces.** No `@Query`/`@Insert`/`@Update`/`@Delete` yet.
-2. **`StorageModule.provideDatabase` returns the *builder*, not the database.** It stops at
-   `Room.databaseBuilder(context, AppDatabase::class.java, "app_database")` — no `.build()`. It
-   compiles (inferred return type) and nothing injects `AppDatabase` yet, so nothing breaks
-   today, but injecting `AppDatabase` won't work until `.build()` is added.
-3. **The task↔subtask relationship is modelled parent-side and looks inverted.** `TaskEntity`
-   holds a nullable `subtask_id` with a `ForeignKey` to `SubTaskEntity` — i.e. each task has *at
-   most one* subtask. The domain model and the finished Add/Edit UI have a task owning a *list*,
-   which normally means the FK lives on the child (`SubTaskEntity.taskId` → `tasks.task_id`).
-   Most likely thing to need rework; **left alone.**
-4. **No `Priority` type converter yet.** `TaskEntity.priority` is the domain enum; Room needs a
-   `@TypeConverter` before it can round-trip. Not an error today because nothing queries it.
-5. **No timestamps in the entities** — the server has `createdAt`/`updatedAt` epoch-millis; the
-   local entities don't carry them.
-6. **Nothing is wired.** No repository, no ViewModel, no UI reads or writes this; the database
-   is never opened at runtime.
+- **Both DAOs otherwise minimal** — no update-in-place beyond `@Upsert`, no subtask-by-task
+  query (e.g. `getSubtasksForTask`), no read-single-task.
+- **Nothing wired** — no repository, no ViewModel, no UI reads/writes this; `AppDatabase` is
+  never opened at runtime.
+- **No schema export directory** — KSP still warns `room.schemaLocation` isn't set. Harmless
+  until migrations matter.
 
-Worth knowing: the entities passed through a red state this session —
-`@PrimaryKey(autoGenerate = true)` on a `String` is rejected by Room (*"its type must be int,
-Integer, long or Long"*, plus `AUTOINCREMENT is only allowed on an INTEGER PRIMARY KEY`). Yash
-dropped `autoGenerate` and it compiles. Noted only so it isn't reintroduced.
+## Carried over (still open, untouched this round)
 
-## Also in this push
-
-- **`.gitignore`**: added `hs_err_pid*.log`, `replay_pid*.log`, `core.*`. A 256KB
-  `hs_err_pid165247.log` was sitting untracked in the repo root — a **Gradle daemon JVM crash**
-  (SIGSEGV in G1 GC, `G1ParScanThreadState::do_oop_evac`, JBR 21.0.10, ~23s into a build). Left
-  on disk, now ignored instead of committed.
-
-## ⚠️ Your Home-back bug is still open — nothing here touched it
-
-Carrying your note forward, because it's the most serious thing outstanding: **pressing system
-back on Home blanks the app.** `BackHandler` is registered unconditionally, and `Home` now
-shares the `backStack.clear()` bucket with `Login`/`Registration` — but those two always have a
-callback that re-adds an entry, and Home doesn't. So back on Home empties the stack, `NavDisplay`
-has nothing to render, and back is fully swallowed so it can't even fall through to exiting the
-app. You flagged the fix as a product decision (put `Home` back in the `else` no-op bucket vs.
-finish the activity); **still undecided, still unfixed.** Since it's one gesture to a dead
-screen, it probably deserves picking off before more feature work.
-
-## Environment warnings
-
-- **Two independent memory-pressure symptoms now.** The new Gradle daemon SIGSEGV above, and
-  `forge-mongo` restart-looping (`RestartCount 7657`, `ExitCode 0`, over 5 weeks, host at
-  14Gi/14Gi RAM as of the backend push). Individually dismissable; together they suggest this
-  box is genuinely starved — worth treating as a real problem rather than noise. This machine
-  also has prior form for JVM/JBR trouble.
-- **`.idea/` still uncommitted** (JDK 11→17 flip + stale `gradle.xml` `lib` entry). Standing
-  "your call" item — I stashed it across the rebase and restored it untouched.
-
-## Where the project stands
-
-- **UI: complete** (`390c43d`).
-- **Backend: complete** (`5123181`) — Ktor + MongoDB + JWT, user-scoped, smoke-tested live.
-- **The gap between them: still open.** The app doesn't talk to the server. No ViewModel, no
-  repository, no mutable task state. This Room layer is the start of the local half.
-
-## Carried over (still open — untouched this round)
-
+- **The Home back-button bug — still nobody's picked it off.** Third note running it forward:
+  `BackHandler` unconditionally swallows system back, `Home` shares the `backStack.clear()`
+  bucket with `Login`/`Registration` but has no follow-up callback to repopulate the stack, so
+  back-on-Home blanks the screen with no way out. Still a product decision (no-op bucket vs.
+  finish the activity), still nobody's made it.
 - **No ViewModel / no mutable task state** — `onToggle`/`onComplete`/`onAdd`/`onSave` are TODO
-  stubs over the immutable top-level `val tasks`. The entire remaining wiring job.
+  stubs over the immutable top-level `val tasks`. The entire remaining wiring job — now with
+  both a backend *and* a local Room layer waiting to be plugged in.
 - **New-task capture unreachable** — `AddOrEditTaskScreen(editingTask = tasks[0])` default + nav
   never passing `null`, so **+** always opens "Edit Task" on task[0].
 - **`ForgeDatePickerDialog` NPEs** on OK-without-selection (`selectedDateMillis!!`).
@@ -101,17 +82,21 @@ screen, it probably deserves picking off before more feature work.
 - **`AddTaskSheet.kt` (~24KB) still orphaned** — safe to delete.
 - **Task List bucket-overlap crash still live** (`overdue && due == null` → duplicate
   `LazyColumn` key). Fix: `someday = active.filter { it.due == null && !it.overdue }`.
-- `dueAt: Instant?` unused; the server DTO mirrors `due: String?` only — if `dueAt` becomes real
-  client-side, the DTO needs it too.
+- Server's `Task` DTO still mirrors `due: String?` only — now that `dueAt` is a real typed field
+  locally, the DTO gap is more likely to matter soon.
 - Stats hardcoded; onboarding finish/skip → `Login` vs spec's `Registration`; `Motion.kt` empty;
   `SuccessScreen` reset button not deleted.
-- **ForgeTextField focus ring still an empty `drawBehind { }` stub — 23rd note running.**
+- **ForgeTextField focus ring still an empty `drawBehind { }` stub — 24th note running.**
 - Server-side: dev JWT secret in source (loud WARN at startup), `/auth/forgot` logs the reset
   token to console, CORS `anyHost()`, `PUT /tasks/{id}` is a full replace not a merge.
 - `gradle.properties`: dead `kapt.*`; deprecated `useClasspathSnapshot` warns.
+- **Environment**: your last note flagged two independent memory-pressure symptoms (Gradle
+  daemon SIGSEGV + `forge-mongo` restart-looping at 14Gi/14Gi host RAM) — no new data point from
+  this machine, carrying forward since you said it's worth treating as real.
+- `.idea/` still uncommitted (JDK 11→17 flip + stale `gradle.xml` `lib` entry). Standing "your
+  call" item, untouched again.
 
 ## Verified
 
-`./gradlew :app:compileDebugKotlin` → **BUILD SUCCESSFUL** post-rebase, i.e. your changes and
-this WIP together. Compile-only; nothing was run, and there's nothing to run yet — no code path
-opens the database. Server untouched this round.
+`./gradlew :app:compileDebugKotlin --rerun-tasks` (forced, not cached) → BUILD SUCCESSFUL.
+Compile-only — same as you, nothing to run yet. Server untouched this round.

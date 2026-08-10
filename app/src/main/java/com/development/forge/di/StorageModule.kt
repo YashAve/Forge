@@ -17,5 +17,11 @@ object StorageModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context) =
-        Room.databaseBuilder(context, AppDatabase::class.java, "app_database")
+        Room.databaseBuilder(context, AppDatabase::class.java, "app_database").build()
+
+    @Provides
+    fun provideTaskDao(database: AppDatabase) = database.taskDao()
+
+    @Provides
+    fun provideSubtaskDao(database: AppDatabase) = database.subtaskDao()
 }
