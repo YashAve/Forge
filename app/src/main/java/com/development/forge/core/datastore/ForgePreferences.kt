@@ -2,13 +2,15 @@ package com.development.forge.core.datastore
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.IOException
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.development.forge.core.datastore.ForgePreferences.Companion.DEFAULT_IS_DARK
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -36,8 +38,9 @@ class ForgePreferences @Inject constructor(
      * Cold stream of the dark-theme flag: emits the stored value immediately, then
      * again on every change. Defaults to dark ([DEFAULT_IS_DARK]) when unset.
      */
-    fun isDarkTheme(): Flow<Boolean> =
+    fun isDarkTheme() =
         dataStore.data
+            .catch { exception -> if (exception is IOException) emit(emptyPreferences()) else throw exception }
             .map { prefs -> prefs[KEY_THEME_IS_DARK] ?: DEFAULT_IS_DARK }
             .distinctUntilChanged()
 
