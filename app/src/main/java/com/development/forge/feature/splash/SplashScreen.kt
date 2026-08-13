@@ -21,12 +21,16 @@ import androidx.compose.ui.unit.sp
 import com.development.forge.core.designsystem.ForgeFonts
 import com.development.forge.core.designsystem.ForgeTheme
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Placeholder splash screen — just centers the Forge wordmark for now. */
 
 @Preview
 @Composable
-fun SplashScreen(modifier: Modifier = Modifier, onFinished: () -> Unit = { }) {
+fun SplashScreen(
+    modifier: Modifier = Modifier,
+    onFinished: () -> Unit = { }
+) {
 
     val measurer = rememberTextMeasurer()
     val currentOnFinished by rememberUpdatedState(onFinished)
@@ -35,12 +39,12 @@ fun SplashScreen(modifier: Modifier = Modifier, onFinished: () -> Unit = { }) {
     val amber = ForgeTheme.colors.amber           // captured for the DrawScope Canvas below
 
     LaunchedEffect(Unit) {
-        delay(600)
+        delay(600.milliseconds)
         emberScale.apply {
             animateTo(1.18f, animationSpec = tween(800))
             animateTo(1f, tween(800))
         }
-        delay(400)
+        delay(400.milliseconds)
         currentOnFinished()
     }
 

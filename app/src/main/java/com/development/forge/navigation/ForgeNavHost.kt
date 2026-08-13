@@ -15,6 +15,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
@@ -46,7 +48,10 @@ import com.development.forge.feature.home.HomeScreen
 import com.development.forge.feature.home.components.ForgeBottomNavigationBar
 import com.development.forge.feature.onboarding.OnboardingFlowScreen
 import com.development.forge.feature.settings.SettingsScreen
+import com.development.forge.feature.splash.SplashEffect
+import com.development.forge.feature.splash.SplashIntent
 import com.development.forge.feature.splash.SplashScreen
+import com.development.forge.feature.splash.SplashViewModel
 import com.development.forge.feature.stats.StatsScreen
 import com.development.forge.feature.tasks.AddOrEditTaskScreen
 import com.development.forge.feature.tasks.TaskDetailScreen
@@ -64,11 +69,12 @@ import com.development.forge.navigation.ForgeNavKey.Success
 fun ForgeNavHost(
     modifier: Modifier = Modifier,
     isDark: Boolean = true,
+    initialDestination: ForgeNavKey = Splash,
     onToggleTheme: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = LocalActivity.current
-    val backStack = rememberNavBackStack(Splash)
+    val backStack = rememberNavBackStack(initialDestination)
     val currentDestination = backStack.lastOrNull()
 
     val amber = ForgeTheme.colors.amber   // captured for the drawBehind ambient wash below
@@ -184,9 +190,27 @@ fun ForgeNavHost(
                 entryProvider = entryProvider {
 
                     entry<Splash> {
+                        val viewModel: SplashViewModel = hiltViewModel()
+
+                        LaunchedEffect(Unit) {
+                            with(backStack) {
+                                viewModel.effect.collect { effect ->
+                                    clear()
+                                    when (effect) {
+                                        SplashEffect.NavigateToOnboarding -> add(ForgeNavKey.OnboardingFlow)
+                                        SplashEffect.NavigateToLogin -> add(Login)
+                                        SplashEffect.NavigateToHome -> add(ForgeNavKey.Home)
+                                    }
+                                }
+                            }
+                        }
+
+                        LaunchedEffect(Unit) {
+                            viewModel.onIntent(SplashIntent.CheckAuthStatus)
+                        }
+
                         SplashScreen(basicModifier) {
-                            backStack.clear()
-                            backStack.add(ForgeNavKey.OnboardingFlow)
+                            viewModel.onIntent(SplashIntent.AnimationFinished)
                         }
                     }
 
@@ -353,6 +377,6 @@ fun ForgeNavHostPreview() {
         override val navigationEventDispatcher = NavigationEventDispatcher()
     }
     CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides mockDispatcherOwner) {
-        ForgeNavHost()
+        ForgeNavHost(initialDestination = ForgeNavKey.Home) // Bypasses Splash ViewModel execution
     }
 }
