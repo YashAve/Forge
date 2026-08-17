@@ -1,4 +1,4 @@
-package com.development.forge.feature.splash
+package com.development.forge.feature.splash.contract
 
 sealed interface SplashIntent {
     data object CheckAuthStatus : SplashIntent

@@ -1,4 +1,4 @@
-package com.development.forge.feature.auth
+package com.development.forge.feature.auth.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row

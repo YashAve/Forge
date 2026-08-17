@@ -1,4 +1,4 @@
-package com.development.forge.feature.auth
+package com.development.forge.feature.auth.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box

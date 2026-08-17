@@ -1,4 +1,4 @@
-package com.development.forge.feature.splash
+package com.development.forge.feature.splash.ui
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween

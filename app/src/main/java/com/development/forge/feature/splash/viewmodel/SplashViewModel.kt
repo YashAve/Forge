@@ -1,9 +1,11 @@
-package com.development.forge.feature.splash
+package com.development.forge.feature.splash.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.development.forge.core.datastore.ForgePreferences
 import com.development.forge.core.mvi.MviViewModel
+import com.development.forge.feature.splash.contract.SplashEffect
+import com.development.forge.feature.splash.contract.SplashIntent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.first
