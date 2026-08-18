@@ -30,6 +30,8 @@ dependencies {
     implementation(libs.koin.ktor)
     implementation(libs.koin.logger.slf4j)
 
+    implementation(project(":shared"))
+
     testImplementation(kotlin("test"))
     testImplementation(libs.ktor.server.tests)
     testImplementation(libs.ktor.client.content.negotiation)

@@ -25,7 +25,15 @@ android {
         testInstrumentationRunner = "com.development.forge.HiltTestRunner"
     }
 
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+
     buildTypes {
+        debug {
+            buildConfigField("String", "BASE_URL", "\"http://10.97.32.25:9292\"")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -128,6 +136,8 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.client.logging)
+
+    implementation(project(":shared"))
 
     testImplementation(libs.junit)
     testImplementation(libs.androidx.room.testing)
