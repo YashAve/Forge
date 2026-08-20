@@ -12,8 +12,8 @@ enum class AuthError {
 }
 
 data class AuthState(
-    val email: String? = null,
-    val password: String? = null,
+    val email: String = "",
+    val password: String = "",
     val error: AuthError? = null,
     val isLoading: Boolean = false
 )
@@ -33,4 +33,5 @@ sealed interface AuthEffect {
     data object NavigateToSuccess : AuthEffect
     data object NavigateToEmailSent : AuthEffect
     data object NavigateToLogin : AuthEffect
+    data object NavigateToRegistration : AuthEffect
 }

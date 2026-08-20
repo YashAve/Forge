@@ -117,6 +117,8 @@ import com.development.forge.core.designsystem.ForgeTheme
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
+    onUpdateEmail: (String) -> Unit = { },
+    onUpdatePassword: (String) -> Unit = { },
     onForgotPassword: () -> Unit = { },
     onForgeAccount: () -> Unit = { },
     onLogin: () -> Unit = { }
@@ -166,6 +168,7 @@ fun LoginScreen(
         ForgeTextField(
             value = emailInput, onValueChange = { value ->
                 emailInput = value
+                onUpdateEmail(emailInput)
             }, label = "Email",
             leadingIcon = Icons.Default.MailOutline
         )
@@ -173,6 +176,7 @@ fun LoginScreen(
         ForgePasswordField(
             value = passwordInput, onValueChange = { value ->
                 passwordInput = value
+                onUpdatePassword(passwordInput)
             }, label = "Password"
         )
         Spacer(modifier = Modifier.height(2.dp))

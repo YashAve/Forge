@@ -38,12 +38,15 @@ import com.development.forge.core.components.OnForgeOnAdd
 import com.development.forge.core.components.OnForgeOnBack
 import com.development.forge.core.components.OnForgeOnEdit
 import com.development.forge.core.designsystem.ForgeTheme
+import com.development.forge.feature.auth.contract.AuthEffect
+import com.development.forge.feature.auth.contract.AuthIntent
 import com.development.forge.feature.auth.ui.EmailSentScreen
 import com.development.forge.feature.auth.ui.ForgotPasswordScreen
 import com.development.forge.feature.auth.ui.LoginScreen
 import com.development.forge.feature.auth.ui.RegistrationScreen
 import com.development.forge.feature.auth.ui.ResetPasswordScreen
 import com.development.forge.feature.auth.ui.SuccessScreen
+import com.development.forge.feature.auth.viewmodel.AuthViewModel
 import com.development.forge.feature.home.HomeScreen
 import com.development.forge.feature.home.components.ForgeBottomNavigationBar
 import com.development.forge.feature.onboarding.OnboardingFlowScreen
@@ -78,6 +81,44 @@ fun ForgeNavHost(
     val currentDestination = backStack.lastOrNull()
 
     val amber = ForgeTheme.colors.amber   // captured for the drawBehind ambient wash below
+
+    // One AuthViewModel for the whole auth flow. Activity-scoped in practice because the
+    // Nav3 ViewModel-store decorator isn't wired (see libs.versions.toml), so every
+    // hiltViewModel() below resolves to the same instance. The ViewModel owns all auth
+    // decisions; screens only send intents.
+    val authViewModel: AuthViewModel = hiltViewModel()
+
+    // Auth effects are collected here, beside NavDisplay, tied to the nav host's lifecycle —
+    // not inside an entry, where it would be at the mercy of entryProvider recomposition.
+    LaunchedEffect(Unit) {
+        authViewModel.effect.collect { effect ->
+            with(backStack) {
+                when (effect) {
+                    AuthEffect.NavigateToHome -> {
+                        clear()
+                        add(ForgeNavKey.Home)
+                    }
+
+                    AuthEffect.NavigateToSuccess -> {
+                        clear()
+                        add(Success)
+                    }
+
+                    AuthEffect.NavigateToEmailSent -> {
+                        add(EmailSent)
+                    }
+
+                    AuthEffect.NavigateToLogin -> {
+                        clear()
+                        add(Login)
+                    }
+                    else -> {
+
+                    }
+                }
+            }
+        }
+    }
 
     BackHandler {
         when (currentDestination) {
@@ -224,37 +265,29 @@ fun ForgeNavHost(
                     entry<Login> {
                         LoginScreen(
                             modifier = basicModifier,
+                            onUpdateEmail = { authViewModel.onIntent(AuthIntent.UpdateEmail(it)) },
+                            onUpdatePassword = { authViewModel.onIntent(AuthIntent.UpdatePassword(it)) },
                             onForgotPassword = { backStack.add(ForgotPassword) },
                             onForgeAccount = {
-                                // replace top — siblings, not a push
                                 backStack.removeLastOrNull()
                                 backStack.add(Registration)
                             },
-                            onLogin = {
-                                backStack.clear()
-                                backStack.add(ForgeNavKey.Home)
-                            }
+                            onLogin = { authViewModel.onIntent(AuthIntent.SubmitLogin) }
                         )
                     }
 
                     entry<Registration> {
                         RegistrationScreen(
                             modifier = basicModifier,
-                            onRegister = {
-                                backStack.clear()
-                                backStack.add(Success)
-                            }
+                            onRegister = { authViewModel.onIntent(AuthIntent.SubmitRegistration) }
                         )
                     }
 
                     entry<ForgotPassword> {
                         ForgotPasswordScreen(
                             modifier = basicModifier,
-                            onSendLink = { backStack.add(EmailSent) },
-                            onRemembered = {
-                                backStack.removeLastOrNull()
-                                backStack.add(Login)
-                            }
+                            onSendLink = { authViewModel.onIntent(AuthIntent.SubmitForgotPassword) },
+                            onRemembered = { backStack.removeLastOrNull() }
                         )
                     }
 
@@ -265,25 +298,14 @@ fun ForgeNavHost(
                     entry<ResetPassword> {
                         ResetPasswordScreen(
                             modifier = basicModifier,
-                            onResetPassword = {
-                                // clear the whole forgot/reset chain, land on Login
-                                while (backStack.lastOrNull() !is Login &&
-                                    backStack.size > 1
-                                ) {
-                                    backStack.removeLastOrNull()
-                                }
-                                backStack.add(Login)
-                            }
+                            onResetPassword = { authViewModel.onIntent(AuthIntent.SubmitResetPassword) }
                         )
                     }
 
                     entry<Success> {
                         SuccessScreen(
                             modifier = basicModifier,
-                            onContinue = {
-                                backStack.clear()
-                                backStack.add(ForgeNavKey.Home)
-                            }
+                            onContinue = { authViewModel.onIntent(AuthIntent.SubmitLogin) }
                         )
                     }
 
