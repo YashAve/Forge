@@ -1,8 +1,6 @@
 package com.development.forge.feature.auth.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,12 +16,6 @@ import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,6 +34,8 @@ import com.development.forge.core.components.ForgeTextButton
 import com.development.forge.core.components.ForgeTextField
 import com.development.forge.core.designsystem.ForgeFonts
 import com.development.forge.core.designsystem.ForgeTheme
+import com.development.forge.feature.auth.contract.AuthError
+import com.development.forge.feature.auth.contract.AuthState
 
 /**
  * DESIGN SPEC — Login screen (source: Forge Design System, Screens.jsx → LoginScreen).
@@ -117,25 +111,13 @@ import com.development.forge.core.designsystem.ForgeTheme
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
+    state: AuthState = AuthState(),
     onUpdateEmail: (String) -> Unit = { },
     onUpdatePassword: (String) -> Unit = { },
     onForgotPassword: () -> Unit = { },
     onForgeAccount: () -> Unit = { },
     onLogin: () -> Unit = { }
 ) {
-
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    var emailInput by rememberSaveable { mutableStateOf("") }
-    var passwordInput by rememberSaveable { mutableStateOf("") }
-    var isLoading by rememberSaveable { mutableStateOf(false) }
-
-    val canSubmit by remember {
-        derivedStateOf {
-            emailInput.matches(validEmailRegularExpression) && passwordInput.length >= 8 && !isLoading
-        }
-    }
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -166,18 +148,18 @@ fun LoginScreen(
         )
         Spacer(modifier = Modifier.height(40.dp))
         ForgeTextField(
-            value = emailInput, onValueChange = { value ->
-                emailInput = value
-                onUpdateEmail(emailInput)
-            }, label = "Email",
+            value = state.email,
+            onValueChange = onUpdateEmail,
+            error = state.error.emailMessage(),
+            label = "Email",
             leadingIcon = Icons.Default.MailOutline
         )
         Spacer(modifier = Modifier.height(16.dp))
         ForgePasswordField(
-            value = passwordInput, onValueChange = { value ->
-                passwordInput = value
-                onUpdatePassword(passwordInput)
-            }, label = "Password"
+            value = state.password,
+            onValueChange = onUpdatePassword,
+            error = state.error.passwordMessage(),
+            label = "Password"
         )
         Spacer(modifier = Modifier.height(2.dp))
         ForgeTextButton(
@@ -192,14 +174,11 @@ fun LoginScreen(
         )
         ForgeButton(
             label = "Continue",
-            isEnabled = canSubmit,
-            isLoading = isLoading,                     // plain Boolean now
-            icon = if (canSubmit && !isLoading)        // ← arrow only when valid
+            isEnabled = !state.isLoading,
+            isLoading = state.isLoading,                     // plain Boolean now
+            icon = if (!state.isLoading)        // ← arrow only when valid
                 Icons.AutoMirrored.Default.ArrowForward else null,
-            onClick = {
-                isLoading = true
-                onLogin()
-            }
+            onClick = onLogin
         )
         Spacer(modifier = Modifier.height(16.dp))
         Row(
@@ -261,4 +240,16 @@ fun LoginScreen(
             }
         }
     }
+}
+
+private fun AuthError?.emailMessage(): String? = when (this) {
+    AuthError.INVALID_EMAIL -> "That email doesn't look right"
+    else -> null
+}
+
+private fun AuthError?.passwordMessage(): String? = when (this) {
+    AuthError.EMPTY_PASSWORD -> "Enter your password"
+    AuthError.INVALID_CREDENTIAL -> "Email or password is incorrect"
+    AuthError.NETWORK_ERROR -> "Can't reach the server. Check your connection"
+    else -> null
 }

@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
@@ -263,8 +264,11 @@ fun ForgeNavHost(
                     }
 
                     entry<Login> {
+                        val state = authViewModel.authState.collectAsStateWithLifecycle()
+
                         LoginScreen(
                             modifier = basicModifier,
+                            state = state.value,
                             onUpdateEmail = { authViewModel.onIntent(AuthIntent.UpdateEmail(it)) },
                             onUpdatePassword = { authViewModel.onIntent(AuthIntent.UpdatePassword(it)) },
                             onForgotPassword = { backStack.add(ForgotPassword) },

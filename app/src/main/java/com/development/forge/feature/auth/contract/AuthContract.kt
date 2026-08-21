@@ -33,5 +33,4 @@ sealed interface AuthEffect {
     data object NavigateToSuccess : AuthEffect
     data object NavigateToEmailSent : AuthEffect
     data object NavigateToLogin : AuthEffect
-    data object NavigateToRegistration : AuthEffect
 }
