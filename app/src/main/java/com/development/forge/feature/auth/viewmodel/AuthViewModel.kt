@@ -44,11 +44,6 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun updateEffect(effect: AuthEffect) =
-        viewModelScope.launch {
-            _effect.send(effect)
-        }
-
     private fun updateEmail(email: String) =
         _authState.update { it.copy(email = email, error = null) }
 
@@ -78,6 +73,37 @@ class AuthViewModel @Inject constructor(
                 }
                 is AuthResult.Failure -> {
                     _authState.update { it.copy(isLoading = false, error = result.error) }
+                }
+            }
+        }
+    }
+
+    private fun submitRegistration() {
+        val email = _authState.value.email.trim()
+        val password = _authState.value.password
+
+        val error = when {
+            !email.matches(emailRegex) -> AuthError.INVALID_EMAIL
+            password.isEmpty() -> AuthError.EMPTY_PASSWORD
+            password.length < 8 -> AuthError.WEAK_PASSWORD
+            else -> null
+        }
+
+        error?.let {
+            _authState.update { it.copy(error = error) }
+            return
+        }
+
+        viewModelScope.launch {
+            _authState.update { it.copy(isLoading = true, error = null) }
+            when (val response = authRepository.register(email, password)) {
+                is AuthResult.Success -> {
+                    preferences.storeAuthToken(response.data.token)
+                    _authState.update { it.copy(isLoading = false) }
+                    _effect.send(AuthEffect.NavigateToSuccess)
+                }
+                is AuthResult.Failure -> {
+                    _authState.update { it.copy(isLoading = false, error = response.error) }
                 }
             }
         }

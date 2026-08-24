@@ -54,6 +54,7 @@ class ForgePreferences @Inject constructor(
     fun isDarkTheme() = preference(KEY_THEME_IS_DARK, DEFAULT_IS_DARK)
     fun isOnboardingDone() = preference(KEY_ONBOARDING_IS_DONE, DEFAULT_IS_ONBOARDING_DONE)
     fun isAuthTokenStored() = preference(KEY_AUTH_TOKEN, DEFAULT_AUTH_TOKEN)
+    suspend fun clearAuthToken() = dataStore.edit { it.remove(KEY_AUTH_TOKEN) }
 
     /** Persists the dark-theme flag. DataStore performs the write off the main thread. */
     suspend fun setDarkTheme(isDark: Boolean) = setPreference(KEY_THEME_IS_DARK, isDark)

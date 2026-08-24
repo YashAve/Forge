@@ -1,4 +1,4 @@
-package com.development.forge.feature.settings
+package com.development.forge.feature.settings.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box

@@ -12,12 +12,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -36,24 +30,20 @@ import com.development.forge.core.components.ForgePasswordField
 import com.development.forge.core.components.ForgeTextField
 import com.development.forge.core.designsystem.ForgeFonts
 import com.development.forge.core.designsystem.ForgeTheme
+import com.development.forge.feature.auth.contract.AuthError
+import com.development.forge.feature.auth.contract.AuthState
 
 val validEmailRegularExpression = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
 
 @Preview
 @Composable
-fun RegistrationScreen(modifier: Modifier = Modifier, onRegister: () -> Unit = { }) {
-    var emailInput by rememberSaveable { mutableStateOf("") }
-    var passwordInput by rememberSaveable { mutableStateOf("") }
-    var isLoading by rememberSaveable { mutableStateOf(false) }
-
-    val canSubmit by remember {
-        derivedStateOf {
-            emailInput.matches(validEmailRegularExpression) &&
-                    passwordInput.length >= 8 &&
-                    !isLoading
-        }
-    }
-
+fun RegistrationScreen(
+    modifier: Modifier = Modifier,
+    state: AuthState = AuthState(),
+    onUpdateEmail: (String) -> Unit = { },
+    onUpdatePassword: (String) -> Unit = { },
+    onRegister: () -> Unit = { }
+) {
     Column(
         modifier = modifier
             .padding(horizontal = 24.dp)
@@ -89,15 +79,17 @@ fun RegistrationScreen(modifier: Modifier = Modifier, onRegister: () -> Unit = {
 
         // Fields — 16dp gap
         ForgeTextField(
-            value = emailInput,
-            onValueChange = { emailInput = it },
+            value = state.email,
+            onValueChange = { onUpdateEmail(state.email) },
+            error = state.error.emailMessage(),
             label = "Email",
             leadingIcon = Icons.Default.MailOutline
         )
         Spacer(Modifier.height(16.dp))
         ForgePasswordField(
-            value = passwordInput,
-            onValueChange = { passwordInput = it },
+            value = state.password,
+            onValueChange = { onUpdatePassword(state.password) },
+            error = state.error.passwordMessage(),
             label = "Password",
             helper = "8 characters minimum."          // ← was missing
         )
@@ -112,12 +104,11 @@ fun RegistrationScreen(modifier: Modifier = Modifier, onRegister: () -> Unit = {
         // CTA stack — 16dp gap
         ForgeButton(
             label = "Continue",
-            isEnabled = canSubmit,
-            isLoading = isLoading,                     // plain Boolean now
-            icon = if (canSubmit && !isLoading)        // ← arrow only when valid
+            isEnabled = !state.isLoading,
+            isLoading = state.isLoading,                     // plain Boolean now
+            icon = if (!state.isLoading)        // ← arrow only when valid
                 Icons.AutoMirrored.Default.ArrowForward else null,
             onClick = {
-                isLoading = true
                 onRegister()
             }
         )
@@ -166,4 +157,17 @@ private fun TermsMicrocopy(
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     )
+}
+
+private fun AuthError?.emailMessage(): String? = when (this) {
+    AuthError.INVALID_EMAIL -> "That email doesn't look right"
+    AuthError.EMAIL_ALREADY_EXISTS -> "That email is already forged"
+    else -> null
+}
+
+private fun AuthError?.passwordMessage(): String? = when (this) {
+    AuthError.EMPTY_PASSWORD -> "Set a password"
+    AuthError.WEAK_PASSWORD -> "At least 8 characters"
+    AuthError.NETWORK_ERROR -> "Can't reach the server. Check your connection"
+    else -> null
 }

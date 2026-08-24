@@ -50,8 +50,14 @@ import com.development.forge.feature.auth.ui.SuccessScreen
 import com.development.forge.feature.auth.viewmodel.AuthViewModel
 import com.development.forge.feature.home.HomeScreen
 import com.development.forge.feature.home.components.ForgeBottomNavigationBar
-import com.development.forge.feature.onboarding.OnboardingFlowScreen
-import com.development.forge.feature.settings.SettingsScreen
+import com.development.forge.feature.onboarding.contract.OnboardingEffect
+import com.development.forge.feature.onboarding.contract.OnboardingIntent
+import com.development.forge.feature.onboarding.ui.OnboardingFlowScreen
+import com.development.forge.feature.onboarding.viewmodel.OnboardingViewModel
+import com.development.forge.feature.settings.contract.SettingsEffect
+import com.development.forge.feature.settings.contract.SettingsIntent
+import com.development.forge.feature.settings.ui.SettingsScreen
+import com.development.forge.feature.settings.viewmodel.SettingsViewModel
 import com.development.forge.feature.splash.contract.SplashEffect
 import com.development.forge.feature.splash.contract.SplashIntent
 import com.development.forge.feature.splash.ui.SplashScreen
@@ -88,6 +94,7 @@ fun ForgeNavHost(
     // hiltViewModel() below resolves to the same instance. The ViewModel owns all auth
     // decisions; screens only send intents.
     val authViewModel: AuthViewModel = hiltViewModel()
+    val authState = authViewModel.authState.collectAsStateWithLifecycle()
 
     // Auth effects are collected here, beside NavDisplay, tied to the nav host's lifecycle —
     // not inside an entry, where it would be at the mercy of entryProvider recomposition.
@@ -257,18 +264,28 @@ fun ForgeNavHost(
                     }
 
                     entry<ForgeNavKey.OnboardingFlow> {
+                        val viewModel: OnboardingViewModel = hiltViewModel()
+
+                        LaunchedEffect(Unit) {
+                            viewModel.effect.collect { effect ->
+                                when (effect) {
+                                    is OnboardingEffect.NavigateToRegister -> {
+                                        backStack.clear()
+                                        backStack.add(Registration)
+                                    }
+                                }
+                            }
+                        }
+
                         OnboardingFlowScreen(basicModifier) {
-                            backStack.clear()
-                            backStack.add(Login)
+                            viewModel.onIntent(OnboardingIntent.Finish)
                         }
                     }
 
                     entry<Login> {
-                        val state = authViewModel.authState.collectAsStateWithLifecycle()
-
                         LoginScreen(
                             modifier = basicModifier,
-                            state = state.value,
+                            state = authState.value,
                             onUpdateEmail = { authViewModel.onIntent(AuthIntent.UpdateEmail(it)) },
                             onUpdatePassword = { authViewModel.onIntent(AuthIntent.UpdatePassword(it)) },
                             onForgotPassword = { backStack.add(ForgotPassword) },
@@ -283,6 +300,9 @@ fun ForgeNavHost(
                     entry<Registration> {
                         RegistrationScreen(
                             modifier = basicModifier,
+                            state = authState.value,
+                            onUpdateEmail = { authViewModel.onIntent(AuthIntent.UpdateEmail(it)) },
+                            onUpdatePassword = { authViewModel.onIntent(AuthIntent.UpdatePassword(it)) },
                             onRegister = { authViewModel.onIntent(AuthIntent.SubmitRegistration) }
                         )
                     }
@@ -309,7 +329,10 @@ fun ForgeNavHost(
                     entry<Success> {
                         SuccessScreen(
                             modifier = basicModifier,
-                            onContinue = { authViewModel.onIntent(AuthIntent.SubmitLogin) }
+                            onContinue = {
+                                backStack.clear()
+                                backStack.add(ForgeNavKey.Home)
+                            }
                         )
                     }
 
@@ -336,13 +359,25 @@ fun ForgeNavHost(
                     }
 
                     entry<ForgeNavKey.Settings> {
+                        val viewModel: SettingsViewModel = hiltViewModel()
+
+                        LaunchedEffect(Unit) {
+                            viewModel.effect.collect { effect ->
+                                when (effect) {
+                                    is SettingsEffect.NavigateToLogin -> {
+                                        backStack.clear()
+                                        backStack.add(Login)
+                                    }
+                                }
+                            }
+                        }
+
                         SettingsScreen(
                             modifier = basicModifier,
                             isDark = isDark,
                             onToggleTheme = onToggleTheme,
                             onSignOut = {
-                                backStack.clear()
-                                backStack.add(Login)
+                                viewModel.onIntent(SettingsIntent.Logout)
                             }
                         )
                     }

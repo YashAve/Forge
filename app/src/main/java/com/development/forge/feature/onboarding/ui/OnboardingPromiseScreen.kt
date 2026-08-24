@@ -1,4 +1,4 @@
-package com.development.forge.feature.onboarding
+package com.development.forge.feature.onboarding.ui
 
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.InfiniteTransition
