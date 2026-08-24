@@ -80,7 +80,7 @@ fun RegistrationScreen(
         // Fields — 16dp gap
         ForgeTextField(
             value = state.email,
-            onValueChange = { onUpdateEmail(state.email) },
+            onValueChange = onUpdateEmail,
             error = state.error.emailMessage(),
             label = "Email",
             leadingIcon = Icons.Default.MailOutline
@@ -88,7 +88,7 @@ fun RegistrationScreen(
         Spacer(Modifier.height(16.dp))
         ForgePasswordField(
             value = state.password,
-            onValueChange = { onUpdatePassword(state.password) },
+            onValueChange = onUpdatePassword,
             error = state.error.passwordMessage(),
             label = "Password",
             helper = "8 characters minimum."          // ← was missing
@@ -108,9 +108,7 @@ fun RegistrationScreen(
             isLoading = state.isLoading,                     // plain Boolean now
             icon = if (!state.isLoading)        // ← arrow only when valid
                 Icons.AutoMirrored.Default.ArrowForward else null,
-            onClick = {
-                onRegister()
-            }
+            onClick = onRegister
         )
         Spacer(Modifier.height(16.dp))
 
@@ -119,8 +117,8 @@ fun RegistrationScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset(y = (-4).dp),
-            onTerms = { /* TODO open terms dialog */ },
-            onPrivacy = { /* TODO open privacy dialog */ }
+            onTerms = { },
+            onPrivacy = { }
         )
     }
 }

@@ -35,10 +35,10 @@ class AuthViewModel @Inject constructor(
     fun onIntent(intent: AuthIntent) {
         when (intent) {
             AuthIntent.SubmitLogin -> submitLogin()
-            AuthIntent.SubmitRegistration -> TODO()
-            AuthIntent.SignInWithGoogle -> TODO()
-            AuthIntent.SubmitForgotPassword -> TODO()
-            AuthIntent.SubmitResetPassword -> TODO()
+            AuthIntent.SubmitRegistration -> submitRegistration()
+            AuthIntent.SignInWithGoogle -> { }
+            AuthIntent.SubmitForgotPassword -> { }
+            AuthIntent.SubmitResetPassword -> { }
             is AuthIntent.UpdateEmail -> updateEmail(intent.email)
             is AuthIntent.UpdatePassword -> updatePassword(intent.password)
         }

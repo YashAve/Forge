@@ -22,8 +22,8 @@ class SettingsViewModel @Inject constructor(
     fun onIntent(intent: SettingsIntent) {
         when (intent) {
             SettingsIntent.Logout -> logout()
-            SettingsIntent.ToggleNotifications -> TODO()
-            SettingsIntent.ToggleSound -> TODO()
+            SettingsIntent.ToggleNotifications -> { }
+            SettingsIntent.ToggleSound -> { }
         }
     }
 
