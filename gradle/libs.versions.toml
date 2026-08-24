@@ -21,6 +21,7 @@ koin = "4.0.4"
 coroutines = "1.9.0"
 coreSplashscreen = "1.0.1"
 datastore = "1.1.7"
+okhttpProfiler = "1.0.8"
 animationCore = "1.11.4"
 foundation = "1.11.4"
 uiUnit = "1.11.4"
@@ -83,6 +84,7 @@ androidx-room-testing = { group = "androidx.room", name = "room-testing", versio
 ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-logging = { group = "io.ktor", name = "ktor-client-logging", version.ref = "ktor" }
+okhttp-profiler = { group = "com.localebro", name = "okhttpprofiler", version.ref = "okhttpProfiler" }
 koin-ktor = { group = "io.insert-koin", name = "koin-ktor", version.ref = "koin" }
 koin-logger-slf4j = { group = "io.insert-koin", name = "koin-logger-slf4j", version.ref = "koin" }
 koin-test = { group = "io.insert-koin", name = "koin-test-junit5", version.ref = "koin" }

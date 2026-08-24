@@ -1,6 +1,7 @@
 package com.development.forge.di
 
 import com.development.forge.BuildConfig
+import com.development.forge.core.network.debugNetworkInterceptors
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -29,6 +30,11 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideHttpClient(json: Json): HttpClient = HttpClient(OkHttp) {
+        engine {
+            // Empty in release — see core/network/DebugNetworkInterceptors.kt in src/debug
+            // and src/release. Debug builds get the OkHttp Profiler interceptor here.
+            debugNetworkInterceptors().forEach(::addInterceptor)
+        }
         install(ContentNegotiation) {
             json(json)
         }

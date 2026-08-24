@@ -32,7 +32,7 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "BASE_URL", "\"http://10.97.32.25:9292\"")
+            buildConfigField("String", "BASE_URL", "\"http://10.46.89.25:9292\"")
         }
         release {
             isMinifyEnabled = false
@@ -136,6 +136,12 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.client.logging)
+
+    // OkHttp Profiler — logcat-based network inspector for the Android Studio plugin of the
+    // same name. Debug-only: the interceptor is registered from src/debug (see
+    // core/network/DebugNetworkInterceptors.kt), and src/release returns an empty list, so
+    // neither the library nor any reference to it exists in a release build.
+    debugImplementation(libs.okhttp.profiler)
 
     implementation(project(":shared"))
 
