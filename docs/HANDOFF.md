@@ -1,105 +1,130 @@
 # Handoff note — desktop → laptop
 
-**From:** desktop Claude session · **Date:** 2026-08-21 · **On top of:** `dc58ef7`
+**From:** desktop Claude session · **Date:** 2026-08-24 · **On top of:** `1e52158`
 
 `./gradlew :app:compileDebugKotlin --rerun-tasks` → **BUILD SUCCESSFUL**. This round is Yash's own
-follow-up fix pass, addressing two of the four issues the last note flagged — I verified, committed,
-and documented it, didn't finish or fix any of it myself.
+follow-up feature pass — Registration wired to `AuthState`, Onboarding and Settings converted to
+MVI, plus a new project README — I verified, committed, and documented it, didn't finish or fix
+any of it myself.
 
-## ⚠️ Still open — the stale BASE_URL blocker from last note is untouched
+## ⚠️ Still open — two blockers, one new and severe
 
-Nothing touched `NetworkModule.kt` or `app/build.gradle.kts` this round, so this is exactly as the
-last note left it: `BASE_URL` is still hardcoded to the laptop's DHCP IP, and it has a real call site
-(`install(DefaultRequest) { url(BuildConfig.BASE_URL) }`). Anyone running Login against a local server
-on a different machine still needs to update **both** `BASE_URL` and the matching literal in
-`network_security_config.xml`. Restating this so it doesn't get lost between the fix pass below and
-the actual blocker.
+- **Registration is broken twice over, and neither bug shows up at compile time.**
+  1. `RegistrationScreen.kt:83` and `:91` — `onValueChange = { onUpdateEmail(state.email) }` (and
+     the same shape for password). `ForgeTextField`/`ForgePasswordField`'s
+     `onValueChange: (String) -> Unit` hands back the *new* typed text as its parameter — but
+     both lambdas ignore that parameter and resend `state.email`/`state.password`, the stale
+     value already in state. Since `value = state.email` makes this a controlled field, every
+     keystroke round-trips back to the same value it already had — the fields are inert. Compare
+     `LoginScreen.kt`, which does this correctly: `onValueChange = onUpdateEmail` (a direct
+     reference, so the field's own new value flows straight through untouched).
+  2. Even past that: `AuthViewModel.kt:38` — `AuthIntent.SubmitRegistration -> TODO()`.
+     `submitRegistration()` is fully implemented two methods below (validates, calls
+     `authRepository.register()`, stores the token, emits `NavigateToSuccess` on success) — but
+     nothing dispatches to it. Tapping "Continue" on Registration throws `NotImplementedError`
+     immediately.
+
+  Both are runtime-only; the forced rebuild below is clean either way. Right now Registration is
+  unusable end to end — can't meaningfully type into it, and the submit path crashes regardless.
+
+- **The stale BASE_URL blocker from previous notes is still untouched.** Nothing touched
+  `NetworkModule.kt` or `app/build.gradle.kts` this round either: `BASE_URL` is still hardcoded to
+  a laptop DHCP IP, with a real call site (`install(DefaultRequest) { url(BuildConfig.BASE_URL) }`).
+  Anyone running Login/Registration against a local server on a different machine still needs to
+  update **both** `BASE_URL` and the matching literal in `network_security_config.xml`.
 
 ## Resolved this round
 
-- **`LoginScreen`'s `canSubmit`/8-character contradiction — removed, not patched.** Rather than
-  picking between the two options the last note offered (keep the 8-char rule and fix the comment, or
-  drop the rule), Yash removed client-side gating entirely. `LoginScreen` now takes a real
-  `state: AuthState` parameter instead of its own `remember`/`rememberSaveable` locals — `emailInput`,
-  `passwordInput`, `isLoading`, `canSubmit` are all gone — and `ForgeNavHost.kt`'s `entry<Login>` feeds
-  it from `authViewModel.authState.collectAsStateWithLifecycle()`. The button is now enabled any time
-  `!state.isLoading`; validation (email regex, non-empty password) happens where it already lived, in
-  `AuthViewModel.submitLogin()`, and failures come back as `state.error` instead of a disabled button.
-  New `AuthError?.emailMessage()` / `.passwordMessage()` extensions surface
-  `INVALID_EMAIL`/`EMPTY_PASSWORD`/`INVALID_CREDENTIAL`/`NETWORK_ERROR` under the relevant field via
-  `ForgeTextField`/`ForgePasswordField`'s existing `error` param.
-- **`AuthEffect.NavigateToRegistration` — deleted, not wired up.** Closes the
-  unreachable-from-both-ends gap the last note flagged. `AuthViewModel.updateEffect()` is still there
-  with zero call sites (it wasn't the mechanism used for anything this round), so it's carried below
-  rather than marked resolved.
+- **Registration wired to `AuthState`/`AuthViewModel`** — same architectural move Login got last
+  round. Local `remember`/`rememberSaveable` state (`emailInput`, `passwordInput`, `isLoading`,
+  `canSubmit`) is gone; fields bind to `state.email`/`state.password`, errors surface via new
+  `AuthError?.emailMessage()`/`.passwordMessage()` extensions. The wiring itself has the two live
+  bugs above, but the shape is right and matches Login's pattern.
+- **`AuthViewModel.updateEffect()` — deleted.** Last note flagged it as "zero call sites, worth
+  checking whether it's still needed" — resolved by removal rather than by finding it a use.
+- **`Success` screen's `onContinue` fixed.** Was `authViewModel.onIntent(AuthIntent.SubmitLogin)`
+  — nonsensically re-submitting a login from the post-registration success screen. Now correctly
+  does `backStack.clear(); backStack.add(Home)`.
+- **Onboarding converted to MVI** — new `OnboardingContract`/`OnboardingViewModel`. Finishing (or
+  skipping — both buttons call the same `onFinish`) now sends `OnboardingIntent.Finish`, which
+  calls `preferences.setOnboardingDone(true)` and emits `NavigateToRegister`. This closes two
+  long-carried items at once: `setOnboardingDone` finally has a call site, and onboarding now
+  routes to Registration instead of Login, matching the design spec.
+- **Side effect of the above: the "Splash always routes to Onboarding" bug is actually fixed now,
+  without Splash itself changing.** Re-read `SplashViewModel.kt` — it's byte-for-byte what it's
+  been for many rounds: `!onboardingDone -> Onboarding`, else check the token. That logic was
+  always correct; it just never had real data, because nothing ever set `onboardingDone` to
+  `true`. Now that `OnboardingViewModel` does, a second cold start after completing onboarding
+  once will correctly fall through to the token check instead of looping back to Onboarding.
+- **Settings converted to MVI** — new `SettingsContract`/`SettingsViewModel`. Sign-out now goes
+  through `SettingsIntent.Logout` → `SettingsViewModel.logout()`, which calls a new
+  `ForgePreferences.clearAuthToken()` before navigating to Login. Previously sign-out only cleared
+  the nav back stack — the stored token was never actually removed. Wasn't a previously-flagged
+  item, but a real fix worth noting.
+- `AuthApi`: the `withContext(Dispatchers.IO)` wrapper moved down from `AuthRepository` into
+  `AuthApi` itself (one level closer to the actual I/O), and a `register()` call was added
+  alongside `login()`.
+- Added a project `README.md` — architecture, tech stack, and design-decision writeup for the
+  repo, committed separately from the feature work.
 
-## Worth knowing — three small things this fix pass surfaced
+## Worth knowing — new things this pass surfaced
 
-- **The nav host's auth-effect `when` now has a live, named compiler warning.** With
-  `NavigateToRegistration` gone, all four remaining `AuthEffect` cases are listed explicitly in
-  `ForgeNavHost.kt`'s effect collector, so the build now emits
-  `'when' is exhaustive so 'else' is redundant here` pointing at line 116. The `else -> { }` at lines
-  116–118 can just be deleted — leaving it doesn't break anything, but the compiler is now telling you
-  it's dead.
-- **`LoginScreen`'s design-spec comment (lines 71–74) describes a mechanism that no longer exists.** It
-  still reads "canSubmit = email matches the regex AND password is NOT empty AND not loading" — but
-  there's no `canSubmit` anywhere in the file now. The rule itself is still accurate (that's exactly
-  what `submitLogin()` checks), it's just enforced at submit time in the ViewModel instead of gating
-  the button beforehand. Not a bug, just a comment describing the old architecture — worth a rewrite
-  next time someone's in this file.
-- **An unrecognized login failure is now silent, not just unhandled.** Neither `emailMessage()` nor
-  `passwordMessage()` has a case for `AuthError.UNKNOWN` — so if the server returns a code neither
-  function maps, or `AuthRepository.login()`'s catch-all `catch (exception: Exception)` fires,
-  `isLoading` goes back to `false` and the button becomes tappable again with **zero visible feedback**
-  that anything failed. Grepped both branches that produce it (`AuthRepository.kt:35` and `:45`) — it's
-  a real, reachable path from a login attempt, not a hypothetical. `WEAK_PASSWORD`/
-  `EMAIL_ALREADY_EXISTS`/`INVALID_AUTH_PROVIDER` are also unmapped here, but those look like
-  registration-only server responses a login call shouldn't realistically produce — `UNKNOWN` is the
-  one that can actually happen on this screen today.
+- **`SettingsViewModel` has the same `TODO()` shape as the Registration crash above, but it's
+  currently harmless.** `onIntent()` maps `ToggleNotifications`/`ToggleSound` to `TODO()` too —
+  but `SettingsScreen`'s two toggles are still fully local (`remember { mutableStateOf(...) }`),
+  never wired to the ViewModel, so those branches are unreachable today. Worth knowing before
+  someone wires the toggles up expecting the ViewModel side to already work — it doesn't yet.
+- **`SettingsScreen`'s `email` param is never passed from the nav host.**
+  `entry<ForgeNavKey.Settings>` calls `SettingsScreen(modifier, isDark, onToggleTheme, onSignOut)`
+  — no `email` argument — so it silently falls back to the composable's own default,
+  `"karishma.kapoor@cosmiq.co.in"`. Every real user currently sees a fake name and email on their
+  own Settings screen. Not new this round (the default's been there since the screen was first
+  built) — just noticed it now while checking this round's nav-host wiring; hadn't been flagged
+  before.
+- The dead `else -> { }` in `ForgeNavHost`'s auth-effect collector (flagged last note) is still
+  there, and the compiler still calls it out — same warning, now at line 123 instead of 116
+  (shifted by this round's additions, nothing else changed about it).
 
 ## Carried over (still open, untouched)
 
-- **The Home back-button bug — seventh note running.** Still a product decision, still unmade.
+- **The Home back-button bug — eighth note running.** Still a product decision, still unmade.
 - **`TaskDao.deleteTask`/`deleteTasks` duplicate `@Delete vararg` signature**, only one `suspend`.
   Main-thread-crash trap for the repository layer. Untouched.
-- **Splash still always routes to Onboarding**, token or no token — `SplashViewModel.checkAuthStatus()`
-  checks `!onboardingDone` before ever looking at the auth token, and `setOnboardingDone` still has
-  zero call sites. Re-verified this round (`SplashViewModel.kt` is byte-for-byte what the last note
-  quoted); full reasoning is in that note's history, not repeated here.
-- **`isAuthTokenStored()` returns `Flow<String>`** (the token), not a `Boolean`, despite the `is…` name
-  — real tokens now sit in plain unencrypted DataStore on any machine that's logged in once.
-- **`core/mvi` base still has zero implementors.** `AuthViewModel` and `SplashViewModel` both still
-  hand-roll the same shape instead of extending it. Worth actually deciding, not re-flagging again.
-- **`:shared` still declares `implementation(libs.kotlinx.serialization.json)`, not `api(...)`** — fine
-  while both consumers redeclare it themselves. Left alone deliberately, still.
-- **`AuthViewModel.updateEffect()` still has zero call sites.** Was the plausible mechanism for
-  `NavigateToRegistration`; that effect is gone now, so this method has no clear purpose left — worth
-  checking whether it's still needed for anything before it goes stale.
+- **`isAuthTokenStored()` returns `Flow<String>`** (the token), not a `Boolean`, despite the `is…`
+  name — real tokens now sit in plain unencrypted DataStore on any machine that's logged in once.
+  Now meaningfully exercised for the first time (see Splash above), still misnamed.
+- **`core/mvi` base's orphan count is now four, not two.** `OnboardingViewModel` and
+  `SettingsViewModel` both hand-roll the identical `Channel`-effect / intent-dispatch shape that
+  `AuthViewModel` and `SplashViewModel` already duplicated. Four independent copies of the same
+  pattern is a stronger case for actually deciding this one way or the other — worth doing before
+  a fifth feature copies it again.
+- **`:shared` still declares `implementation(libs.kotlinx.serialization.json)`, not `api(...)`** —
+  fine while both consumers redeclare it themselves. Left alone deliberately, still.
 - Both DAOs minimal; nothing wired to Room; `AppDatabase` never opened at runtime.
-- **New-task capture unreachable** — `AddOrEditTaskScreen(editingTask = tasks[0])` default, **+** always
-  opens "Edit Task" on task[0].
+- **New-task capture unreachable** — `AddOrEditTaskScreen(editingTask = tasks[0])` default, **+**
+  always opens "Edit Task" on task[0].
 - **`ForgeDatePickerDialog` NPEs** on OK-without-selection (`selectedDateMillis!!`).
 - Save hardcoded (`derivedStateOf { true }`); date/time picker selections not plumbed back.
 - **`AddTaskSheet.kt` (~24KB) still orphaned** — safe to delete.
 - **Task List bucket-overlap crash still live** (`overdue && due == null` → duplicate `LazyColumn`
   key). Fix: `someday = active.filter { it.due == null && !it.overdue }`.
 - Server `TaskDto` still exposes `due: String?` only vs. the local typed `Instant?`.
-- Stats hardcoded; onboarding finish/skip → `Login` vs spec's `Registration`; `Motion.kt` empty;
-  `SuccessScreen` reset button not deleted.
-- **`ForgeTextField` focus ring still an empty `drawBehind { }` stub — 28th note running.**
+- Stats hardcoded; `Motion.kt` empty; `SuccessScreen` reset button not deleted.
+- **`ForgeTextField` focus ring still an empty `drawBehind { }` stub — 29th note running.**
 - Server-side: dev JWT secret in source, `/auth/forgot` logs the reset token to console, CORS
   `anyHost()`, `PUT /tasks/{id}` is a full replace not a merge.
 - No Room schema export dir; `gradle.properties` has dead `kapt.*` and a deprecated
   `useClasspathSnapshot` warning.
 - **Environment**: memory-pressure symptoms (Gradle daemon SIGSEGV, `forge-mongo` restart-looping)
   from earlier notes — not rechecked this round, no new data point either way.
-- `.idea/` still uncommitted (this round: `compiler.xml`/`misc.xml` bytecode/language level 17→11,
-  `gradle.xml` adds `:shared` to linked Gradle projects, `deploymentTargetSelector.xml` gains a
-  run-config entry). Standing "your call" item, untouched again.
+- `.idea/` still uncommitted, and this round's diff is identical to last round's — same
+  bytecode/language level 17→11, same `gradle.xml` `:shared` addition, same
+  `deploymentTargetSelector.xml` run-config entry. These have simply been sitting uncommitted,
+  unchanged, since before the last note. Standing "your call" item, untouched again.
 
 ## Verified
 
-`./gradlew :app:compileDebugKotlin --rerun-tasks` (forced, not cached) → BUILD SUCCESSFUL. One new
-warning, not an error: `ForgeNavHost.kt:116:21` — `'when' is exhaustive so 'else' is redundant here`
-(see "Worth knowing" above). Compile-only — Login's network path wasn't exercised against a live
-server this round.
+`./gradlew :app:compileDebugKotlin --rerun-tasks` (forced, not cached) → BUILD SUCCESSFUL. One
+warning, not an error, same as last note: `ForgeNavHost.kt:123:21` — `'when' is exhaustive so
+'else' is redundant here`. Compile-only — neither Registration bug above is catchable by the
+compiler, and the network paths weren't exercised against a live server this round.
