@@ -17,6 +17,9 @@ import org.bson.codecs.pojo.annotations.BsonId
  * `@BsonId` maps `id` onto Mongo's `_id`.
  */
 
+/** How an account proves who it is. Defaults to [PASSWORD] for every pre-existing row. */
+enum class AuthProvider { PASSWORD, GOOGLE }
+
 /**
  * A registered user.
  *
@@ -24,13 +27,32 @@ import org.bson.codecs.pojo.annotations.BsonId
  * works for tasks, JWT subjects and the Android client without conversion.
  *
  * @param passwordHash BCrypt hash — never plaintext, never returned to a client.
+ *   **Empty string for [AuthProvider.GOOGLE] accounts**, which have no password.
+ *
+ *   `String?` is the type-honest model for "this account has no password", and it
+ *   was the first choice — but it would change the type at
+ *   `PasswordHasher.verify(body.password, user.passwordHash)` in `/auth/login`,
+ *   whose second parameter is non-null `String`. Making it nullable therefore
+ *   forces an edit to a route that is deliberately frozen.
+ *
+ *   `""` is safe rather than merely convenient: no BCrypt hash can match it, and
+ *   `PasswordHasher.verify` already returns `false` for a malformed stored hash
+ *   instead of throwing. So a Google account attempting password login fails as an
+ *   ordinary `invalid_credentials` 401, indistinguishable from a wrong password —
+ *   the anti-enumeration posture holds without `/auth/login` knowing this field
+ *   exists. Branch on [authProvider], never on `passwordHash.isEmpty()`.
+ * @param authProvider how this account signs in. Absent on documents written
+ *   before Google sign-in existed, which the constructor default reads as
+ *   [AuthProvider.PASSWORD] — correct, since those all have a real hash.
  * @param resetToken   set by `/auth/forgot`, cleared by `/auth/reset`. Single-use.
+ *   Never issued for a [AuthProvider.GOOGLE] account.
  */
 data class UserDocument(
     @BsonId val id: String,
     val email: String,
     val passwordHash: String,
     val createdAt: Long,
+    val authProvider: AuthProvider = AuthProvider.PASSWORD,
     val resetToken: String? = null,
     val resetTokenExpiresAt: Long? = null
 

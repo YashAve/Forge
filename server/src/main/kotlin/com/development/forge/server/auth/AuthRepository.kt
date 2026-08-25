@@ -1,6 +1,7 @@
 package com.development.forge.server.auth
 
 import com.development.forge.server.config.ServerConfig
+import com.development.forge.server.db.AuthProvider
 import com.development.forge.server.db.MongoDatabase
 import com.development.forge.server.db.UserDocument
 import com.development.forge.server.error.ConflictException
@@ -36,6 +37,37 @@ class AuthRepository(private val mongo: MongoDatabase) {
             email = email,
             passwordHash = PasswordHasher.hash(plaintextPassword),
             createdAt = System.currentTimeMillis()
+        )
+        try {
+            mongo.users.insertOne(user)
+        } catch (e: MongoWriteException) {
+            if (e.error.category == com.mongodb.ErrorCategory.DUPLICATE_KEY) {
+                throw ConflictException("email_taken", "An account with that email already exists.")
+            }
+            throw e
+        }
+        return user
+    }
+
+    /**
+     * Creates a Google-authenticated user, or throws [ConflictException] (→ 409).
+     *
+     * Same id/`createdAt` conventions as [createUser], and the same reliance on the
+     * unique index rather than a read-then-write: `/auth/google` looks the email up
+     * first, so reaching a duplicate-key error here means a second sign-in for the
+     * same new address landed in between. Surfacing that as a 409 keeps the race
+     * closed instead of silently creating a second account.
+     *
+     * `passwordHash` is `""` — see [com.development.forge.server.db.UserDocument]
+     * for why that is the safe value rather than a nullable column.
+     */
+    suspend fun createGoogleUser(email: String): UserDocument {
+        val user = UserDocument(
+            id = UUID.randomUUID().toString(),
+            email = email,
+            passwordHash = "",
+            createdAt = System.currentTimeMillis(),
+            authProvider = AuthProvider.GOOGLE
         )
         try {
             mongo.users.insertOne(user)

@@ -43,6 +43,18 @@ data class ResetPasswordRequest(
     val newPassword: String
 )
 
+/**
+ * `POST /auth/google` — signs in (or registers) with a Google ID token.
+ *
+ * The token is minted by Google on the device; the server verifies it against
+ * Google's certs before trusting the email inside it. No password is involved in
+ * either direction.
+ */
+@Serializable
+data class GoogleAuthRequest(
+    val idToken: String
+)
+
 /** The authenticated user. Deliberately excludes `passwordHash`. */
 @Serializable
 data class UserDto(

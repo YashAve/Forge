@@ -1,11 +1,14 @@
 package com.development.forge.server.auth
 
+import com.development.forge.server.db.AuthProvider
 import com.development.forge.server.db.toDto
 import com.development.forge.server.error.BadRequestException
+import com.development.forge.server.error.ConflictException
 import com.development.forge.server.error.UnauthorizedException
 import com.development.forge.server.validation.Validation
 import com.development.forge.shared.api.AuthResponse
 import com.development.forge.shared.api.ForgotPasswordRequest
+import com.development.forge.shared.api.GoogleAuthRequest
 import com.development.forge.shared.api.LoginRequest
 import com.development.forge.shared.api.MessageResponse
 import com.development.forge.shared.api.RegisterRequest
@@ -24,7 +27,8 @@ import org.slf4j.LoggerFactory
  */
 fun Route.authRoutes(
     authRepository: AuthRepository,
-    jwtService: JwtService
+    jwtService: JwtService,
+    googleTokenVerifier: GoogleTokenVerifier
 ) {
     val log = LoggerFactory.getLogger("AuthRoutes")
 
@@ -92,7 +96,16 @@ fun Route.authRoutes(
             val email = Validation.email(body.email)
 
             val user = authRepository.findByEmail(email)
-            if (user != null) {
+            if (user == null) {
+                log.info("Password reset requested for unknown email (no-op)")
+            } else if (user.authProvider == AuthProvider.GOOGLE) {
+                // A Google account has no password to reset. Issuing a token anyway
+                // would let /auth/reset write a real passwordHash onto it, silently
+                // turning it into a password account the owner never created — a way
+                // in that bypasses Google entirely. Same 200 as every other branch,
+                // so the caller still cannot tell these cases apart.
+                log.info("Password reset requested for a Google account (no-op)")
+            } else {
                 val token = authRepository.createResetToken(user)
                 // TODO(email): deliver this out-of-band instead of logging it. Email
                 //  sending is not in scope — the console is the delivery channel today.
@@ -108,8 +121,6 @@ fun Route.authRoutes(
                     token,
                     com.development.forge.server.config.ServerConfig.resetTokenValidityMillis / 60_000
                 )
-            } else {
-                log.info("Password reset requested for unknown email (no-op)")
             }
 
             call.respond(
@@ -143,6 +154,55 @@ fun Route.authRoutes(
             log.info("Password reset for user {}", user.id)
 
             call.respond(HttpStatusCode.OK, MessageResponse("Password updated."))
+        }
+
+        /**
+         * POST /auth/google → 200 + [AuthResponse]
+         *
+         * 401 invalid_google_token · 409 invalid_auth_provider.
+         *
+         * Find-or-create: an unknown email becomes a new Google account, a known
+         * Google account signs straight in. Responds with the same [AuthResponse]
+         * shape as `/auth/login`, carrying **our** JWT — the Google token is proof
+         * of identity for this one request and is never stored or re-used.
+         *
+         * The 409 does not leak account existence the way it would on `/auth/login`:
+         * verification happens first, so the only caller who can reach that branch
+         * already holds a Google-signed token for that exact address, and is being
+         * told about their own account.
+         */
+        post("/google") {
+            val body = call.receive<GoogleAuthRequest>()
+            val idToken = Validation.requireNotBlank(
+                body.idToken, "id_token_required", "Google ID token is required."
+            )
+
+            // Normalised the same way register/login do it, so the lookup below
+            // matches an account created through either path.
+            val email = Validation.email(googleTokenVerifier.verifiedEmail(idToken))
+
+            val existing = authRepository.findByEmail(email)
+            val user = when {
+                existing == null ->
+                    authRepository.createGoogleUser(email).also {
+                        log.info("Registered Google user {}", it.id)
+                    }
+
+                existing.authProvider == AuthProvider.GOOGLE -> existing
+
+                // The address is spoken for by a password account. Signing in here
+                // would hand control of it to whoever holds the matching Google
+                // account, which is not the same person by default.
+                else -> throw ConflictException(
+                    "invalid_auth_provider",
+                    "That email is already registered with a password. Sign in with your password instead."
+                )
+            }
+
+            call.respond(
+                HttpStatusCode.OK,
+                AuthResponse(token = jwtService.issue(user), user = user.toDto())
+            )
         }
 
         // TODO(FCM): Firebase is out of scope. When push lands, the device-token

@@ -27,6 +27,9 @@ dependencies {
     implementation(libs.mongodb.driver.kotlin.coroutine)
     implementation(libs.bcrypt)
 
+    // Google ID token verification for POST /auth/google
+    implementation(libs.google.api.client)
+
     implementation(libs.koin.ktor)
     implementation(libs.koin.logger.slf4j)
 

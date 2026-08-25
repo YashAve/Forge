@@ -1,6 +1,7 @@
 package com.development.forge.server
 
 import com.development.forge.server.auth.AuthRepository
+import com.development.forge.server.auth.GoogleTokenVerifier
 import com.development.forge.server.auth.JwtService
 import com.development.forge.server.auth.authRoutes
 import com.development.forge.server.task.TaskRepository
@@ -22,7 +23,8 @@ import io.ktor.server.routing.routing
 fun Application.configureRouting(
     authRepository: AuthRepository,
     taskRepository: TaskRepository,
-    jwtService: JwtService
+    jwtService: JwtService,
+    googleTokenVerifier: GoogleTokenVerifier
 ) {
     routing {
         /** Unauthenticated liveness probe — handy for checking the server is up. */
@@ -30,7 +32,7 @@ fun Application.configureRouting(
             call.respond(HttpStatusCode.OK, MessageResponse("Forge server is running."))
         }
 
-        authRoutes(authRepository, jwtService)   // /auth/*  — no token required
+        authRoutes(authRepository, jwtService, googleTokenVerifier)  // /auth/* — no token required
         taskRoutes(taskRepository)               // /tasks/* — JWT required, user-scoped
     }
 }

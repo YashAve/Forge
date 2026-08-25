@@ -1,6 +1,7 @@
 package com.development.forge.server
 
 import com.development.forge.server.auth.AuthRepository
+import com.development.forge.server.auth.GoogleTokenVerifier
 import com.development.forge.server.auth.JwtService
 import com.development.forge.server.config.ServerConfig
 import com.development.forge.server.db.MongoDatabase
@@ -52,6 +53,7 @@ fun Application.forgeModule() {
 
     val mongo by inject<MongoDatabase>()
     val jwtService by inject<JwtService>()
+    val googleTokenVerifier by inject<GoogleTokenVerifier>()
     val authRepository by inject<AuthRepository>()
     val taskRepository by inject<TaskRepository>()
 
@@ -61,12 +63,19 @@ fun Application.forgeModule() {
     configureCors()
     configureStatusPages()
     configureSecurity(jwtService)
-    configureRouting(authRepository, taskRepository, jwtService)
+    configureRouting(authRepository, taskRepository, jwtService, googleTokenVerifier)
 
     // Unique index on users.email + owner index on tasks.userId. Blocking on
     // purpose: if Mongo is unreachable the server should fail loudly at startup
     // rather than serve requests that will fail one by one.
     runBlocking { mongo.ensureIndexes() }
+
+    if (ServerConfig.isUsingDevGoogleWebClientId) {
+        log.warn(
+            "GOOGLE_WEB_CLIENT_ID is not set — using a placeholder. Every /auth/google " +
+                "call will fail with invalid_google_token until it is set."
+        )
+    }
 
     if (ServerConfig.isUsingDevJwtSecret) {
         log.warn(

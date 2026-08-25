@@ -1,6 +1,7 @@
 package com.development.forge.server.di
 
 import com.development.forge.server.auth.AuthRepository
+import com.development.forge.server.auth.GoogleTokenVerifier
 import com.development.forge.server.auth.JwtService
 import com.development.forge.server.db.MongoDatabase
 import com.development.forge.server.task.TaskRepository
@@ -16,6 +17,7 @@ import org.koin.dsl.module
 val appModule = module {
     single { MongoDatabase() }
     single { JwtService() }
+    single { GoogleTokenVerifier() }
     single { AuthRepository(get()) }
     single { TaskRepository(get()) }
 }
