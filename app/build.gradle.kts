@@ -32,7 +32,8 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "BASE_URL", "\"http://10.46.89.25:9292\"")
+            buildConfigField("String", "BASE_URL", "\"http://10.37.153.25:9292\"")
+            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"486134999809-gshnt5i4kmlga2bia5jvem7c14p5n6c3.apps.googleusercontent.com\"")
         }
         release {
             isMinifyEnabled = false

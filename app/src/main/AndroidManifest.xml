@@ -4,8 +4,37 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!--486134999809-2r9g1i1mne2gtronblrkrpc1p7l7qn7n.apps.googleusercontent.com-->
-    <!--486134999809-gshnt5i4kmlga2bia5jvem7c14p5n6c3.apps.googleusercontent.com-->
+    <!-- Google OAuth clients, project 486134999809. Client IDs are public
+         identifiers, not secrets, so they are safe to keep here.
+
+         ANDROID client: 486134999809-2r9g1i1mne2gtronblrkrpc1p7l7qn7n.apps.googleusercontent.com
+         WEB client:     486134999809-gshnt5i4kmlga2bia5jvem7c14p5n6c3.apps.googleusercontent.com
+
+         Only the WEB one is ever passed to code — GetSignInWithGoogleOption on the
+         client (BuildConfig.GOOGLE_WEB_CLIENT_ID) and GOOGLE_WEB_CLIENT_ID on the
+         server, which must match, because Google mints ID tokens whose `aud` is the
+         web client even on Android.
+
+         The ANDROID client is never referenced in source, but Credential Manager
+         still requires it to exist and to list this app's package plus the signing
+         certificate SHA-1 — Play Services validates the caller against it. A missing
+         or mismatched SHA-1 fails as ConnectionResult{statusCode=DEVELOPER_ERROR},
+         which surfaces only in logcat: the account picker still opens, then closes
+         with no token and no HTTP request.
+
+         ⚠️ An Android OAuth client holds exactly ONE package name + ONE SHA-1, and
+         the debug keystore is PER MACHINE. So supporting N dev machines means N
+         Android clients in the project — same package name, different SHA-1 — all
+         of which work with the single WEB client ID above. Known fingerprints:
+             CF:C1:4C:98:B2:0C:BE:DF:0F:E6:A9:69:D1:66:F1:7F:F6:56:3A:08  desktop
+             D2:86:8C:A0:3B:C7:7D:AB:6C:0D:F1:6F:42:76:46:0F:A8:37:C6:34  laptop
+         Read a machine's own with:
+             keytool -list -v -keystore ~/.android/debug.keystore \
+                 -alias androiddebugkey -storepass android -keypass android
+         Read what a build ACTUALLY shipped (the reliable check, since the installed
+         APK may not be the local one):
+             apksigner verify (with the print-certs flag) on the pulled APK
+         Console changes take five minutes to a few hours to propagate. -->
 
     <application
         android:name=".ForgeApplication"
