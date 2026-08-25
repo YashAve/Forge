@@ -116,6 +116,19 @@ class AuthViewModel @Inject constructor(
     }
 
     private fun signInWithGoogle(idToken: String) {
+        viewModelScope.launch {
+            _authState.update { it.copy(isLoading = true, error = null) }
+            when (val response = authRepository.googleAuth(idToken)) {
+                is AuthResult.Success -> {
+                    preferences.storeAuth(response.data.token, response.data.user.email)
+                    _authState.update { it.copy(isLoading = false) }
+                    _effect.send(AuthEffect.NavigateToHome)
+                }
 
+                is AuthResult.Failure -> {
+                    _authState.update { it.copy(isLoading = false, error = response.error) }
+                }
+            }
+        }
     }
 }

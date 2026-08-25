@@ -116,7 +116,8 @@ fun LoginScreen(
     onUpdatePassword: (String) -> Unit = { },
     onForgotPassword: () -> Unit = { },
     onForgeAccount: () -> Unit = { },
-    onLogin: () -> Unit = { }
+    onLogin: () -> Unit = { },
+    onGoogleSignIn: () -> Unit = { }
 ) {
     Column(
         modifier = modifier
@@ -217,7 +218,7 @@ fun LoginScreen(
                 tint = Color.Unspecified                  // keep the 4 brand colors
             )
         }) {
-            onLogin()
+            onGoogleSignIn()
         }
         Spacer(modifier = Modifier.height(24.dp))
         /*Footer, centered: "New here? " + text button "Forge an account" → "New here?" is 14.sp, weight 400, color #B5A990 →
@@ -244,6 +245,7 @@ fun LoginScreen(
 
 private fun AuthError?.emailMessage(): String? = when (this) {
     AuthError.INVALID_EMAIL -> "That email doesn't look right"
+    AuthError.INVALID_AUTH_PROVIDER -> "That email uses a password. Sign in with it instead"
     else -> null
 }
 

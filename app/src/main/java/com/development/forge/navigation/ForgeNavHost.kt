@@ -12,10 +12,14 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -40,6 +44,7 @@ import com.development.forge.core.components.OnForgeOnBack
 import com.development.forge.core.components.OnForgeOnEdit
 import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.feature.auth.contract.AuthEffect
+import com.development.forge.feature.auth.contract.AuthError
 import com.development.forge.feature.auth.contract.AuthIntent
 import com.development.forge.feature.auth.ui.EmailSentScreen
 import com.development.forge.feature.auth.ui.ForgotPasswordScreen
@@ -47,6 +52,7 @@ import com.development.forge.feature.auth.ui.LoginScreen
 import com.development.forge.feature.auth.ui.RegistrationScreen
 import com.development.forge.feature.auth.ui.ResetPasswordScreen
 import com.development.forge.feature.auth.ui.SuccessScreen
+import com.development.forge.feature.auth.ui.rememberGoogleSignIn
 import com.development.forge.feature.auth.viewmodel.AuthViewModel
 import com.development.forge.feature.home.HomeScreen
 import com.development.forge.feature.home.components.ForgeBottomNavigationBar
@@ -73,6 +79,7 @@ import com.development.forge.navigation.ForgeNavKey.Registration
 import com.development.forge.navigation.ForgeNavKey.ResetPassword
 import com.development.forge.navigation.ForgeNavKey.Splash
 import com.development.forge.navigation.ForgeNavKey.Success
+import kotlinx.coroutines.launch
 
 @SuppressLint("SourceLockedOrientationActivity")
 @Composable
@@ -84,8 +91,11 @@ fun ForgeNavHost(
 ) {
     val context = LocalContext.current
     val activity = LocalActivity.current
+    val scope = rememberCoroutineScope()
     val backStack = rememberNavBackStack(initialDestination)
     val currentDestination = backStack.lastOrNull()
+    val snackBarHostState = remember { SnackbarHostState() }
+    val snackBarHost = @Composable { SnackbarHost(snackBarHostState) }
 
     val amber = ForgeTheme.colors.amber   // captured for the drawBehind ambient wash below
 
@@ -125,6 +135,13 @@ fun ForgeNavHost(
                     }
                 }
             }
+        }
+    }
+
+    LaunchedEffect(authState.value.error) {
+        val error = authState.value.error
+        if (error == AuthError.INVALID_AUTH_PROVIDER) {
+            snackBarHostState.showSnackbar("That email uses a password. Sign in with it instead")
         }
     }
 
@@ -171,6 +188,7 @@ fun ForgeNavHost(
         Scaffold(
             modifier = modifier,
             containerColor = Color.Transparent,
+            snackbarHost = snackBarHost,
             topBar = {
                 when (currentDestination) {
                     is Splash,
@@ -283,6 +301,15 @@ fun ForgeNavHost(
                     }
 
                     entry<Login> {
+
+                        val googleSignIn = rememberGoogleSignIn(onToken = { token ->
+                            authViewModel.onIntent(AuthIntent.SignInWithGoogle(token))
+                        }) {
+                            scope.launch {
+                                snackBarHostState.showSnackbar("Couldn't sign in with Google")
+                            }
+                        }
+
                         LoginScreen(
                             modifier = basicModifier,
                             state = authState.value,
@@ -294,7 +321,8 @@ fun ForgeNavHost(
                                 backStack.removeLastOrNull()
                                 backStack.add(Registration)
                             },
-                            onLogin = { authViewModel.onIntent(AuthIntent.SubmitLogin) }
+                            onLogin = { authViewModel.onIntent(AuthIntent.SubmitLogin) },
+                            onGoogleSignIn = googleSignIn
                         )
                     }
 
