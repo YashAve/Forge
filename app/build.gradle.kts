@@ -109,6 +109,17 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.datastore.preferences)
 
+    // Credential Manager — the current-generation source of a Google ID token, which is what
+    // POST /auth/google needs and what nothing in :app could previously produce. `credentials`
+    // is the API surface, `credentials-play-services-auth` the Play Services provider that
+    // actually serves Google accounts, and `googleid` supplies GetGoogleIdOption /
+    // GoogleIdTokenCredential. All three are required together; the API alone returns
+    // NoCredentialException on every request. Replaces the deprecated GoogleSignInClient.
+    // No call site yet — see docs/HANDOFF.md.
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.google.identity.googleid)
+
     implementation(libs.hilt.android)
     implementation(libs.androidx.compose.animation.core)
     implementation(libs.androidx.foundation)
