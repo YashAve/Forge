@@ -4,6 +4,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!--486134999809-2r9g1i1mne2gtronblrkrpc1p7l7qn7n.apps.googleusercontent.com-->
+    <!--486134999809-gshnt5i4kmlga2bia5jvem7c14p5n6c3.apps.googleusercontent.com-->
+
     <application
         android:name=".ForgeApplication"
         android:allowBackup="true"

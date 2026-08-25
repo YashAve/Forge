@@ -21,7 +21,7 @@ data class AuthState(
 sealed interface AuthIntent {
     data object SubmitLogin : AuthIntent
     data object SubmitRegistration : AuthIntent
-    data object SignInWithGoogle : AuthIntent
+    data class SignInWithGoogle(val idToken: String) : AuthIntent
     data object SubmitForgotPassword : AuthIntent
     data object SubmitResetPassword : AuthIntent
     data class UpdateEmail(val email: String) : AuthIntent

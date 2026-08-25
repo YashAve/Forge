@@ -36,7 +36,7 @@ class AuthViewModel @Inject constructor(
         when (intent) {
             AuthIntent.SubmitLogin -> submitLogin()
             AuthIntent.SubmitRegistration -> submitRegistration()
-            AuthIntent.SignInWithGoogle -> {}
+            is AuthIntent.SignInWithGoogle -> signInWithGoogle(intent.idToken)
             AuthIntent.SubmitForgotPassword -> {}
             AuthIntent.SubmitResetPassword -> {}
             is AuthIntent.UpdateEmail -> updateEmail(intent.email)
@@ -113,5 +113,9 @@ class AuthViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun signInWithGoogle(idToken: String) {
+
     }
 }

@@ -1,5 +1,6 @@
 package com.development.forge.data.remote
 
+import com.development.forge.shared.api.GoogleAuthRequest
 import com.development.forge.shared.api.LoginRequest
 import com.development.forge.shared.api.RegisterRequest
 import io.ktor.client.HttpClient
@@ -38,6 +39,18 @@ class AuthApi @Inject constructor(
                 method = HttpMethod.Post
                 url {
                     appendPathSegments("auth", "register")
+                }
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+        }
+
+    suspend fun googleAuth(request: GoogleAuthRequest): HttpResponse =
+        withContext(Dispatchers.IO) {
+            client.request {
+                method = HttpMethod.Post
+                url {
+                    appendPathSegments("auth", "google")
                 }
                 contentType(ContentType.Application.Json)
                 setBody(request)
