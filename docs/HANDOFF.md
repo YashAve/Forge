@@ -1,125 +1,140 @@
 # Handoff note — desktop → laptop
 
-**From:** desktop Claude session · **Date:** 2026-08-25 · **On top of:** `ebbbc5f`
+**From:** desktop Claude session · **Date:** 2026-08-25 · **On top of:** `2a9e249`
 
-`./gradlew :app:compileDebugKotlin --rerun-tasks` → **BUILD SUCCESSFUL**, one pre-existing warning.
-Your note landed and was read in full. This round is Yash's own session-data pass — the token and
-user email are now stored together, `AuthIntent.ResetFields` exists, and Registration got a sign-in
-footer. I verified, committed, and documented it; I didn't finish or change any of his code.
+`./gradlew :server:compileKotlin :shared:compileKotlin --rerun-tasks` → **BUILD SUCCESSFUL**.
+This round is a server feature: `POST /auth/google`, spec'd by Yash and built to that spec after a
+plan review. The Android half is deliberately untouched — that's being wired separately.
 
-## ⚠️ The sign-out credential leak is still live — and it is now one line from fixed
+## ⚠️ Read first: `/auth/google` is inert until `GOOGLE_WEB_CLIENT_ID` is set
 
-Flagged by a security review of `741d793`, still open. `AuthViewModel` is hoisted at nav-host level
-(`ForgeNavHost.kt:96`), so it is activity-scoped and survives `backStack.clear()`. Nothing clears
-`_authState` on logout, so **the Login screen you land on after signing out is pre-filled with the
-previous user's email and password** — and `ForgePasswordField` has a reveal toggle, so the next
-person holding the phone can read it in plaintext.
+`ServerConfig.googleWebClientId` falls back to a placeholder, so **every call answers
+`401 invalid_google_token`** until the real value is exported. The server logs a loud warning at
+startup when it's using the placeholder (same pattern as `isUsingDevJwtSecret`), so check the boot
+log before debugging a failing sign-in.
 
-What changed this round is that the mechanism now exists. `ResetFields` is dispatched at exactly
-two sites — `ForgeNavHost.kt:293` (Login → Registration) and `:309` (Registration → Login) — and
-**not** in the `SettingsEffect.NavigateToLogin` handler at `:373`, which still only does
-`backStack.clear(); backStack.add(Login)`. Adding `authViewModel.onIntent(AuthIntent.ResetFields)`
-there closes it. I left it alone: whether logout should reach into the auth ViewModel or whether
-`SettingsViewModel` should own that is a design call, not a mechanical one.
+It must be the **Web** client ID, not the Android one. Google mints ID tokens whose `aud` is the
+web client even when the request originates on Android, so pinning the Android id rejects every
+real token. Two candidate ids are currently parked as comments in `app/src/main/AndroidManifest.xml`
+(Yash's uncommitted `:app` WIP — left alone this round, and not copied into git history here). The
+web one of that pair is what the server wants:
 
-Related and still open: **the password is never cleared after a *successful* login either.**
-`submitLogin()` (`:71`) and `submitRegistration()` (`:105`) both do `it.copy(isLoading = false)` on
-success, leaving the plaintext password in the `StateFlow` for the rest of the app session.
-`ResetFields` would do it; it just isn't called there.
+```
+GOOGLE_WEB_CLIENT_ID=<web client id> ./gradlew :server:run
+```
 
-## ⚠️ The DataStore key rename orphans the old token permanently
+## What was built
 
-`KEY_AUTH_TOKEN` changed from `stringPreferencesKey("auth_is_stored")` to
-`stringPreferencesKey("auth_token")`. Two consequences, neither visible at compile time:
+`POST /auth/google` sits beside register/login/forgot/reset. It takes
+`GoogleAuthRequest(idToken)`, verifies the token against Google's certs with the audience pinned to
+the configured web client id, then finds-or-creates by **verified** email and returns the same
+`AuthResponse(token, user)` shape `/auth/login` does — carrying *our* JWT. The Google token is
+proof of identity for that one request and is never stored.
 
-1. **Every existing install silently logs out.** Splash reads `authToken()`, finds the new key
-   unset, gets `""`, and routes to Login. Harmless in dev — but it means **the `optims@gmail.com`
-   session you established on the laptop yesterday is gone**, and a re-login is needed before any
-   authed testing. Worth knowing before you conclude something regressed.
-2. **The old JWT is now unreachable garbage that nothing will ever delete.** `deleteAuth()` removes
-   `"auth_token"` and `"user_email"` only. The real token written under `"auth_is_stored"` during
-   yesterday's 18-call session is still sitting in plaintext in
-   `forge_preferences.preferences_pb`, and no code path in the app can now reach it — logout
-   included. Clearing app storage is the only way to shift it.
+Outcomes: unknown email → new Google account; existing Google account → straight sign-in; existing
+**password** account → `409 invalid_auth_provider`.
 
-Not an argument against the rename — the old name was one of the longest-carried complaints in
-these notes. Just: a one-shot `it.remove(stringPreferencesKey("auth_is_stored"))` inside
-`deleteAuth()` would sweep it, or clear app data on both machines and move on.
+## The design decision, and the constraint that forced it
 
-## Resolved this round
+`UserDocument` gained `authProvider: AuthProvider = AuthProvider.PASSWORD`. Google accounts carry
+`passwordHash = ""`.
 
-- **`isAuthTokenStored()` is finally gone.** The `is…`-prefixed method that returned
-  `Flow<String>` — flagged in every note for many rounds — is now `authToken()`, with
-  `userEmail()` beside it. The key name was corrected to match (`"auth_is_stored"` → `"auth_token"`);
-  see the caveat above.
-- **The user's real email is now persisted.** `storeAuth(token, email)` writes both in a single
-  `edit { }` (one file rewrite, and they can't drift apart), and `deleteAuth()` removes both
-  together. Both `submitLogin()` and `submitRegistration()` now pass `response.data.user.email`.
-- **`ForgePreferences` cleaned up** — reader/writer sections, the stale "currently holds only the
-  theme flag" KDoc rewritten, and a self-import of its own companion constant removed.
-- **Registration ↔ Login no longer carries credentials across.** Both cross-navigation footers now
-  dispatch `ResetFields` first, so a half-typed password doesn't follow you to the other screen.
-- **Registration gained an "Already forged one? / Sign in" footer**, mirroring Login's "New here?"
-  row. Previously Registration was a one-way door unless you used the system back gesture.
+Nullable `passwordHash: String?` is the type-honest model and was the first choice. It was rejected
+because `PasswordHasher.verify(body.password, user.passwordHash)` in `/auth/login` takes a non-null
+`String` — nullable stops that line compiling and forces an edit to a route that was explicitly
+frozen. The full reasoning now lives in the `UserDocument` KDoc rather than only in a note, at
+Yash's request.
 
-## Worth knowing
+`""` is safe rather than merely convenient: no BCrypt hash matches it, and `PasswordHasher.verify`
+already returns `false` on a malformed stored hash instead of throwing. A Google account attempting
+password login therefore fails as an ordinary `invalid_credentials` 401 — **indistinguishable from
+a wrong password**, so anti-enumeration holds and `/auth/login` never learns this field exists.
+Branch on `authProvider`, never on `passwordHash.isEmpty()`.
 
-- **`userEmail()` has zero call sites.** The plumbing for the hardcoded-email bug is now fully in
-  place — email is stored on both auth paths and readable — but nothing consumes it yet, so
-  `SettingsScreen` still shows `karishma.kapoor@cosmiq.co.in` to every user. This is the shortest
-  path it has ever been from fixed: read it in `SettingsViewModel`, put it in `SettingsState`, pass
-  it to the screen's existing `email` param.
-- **`BASE_URL` is untouched at `10.46.89.25` — correct for you, wrong here.** This desktop's LAN
-  address is `172.1.2.197`, a different subnet, so the desktop can't reach that host. Not changed,
-  because flipping it would just break it on your side; this is the per-machine problem your note
-  described, and it needs the `local.properties` fix rather than another edit. One useful detail
-  your note didn't spell out: **`10.0.2.2` is already whitelisted** in
-  `network_security_config.xml:5`, so the emulator route is a one-line `BASE_URL` change with no
-  security-config edit. Caveat for the desktop's Dockerized emulator — `10.0.2.2` resolves to the
-  *container's* host, so it only reaches a desktop-hosted server if that container uses host
-  networking.
-- The `AuthState.error` reset behaviour is worth a thought before Google sign-in lands: both
-  `updateEmail` and `updatePassword` clear `error` on every keystroke, so a field-level message
-  disappears as soon as the user starts fixing it. That's good UX and clearly deliberate — noting
-  it only because `resetFields()` now also clears `isLoading`, which means a `ResetFields` fired
-  mid-request would unblock the button while the coroutine is still in flight. No call site does
-  that today (both are user-initiated navigation), but it's a live edge if `ResetFields` ever gets
-  wired somewhere automatic.
+`Mappers.kt` needed no change: `toDto()` is a hand-written whitelist, so the new field is invisible
+to clients by default.
+
+## `/auth/forgot` was guarded — a hole this feature would otherwise have opened
+
+Yash caught this in plan review and asked for it closed rather than TODO'd. Without it,
+`/auth/forgot` would happily issue a reset token for a Google account and `/auth/reset` would then
+write a real `passwordHash` onto it — silently converting it into a password account the owner
+never created, a way in that bypasses Google entirely.
+
+The route now branches three ways (unknown email / Google account / password account) and returns
+the **identical** `200 MessageResponse` in all three. Only the log line differs, so the
+anti-enumeration behaviour is byte-for-byte what it was.
+
+## Why the 409 is not an enumeration vector
+
+Worth stating explicitly, since anti-enumeration was a stated constraint. `invalid_auth_provider`
+does disclose that an account exists — but verification happens **before** the lookup, so the only
+caller who can reach that branch already holds a Google-signed token for that exact address. You
+can only probe emails you already control, and you're being told about your own account. Had the
+order been reversed, the same status code would be a live oracle.
+
+## ⚠️ Not verified, and it needs your machine
+
+**The two existing Mongo rows were never checked against the new field.** `optims@gmail.com` and
+`optimusprime@gmail.com` predate `authProvider`, so reading them relies on `bson-kotlin`'s
+`DataClassCodec` applying the Kotlin constructor default for an absent BSON field. I believe it
+does; I did not prove it.
+
+It could not be proven here: **this desktop has no Mongo at all** — no container, and no
+`~/forge-mongo` directory. Those rows exist only on your machine. A single `POST /auth/login`
+against either account settles it. If they fail to deserialize, the fallback is to make
+`authProvider` nullable (`AuthProvider? = null`, read as `PASSWORD`), which removes the dependency
+on default-value support entirely.
+
+Everything this round is compile-verified only. No server was started and no endpoint was exercised.
 
 ## Carried over (still open, untouched)
 
-- **The Home back-button bug — tenth note running.** Still a product decision, still unmade.
+- **The sign-out credential leak — still live.** `AuthViewModel` is nav-host-scoped, and nothing
+  clears `_authState` on logout, so the post-logout Login screen is still pre-filled with the
+  previous user's email and password (revealable — `ForgePasswordField` has a visibility toggle).
+  `AuthIntent.ResetFields` exists and is dispatched at `ForgeNavHost.kt:293`/`:309`, but **not** in
+  the `SettingsEffect.NavigateToLogin` handler at `:373`. One line closes it. Same gap after a
+  successful login: `submitLogin()`/`submitRegistration()` leave the plaintext password in state.
+- **The orphaned pre-rename token.** `KEY_AUTH_TOKEN` moved `"auth_is_stored"` → `"auth_token"`;
+  `deleteAuth()` removes only the new keys, so the JWT written under the old name is unreachable
+  plaintext no code path — logout included — can now delete. Expect existing installs to appear
+  logged out; a re-login is needed before authed testing.
+- **`userEmail()` still has zero call sites**, so `SettingsScreen` still shows
+  `karishma.kapoor@cosmiq.co.in` to every user. The plumbing is all in place now.
 - **The release variant still does not compile** — `BASE_URL` is declared only in the `debug`
-  buildType while `NetworkModule` lives in `src/main`. Untouched, per your note: what release
-  should point at is a product decision.
+  buildType while `NetworkModule` is in `src/main`. A product decision, untouched.
+- **`BASE_URL` is `10.46.89.25`** — correct for you, unreachable from this desktop (`172.1.2.197`,
+  different subnet). Untouched deliberately; it needs the `local.properties` fix, not another edit.
+  `10.0.2.2` is already whitelisted in `network_security_config.xml:5` if you go the emulator route.
+- **The Home back-button bug — eleventh note running.** Still a product decision, still unmade.
 - **`TaskDao.deleteTask`/`deleteTasks` duplicate `@Delete vararg` signature**, only one `suspend`.
 - **`core/mvi` base still has zero implementors** while four ViewModels hand-roll the same shape.
-- The dead `else -> { }` in `ForgeNavHost`'s auth-effect collector — still the only source warning
-  in the app module (`ForgeNavHost.kt:123:21`).
+- The dead `else -> { }` in `ForgeNavHost`'s auth-effect collector (`ForgeNavHost.kt:123:21`).
 - `:shared` still declares `implementation(libs.kotlinx.serialization.json)`, not `api(...)`.
-- **The whole task half of the app is still unwired** — auth works end to end, tasks have no client
-  at all (no `TaskApi`, no repository), though `/tasks` is implemented and JWT-protected
-  server-side. Nothing wired to Room; `AppDatabase` never opened at runtime.
+- **The whole task half of the app is still unwired** — no `TaskApi`, no repository, nothing wired
+  to Room, `AppDatabase` never opened at runtime, though `/tasks` is implemented and JWT-protected.
 - **New-task capture unreachable** (`+` always opens "Edit Task" on task[0]); `ForgeDatePickerDialog`
   NPEs on OK-without-selection; save hardcoded; `AddTaskSheet.kt` (~24KB) orphaned; Task List
   bucket-overlap crash (`overdue && due == null`).
 - Server `TaskDto` exposes `due: String?` only vs. the local typed `Instant?`.
 - Stats hardcoded; `Motion.kt` empty; `SuccessScreen` reset button not deleted.
-- **`ForgeTextField` focus ring still an empty `drawBehind { }` stub — 31st note running.**
+- **`ForgeTextField` focus ring still an empty `drawBehind { }` stub — 32nd note running.**
 - Server-side: dev JWT secret in source, `/auth/forgot` logs the reset token to console, CORS
   `anyHost()`, `PUT /tasks/{id}` is a full replace not a merge.
 - No Room schema export dir; `gradle.properties` has dead `kapt.*` and a deprecated
   `useClasspathSnapshot`.
-- **Gradle daemon SIGSEGV = JBR 21 G1 GC fault, not memory pressure.** Your diagnosis is recorded
-  in this session's persistent memory now, so the wrong theory shouldn't resurface. No crash on the
-  desktop this round; `-XX:+UseParallelGC` not needed here yet.
-- `.idea/` still uncommitted, diff unchanged again. Standing "your call" item.
+- **Gradle daemon SIGSEGV = JBR 21 G1 GC fault, not memory pressure** — your diagnosis, now also in
+  this session's persistent memory. No crash on the desktop this round.
+- `.idea/` still uncommitted, diff unchanged. `app/src/main/AndroidManifest.xml` is also modified
+  and uncommitted — Yash's Google client-id WIP, deliberately left alone under the "no `:app`
+  changes" constraint.
 
 ## Verified
 
-`./gradlew :app:compileDebugKotlin --rerun-tasks` (forced, not cached) → BUILD SUCCESSFUL in 23s.
-One warning, unchanged: `ForgeNavHost.kt:123:21` — `'when' is exhaustive so 'else' is redundant`.
-Compile-only. **Nothing was run against a live server this round** — the desktop can't reach
-`10.46.89.25`, so the auth paths that changed here (`storeAuth` writing two keys, the key rename)
-are compile-verified but not runtime-verified. The key-rename logout prediction above is reasoned
-from the code, not observed.
+`./gradlew :server:compileKotlin :shared:compileKotlin --rerun-tasks` (forced) → BUILD SUCCESSFUL.
+Two warnings, both pre-existing `@BsonId` annotation-target notices (KT-73255) at shifted line
+numbers — not new. `google-api-client:2.8.0` resolves from Maven Central. One compile error was hit
+and fixed on the way: `GoogleIdTokenVerifier.verify()` returns `GoogleIdToken`, not its `Payload`.
+
+**Not** verified: nothing was run. No Mongo on this machine — see the section above.
