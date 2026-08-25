@@ -36,11 +36,12 @@ class AuthViewModel @Inject constructor(
         when (intent) {
             AuthIntent.SubmitLogin -> submitLogin()
             AuthIntent.SubmitRegistration -> submitRegistration()
-            AuthIntent.SignInWithGoogle -> { }
-            AuthIntent.SubmitForgotPassword -> { }
-            AuthIntent.SubmitResetPassword -> { }
+            AuthIntent.SignInWithGoogle -> {}
+            AuthIntent.SubmitForgotPassword -> {}
+            AuthIntent.SubmitResetPassword -> {}
             is AuthIntent.UpdateEmail -> updateEmail(intent.email)
             is AuthIntent.UpdatePassword -> updatePassword(intent.password)
+            AuthIntent.ResetFields -> resetFields()
         }
     }
 
@@ -49,6 +50,9 @@ class AuthViewModel @Inject constructor(
 
     private fun updatePassword(password: String) =
         _authState.update { it.copy(password = password, error = null) }
+
+    private fun resetFields() =
+        _authState.update { it.copy(email = "", password = "", isLoading = false, error = null) }
 
     private fun submitLogin() {
         val email = _authState.value.email.trim()
@@ -65,14 +69,15 @@ class AuthViewModel @Inject constructor(
 
         viewModelScope.launch {
             _authState.update { it.copy(isLoading = true, error = null) }
-            when (val result = authRepository.login(email, password)) {
+            when (val response = authRepository.login(email, password)) {
                 is AuthResult.Success -> {
-                    preferences.storeAuthToken(result.data.token)
+                    preferences.storeAuth(response.data.token, response.data.user.email)
                     _authState.update { it.copy(isLoading = false) }
                     _effect.send(AuthEffect.NavigateToHome)
                 }
+
                 is AuthResult.Failure -> {
-                    _authState.update { it.copy(isLoading = false, error = result.error) }
+                    _authState.update { it.copy(isLoading = false, error = response.error) }
                 }
             }
         }
@@ -98,10 +103,11 @@ class AuthViewModel @Inject constructor(
             _authState.update { it.copy(isLoading = true, error = null) }
             when (val response = authRepository.register(email, password)) {
                 is AuthResult.Success -> {
-                    preferences.storeAuthToken(response.data.token)
+                    preferences.storeAuth(response.data.token, response.data.user.email)
                     _authState.update { it.copy(isLoading = false) }
                     _effect.send(AuthEffect.NavigateToSuccess)
                 }
+
                 is AuthResult.Failure -> {
                     _authState.update { it.copy(isLoading = false, error = response.error) }
                 }

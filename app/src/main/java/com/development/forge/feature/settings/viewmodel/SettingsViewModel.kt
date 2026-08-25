@@ -28,7 +28,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun logout() = viewModelScope.launch {
-        preferences.clearAuthToken()
+        preferences.deleteAuth()
         _effect.send(SettingsEffect.NavigateToLogin)
     }
 }

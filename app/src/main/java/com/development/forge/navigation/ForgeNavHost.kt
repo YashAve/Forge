@@ -290,6 +290,7 @@ fun ForgeNavHost(
                             onUpdatePassword = { authViewModel.onIntent(AuthIntent.UpdatePassword(it)) },
                             onForgotPassword = { backStack.add(ForgotPassword) },
                             onForgeAccount = {
+                                authViewModel.onIntent(AuthIntent.ResetFields)
                                 backStack.removeLastOrNull()
                                 backStack.add(Registration)
                             },
@@ -303,7 +304,12 @@ fun ForgeNavHost(
                             state = authState.value,
                             onUpdateEmail = { authViewModel.onIntent(AuthIntent.UpdateEmail(it)) },
                             onUpdatePassword = { authViewModel.onIntent(AuthIntent.UpdatePassword(it)) },
-                            onRegister = { authViewModel.onIntent(AuthIntent.SubmitRegistration) }
+                            onRegister = { authViewModel.onIntent(AuthIntent.SubmitRegistration) },
+                            onSignIn = {
+                                authViewModel.onIntent(AuthIntent.ResetFields)
+                                backStack.removeLastOrNull()
+                                backStack.add(Login)
+                            }
                         )
                     }
 

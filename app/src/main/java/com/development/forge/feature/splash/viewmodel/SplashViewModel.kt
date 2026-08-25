@@ -38,7 +38,7 @@ class SplashViewModel @Inject constructor(
     private fun checkAuthStatus() {
         viewModelScope.launch {
             val onboardingDone = preferences.isOnboardingDone().first()
-            val authToken = preferences.isAuthTokenStored().first()
+            val authToken = preferences.authToken().first()
 
             pendingDestination = when {
                 !onboardingDone -> SplashEffect.NavigateToOnboarding

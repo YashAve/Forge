@@ -26,6 +26,7 @@ sealed interface AuthIntent {
     data object SubmitResetPassword : AuthIntent
     data class UpdateEmail(val email: String) : AuthIntent
     data class UpdatePassword(val password: String) : AuthIntent
+    data object ResetFields : AuthIntent
 }
 
 sealed interface AuthEffect {

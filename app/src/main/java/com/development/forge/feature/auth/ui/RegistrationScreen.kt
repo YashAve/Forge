@@ -1,6 +1,7 @@
 package com.development.forge.feature.auth.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -27,6 +29,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.development.forge.core.components.ForgeButton
 import com.development.forge.core.components.ForgePasswordField
+import com.development.forge.core.components.ForgeTextButton
 import com.development.forge.core.components.ForgeTextField
 import com.development.forge.core.designsystem.ForgeFonts
 import com.development.forge.core.designsystem.ForgeTheme
@@ -42,7 +45,8 @@ fun RegistrationScreen(
     state: AuthState = AuthState(),
     onUpdateEmail: (String) -> Unit = { },
     onUpdatePassword: (String) -> Unit = { },
-    onRegister: () -> Unit = { }
+    onRegister: () -> Unit = { },
+    onSignIn: () -> Unit = { }
 ) {
     Column(
         modifier = modifier
@@ -91,7 +95,7 @@ fun RegistrationScreen(
             onValueChange = onUpdatePassword,
             error = state.error.passwordMessage(),
             label = "Password",
-            helper = "8 characters minimum."          // ← was missing
+            helper = "8 characters minimum."
         )
 
         // flexible spacer pushes the CTA stack to the bottom
@@ -105,8 +109,8 @@ fun RegistrationScreen(
         ForgeButton(
             label = "Continue",
             isEnabled = !state.isLoading,
-            isLoading = state.isLoading,                     // plain Boolean now
-            icon = if (!state.isLoading)        // ← arrow only when valid
+            isLoading = state.isLoading,
+            icon = if (!state.isLoading)
                 Icons.AutoMirrored.Default.ArrowForward else null,
             onClick = onRegister
         )
@@ -120,6 +124,27 @@ fun RegistrationScreen(
             onTerms = { },
             onPrivacy = { }
         )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Footer — mirrors Login's "New here?" row
+        Row(
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Already forged one?",
+                style = TextStyle(
+                    fontFamily = ForgeFonts.spaceGrotesk,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.W400,
+                    color = ForgeTheme.colors.fgSecondary
+                )
+            )
+            ForgeTextButton(text = "Sign in") {
+                onSignIn()
+            }
+        }
     }
 }
 
@@ -130,7 +155,7 @@ private fun TermsMicrocopy(
     onPrivacy: () -> Unit
 ) {
     val linkStyle = SpanStyle(
-        color = ForgeTheme.colors.fgSecondary,                    // fg-secondary
+        color = ForgeTheme.colors.fgSecondary,
         textDecoration = TextDecoration.Underline
     )
     val annotated = buildAnnotatedString {
@@ -151,7 +176,7 @@ private fun TermsMicrocopy(
             fontFamily = ForgeFonts.spaceGrotesk,
             fontSize = 12.sp,
             lineHeight = 1.5.em,
-            color = ForgeTheme.colors.fgTertiary,     // fg-tertiary
+            color = ForgeTheme.colors.fgTertiary,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     )
