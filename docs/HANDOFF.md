@@ -1,132 +1,115 @@
-# Handoff note — desktop → laptop
+# Handoff note — laptop → desktop
 
-**From:** desktop Claude session · **Date:** 2026-08-25 · **On top of:** `2b19b55`
+**From:** laptop Claude session · **Date:** 2026-08-25 · **On top of:** `dde50df`
 
-`./gradlew :app:compileDebugKotlin :server:compileKotlin :shared:compileKotlin --rerun-tasks` →
-**BUILD SUCCESSFUL**. This round is Yash's client-side Google auth plumbing, landing against the
-`/auth/google` endpoint added last round. I verified, committed, and documented it — didn't finish
-or change any of it.
+Short round on my side: I pulled your six commits and closed the third of the three gaps your last
+note listed — **the missing ID-token source**. That was the one you correctly called "a dependency
+decision, not more wiring", so it was mine to make and not Yash's to write. I did not touch his
+feature code; the other two gaps are still open exactly as you described them.
 
-## ⚠️ The Google path is wired at both ends and connected at neither
+## ✅ Credential Manager is now on the classpath (`ad94d07`)
 
-The server endpoint is real and the client transport is real. Between them, three links are
-missing, and none of them is a compile error — the build is clean:
+You wrote: *"There is no Google Sign-In / Credential Manager / Google Identity Services dependency
+in `app/build.gradle.kts` at all."* Correct, and now there is. Credential Manager, not the
+deprecated `GoogleSignInClient`:
 
-1. **`AuthViewModel.signInWithGoogle(idToken)` has an empty body** (`AuthViewModel.kt:118`). The
-   intent dispatches to it, so this *looks* implemented in a way `-> {}` did not. It does nothing.
-2. **`AuthRepository.googleAuth()` therefore has zero call sites.** Fully written, reaches
-   `AuthApi.googleAuth()`, never invoked by anything.
-3. **Nothing in `:app` can produce an ID token.** There is no Google Sign-In / Credential Manager /
-   Google Identity Services dependency in `app/build.gradle.kts` at all — the only `google` entry
-   is `ui-text-google-fonts`. So `AuthIntent.SignInWithGoogle(idToken)` has no producer: grep finds
-   the declaration and the dispatch, and no construction site anywhere.
+| Artifact | Version | Why it's needed |
+|---|---|---|
+| `androidx.credentials:credentials` | 1.6.0 | The `CredentialManager` API surface |
+| `androidx.credentials:credentials-play-services-auth` | 1.6.0 | The provider that actually serves Google accounts |
+| `com.google.android.libraries.identity.googleid:googleid` | 1.2.0 | `GetGoogleIdOption` / `GoogleIdTokenCredential` |
 
-So the honest status is: transport plumbing complete, no ID token source, no ViewModel body. The
-next real step is a dependency decision (Credential Manager is the current-generation answer;
-the legacy `GoogleSignInClient` is deprecated), not more wiring.
+**All three are required together** — this is the classic trap. With only `credentials`, the code
+compiles, `CredentialManager.getCredential()` is callable, and every single request fails at
+runtime with `NoCredentialException`, because nothing is registered to answer it. There is no
+compile error and no warning; it looks wired and returns nothing.
 
-## 🐛 "Continue with Google" currently submits a password login
+Verified on `debugRuntimeClasspath`, not assumed: `credentials:1.6.0`,
+`credentials-play-services-auth:1.6.0`, `googleid:1.2.0` (the transitive `googleid:1.1.0` correctly
+upgrades to 1.2.0), pulling in `play-services-auth:21.1.1`. `:app:compileDebugKotlin` →
+**BUILD SUCCESSFUL**, no new warnings.
 
-`LoginScreen.kt:212–221` — the `ForgeSecondaryButton` carrying the Google icon calls `onLogin()`,
-i.e. it fires `AuthIntent.SubmitLogin` with whatever is in the email/password fields. The screen's
-KDoc documents an `@param onGoogle`, but the actual signature has no such parameter
-(`LoginScreen.kt:112–120`), so there is nothing else it could call.
+`compileSdk` is 36 and `minSdk` 24, both comfortably above what credentials 1.6.0 requires, so no
+AGP/SDK bump was needed — unlike the `lifecycle-viewmodel-navigation3` situation still parked in
+the catalog comment.
 
-This predates this round, but it matters now in a way it didn't before: with `/auth/google` live,
-the one control a user would press to exercise it does something entirely different. Worth fixing
-in the same pass that adds the token source — `onGoogle` needs to exist as a parameter first.
+## What is still missing before "Continue with Google" works
 
-## Resolved / improved this round
+Adding the dependency does **not** make the flow work. Four things remain, in order, and none of
+them is a compile error:
 
-- **`AuthRepository` deduplicated.** `login`/`register`/`googleAuth` now share one private
-  `safeCall { }` that does the status check, the `ErrorResponse` → `AuthError` mapping and the
-  transport-failure catches. Three copies of that block became one; adding the third call would
-  otherwise have been a third copy.
-- **`invalid_auth_provider` is mapped.** `toAuthError()` now translates it to
-  `AuthError.INVALID_AUTH_PROVIDER`, the enum case that has been sitting unused since before the
-  server could emit it. String matches the server's `ConflictException` code exactly — checked.
-- **`okio.IOException` → `java.io.IOException`.** Same type on JVM (Okio 3 typealiases it), but the
-  import no longer routes a core exception through a transitive dependency.
-- **`SignInWithGoogle` became a `data class` carrying `idToken`**, which is the right shape — the
-  token is per-attempt data, not a bare signal.
+1. **`AuthViewModel.signInWithGoogle(idToken)` is still an empty body** (`AuthViewModel.kt:118`) —
+   your item #1, untouched. Still the most deceptive one in the codebase, because it reads as
+   implemented in a way `-> {}` did not.
+2. **`AuthRepository.googleAuth()` still has zero call sites** — your item #2, untouched.
+3. **Nobody calls `CredentialManager` yet.** The library is present; there is no construction site.
+   I added the capability, not the code.
+4. **`LoginScreen`'s Google button still calls `onLogin()`** (`LoginScreen.kt:212–221`) — your 🐛.
+   `onGoogle` must exist as a parameter before there is anywhere to hang this. Note that the KDoc
+   already documents `@param onGoogle` while the signature has no such parameter, so the docs are
+   describing an API that was never written.
 
-## Worth knowing
+Whoever does this next: the `GetGoogleIdOption` needs the **Web** client ID — the same one your
+note flagged for the server's `GOOGLE_WEB_CLIENT_ID`. Google mints ID tokens whose `aud` is the web
+client even on Android, so **both ends must be given the same Web ID**. Your note recorded the pair
+(`486134999809-2r9g1i1…` / `486134999809-gshnt5i4…`) but not which is which; that still needs
+settling in the Cloud console, and the two failure modes are indistinguishable from the app side —
+a wrong ID at the client yields no token, a wrong ID at the server yields `401
+invalid_google_token`, and neither says which half is wrong.
 
-- **`safeCall`'s KDoc says the client "is configured with `expectSuccess = false`". It isn't
-  configured at all** — `NetworkModule.provideHttpClient` never sets `expectSuccess`, and `false`
-  is simply Ktor's default. The behaviour is correct today, so this is a wording issue, not a bug.
-  It's worth tightening because the consequence is invisible: if anyone ever sets
-  `expectSuccess = true`, every non-2xx becomes a thrown `ClientRequestException`, gets caught by
-  `safeCall`'s `catch (_: Exception)`, and collapses to `AuthError.UNKNOWN` — silently destroying
-  the entire error-code mapping, with no compile error and no test to catch it. Setting it
-  explicitly to `false` in `NetworkModule` would make the KDoc true and pin the assumption.
-- **The two OAuth client IDs are now committed** (as comments in `AndroidManifest.xml`). Last
-  round's note pointed here for the `GOOGLE_WEB_CLIENT_ID` value, so leaving the file uncommitted
-  would have made that instruction impossible to follow. OAuth *client IDs* are public identifiers
-  — unlike client *secrets* — so this is not a credential in git. The pair is
-  `486134999809-2r9g1i1…` and `486134999809-gshnt5i4…`; which is Web and which is Android isn't
-  recorded, and the server needs the **Web** one.
+## On your `expectSuccess` finding
 
-## Still open from last round
+Good catch, and I agree it's worth pinning. The `catch (_: Exception)` in `safeCall` swallowing a
+`ClientRequestException` into `AuthError.UNKNOWN` is exactly the kind of failure that survives
+review — the mapping code is all still there and still looks correct, it just never runs. One line
+in `NetworkModule`. Left it for Yash rather than editing his file behind him.
 
-- **`/auth/google` answers `401 invalid_google_token` for everything until `GOOGLE_WEB_CLIENT_ID`
-  is exported.** A startup warning fires when the placeholder is in use — check the boot log first.
-  Must be the **Web** client ID; Google mints ID tokens whose `aud` is the web client even on
-  Android.
-- **The two existing Mongo rows are still unverified against `authProvider`.** `optims@gmail.com`
-  and `optimusprime@gmail.com` predate the field, so reading them depends on `bson-kotlin`'s
-  `DataClassCodec` applying the Kotlin constructor default for an absent BSON field. **This desktop
-  still has no Mongo** — no container, no `~/forge-mongo` — so it remains unprovable here. One
-  `POST /auth/login` against either account settles it. If it fails, making `authProvider` nullable
-  (`AuthProvider? = null`, read as `PASSWORD`) removes the dependency on default support entirely.
-- **The sign-out credential leak — still live.** Nothing clears `_authState` on logout, so the
-  post-logout Login screen is still pre-filled with the previous user's email and password
-  (revealable via `ForgePasswordField`'s visibility toggle). `AuthIntent.ResetFields` is dispatched
-  at `ForgeNavHost.kt:293`/`:309` but **not** in the `SettingsEffect.NavigateToLogin` handler at
-  `:373`. One line. Same gap after a successful login — `submitLogin()`/`submitRegistration()`
-  leave the plaintext password in state.
-- **The orphaned pre-rename token.** `KEY_AUTH_TOKEN` moved `"auth_is_stored"` → `"auth_token"`;
-  `deleteAuth()` removes only the new keys, so the JWT under the old name is unreachable plaintext
-  no code path — logout included — can delete. Existing installs will appear logged out.
-- **`userEmail()` still has zero call sites** — `SettingsScreen` still shows
-  `karishma.kapoor@cosmiq.co.in` to every user.
-- **The release variant still does not compile** — `BASE_URL` is declared only in the `debug`
-  buildType while `NetworkModule` is in `src/main`.
-- **`BASE_URL` is `10.46.89.25`** — correct for you, unreachable from this desktop
-  (`172.1.2.197`, different subnet). Untouched deliberately; needs the `local.properties` fix.
-  `10.0.2.2` is already whitelisted in `network_security_config.xml:5` for the emulator route.
+## Answered from my side
+
+- **Mongo/`authProvider`.** I have Mongo here and both rows (`optims@gmail.com`,
+  `optimusprime@gmail.com`) — they exist, from the 18-call session I ran last round. I did **not**
+  re-run the server this time, so the `DataClassCodec` default question is still formally
+  unproven. One `POST /auth/login` against `optims@gmail.com` settles it and I can do that next
+  round if you want it closed.
+- **`BASE_URL` is still `10.46.89.25`** and still wrong for you. Nobody has taken the
+  `local.properties` fix, which is now the longest-running avoidable item in these notes.
 
 ## Carried over (still open, untouched)
 
-- **The Home back-button bug — twelfth note running.** Still a product decision, still unmade.
-- **`TaskDao.deleteTask`/`deleteTasks` duplicate `@Delete vararg` signature**, only one `suspend`.
+- **The Home back-button bug — thirteenth note running.** Still a product decision, still unmade.
+- **The sign-out credential leak** — `ResetFields` not dispatched in the
+  `SettingsEffect.NavigateToLogin` handler (`ForgeNavHost.kt:373`). One line.
+- **The orphaned pre-rename token** under `"auth_is_stored"` — unreachable, undeletable plaintext.
+- **`userEmail()` has zero call sites** — `SettingsScreen` still shows `karishma.kapoor@cosmiq.co.in`.
+- **The release variant still does not compile** — `BASE_URL` is `debug`-only, `NetworkModule` is
+  in `src/main`.
+- **`TaskDao.deleteTask`/`deleteTasks`** duplicate `@Delete vararg` signature, only one `suspend`.
 - **`core/mvi` base still has zero implementors** while four ViewModels hand-roll the same shape.
-- The dead `else -> { }` in `ForgeNavHost`'s auth-effect collector (`ForgeNavHost.kt:123:21`) —
-  still the only source warning in the app module.
+- The dead `else -> { }` at `ForgeNavHost.kt:123:21` — still the only source warning in `:app`.
 - `:shared` still declares `implementation(libs.kotlinx.serialization.json)`, not `api(...)`.
 - **The whole task half of the app is still unwired** — no `TaskApi`, no repository, nothing wired
-  to Room, `AppDatabase` never opened at runtime, though `/tasks` is implemented and JWT-protected.
+  to Room, `AppDatabase` never opened, though `/tasks` is implemented and JWT-protected.
 - **New-task capture unreachable** (`+` always opens "Edit Task" on task[0]); `ForgeDatePickerDialog`
   NPEs on OK-without-selection; save hardcoded; `AddTaskSheet.kt` (~24KB) orphaned; Task List
   bucket-overlap crash (`overdue && due == null`).
 - Server `TaskDto` exposes `due: String?` only vs. the local typed `Instant?`.
 - Stats hardcoded; `Motion.kt` empty; `SuccessScreen` reset button not deleted.
-- **`ForgeTextField` focus ring still an empty `drawBehind { }` stub — 33rd note running.**
+- **`ForgeTextField` focus ring still an empty `drawBehind { }` stub — 34th note running.**
 - Server-side: dev JWT secret in source, `/auth/forgot` logs the reset token to console, CORS
   `anyHost()`, `PUT /tasks/{id}` is a full replace not a merge.
 - No Room schema export dir; `gradle.properties` has dead `kapt.*` and a deprecated
   `useClasspathSnapshot`.
-- **Gradle daemon SIGSEGV = JBR 21 G1 GC fault, not memory pressure** — your diagnosis, also in
-  this session's persistent memory. No crash on the desktop this round.
+- **Gradle daemon SIGSEGV = JBR 21 G1 GC fault, not memory pressure.** No crash this round either —
+  I still passed `-XX:+UseParallelGC` on every invocation, so it remains worked around rather than
+  disproven.
 - `.idea/` still uncommitted, diff unchanged. Standing "your call" item.
 
 ## Verified
 
-`./gradlew :app:compileDebugKotlin :server:compileKotlin :shared:compileKotlin --rerun-tasks`
-(forced, not cached) → BUILD SUCCESSFUL in 22s. Warnings unchanged and all pre-existing: the
-`ForgeNavHost.kt:123:21` redundant `else`, two `@BsonId` annotation-target notices (KT-73255), and
-the Room schema-export / KSP incremental notices.
+`:app:compileDebugKotlin` → BUILD SUCCESSFUL in 1m18s (20 tasks executed, not cached).
+`:app:dependencies --configuration debugRuntimeClasspath` confirms all three credentials artifacts
+resolve at the expected versions. Warnings unchanged and all pre-existing.
 
-Compile-only again. **Nothing was run this round either** — no server, no device, no endpoint
-exercised. Every claim above about the Google path being inert is read from the code, not observed
-at runtime.
+Compile-and-resolve only. **The server was not started this round and no endpoint was exercised** —
+everything above about the Google path being inert is read from the code, not observed at runtime,
+same caveat as your note.
