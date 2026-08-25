@@ -36,7 +36,11 @@ class AuthRepository(private val mongo: MongoDatabase) {
             id = UUID.randomUUID().toString(),
             email = email,
             passwordHash = PasswordHasher.hash(plaintextPassword),
-            createdAt = System.currentTimeMillis()
+            createdAt = System.currentTimeMillis(),
+            // Written explicitly rather than left to the default: the field is
+            // nullable (see UserDocument), and `null` is reserved to mean "row
+            // predates Google sign-in". New rows should always say what they are.
+            authProvider = AuthProvider.PASSWORD
         )
         try {
             mongo.users.insertOne(user)

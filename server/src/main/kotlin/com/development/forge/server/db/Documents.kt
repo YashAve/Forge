@@ -15,6 +15,21 @@ import org.bson.codecs.pojo.annotations.BsonId
  * These are plain data classes read by the Kotlin driver's data-class codec —
  * NOT `@Serializable`, which is what keeps them off the JSON layer entirely.
  * `@BsonId` maps `id` onto Mongo's `_id`.
+ *
+ * ⚠️ ADDING A FIELD TO AN EXISTING COLLECTION: make it **nullable**, never
+ * non-null-with-a-default. `DataClassCodec` pre-seeds every constructor parameter
+ * with `null` before it reads the document, so a field absent from stored BSON
+ * reaches the constructor as an explicit `null` — Kotlin's default-argument
+ * mechanism never engages. A non-null parameter then fails its intrinsic
+ * null-check and the whole read blows up with:
+ *
+ *     CodecConfigurationException: Unable to invoke primary constructor of …
+ *       Caused by: NullPointerException: Parameter specified as non-null is null
+ *
+ * That is a 500 on **every pre-existing row**, which is exactly what a non-null
+ * `authProvider` did to `/auth/login` for every account created before Google
+ * sign-in existed. Nullable is what makes an added field safe; the default value
+ * is not, because it is never applied.
  */
 
 /** How an account proves who it is. Defaults to [PASSWORD] for every pre-existing row. */
@@ -40,10 +55,14 @@ enum class AuthProvider { PASSWORD, GOOGLE }
  *   instead of throwing. So a Google account attempting password login fails as an
  *   ordinary `invalid_credentials` 401, indistinguishable from a wrong password —
  *   the anti-enumeration posture holds without `/auth/login` knowing this field
- *   exists. Branch on [authProvider], never on `passwordHash.isEmpty()`.
- * @param authProvider how this account signs in. Absent on documents written
- *   before Google sign-in existed, which the constructor default reads as
- *   [AuthProvider.PASSWORD] — correct, since those all have a real hash.
+ *   exists. Branch on [UserDocument.provider], never on `passwordHash.isEmpty()`.
+ * @param authProvider how this account signs in — **nullable on purpose**.
+ *   `null` means "written before Google sign-in existed", which is a password
+ *   account; see [UserDocument.provider], which resolves it. It cannot be
+ *   non-null-with-a-default: the codec would hand the constructor an explicit
+ *   `null` for those older documents and every read of them would fail. See the
+ *   warning in this file's header. Rows written from [provider]-aware code
+ *   always carry an explicit value; only pre-existing ones are `null`.
  * @param resetToken   set by `/auth/forgot`, cleared by `/auth/reset`. Single-use.
  *   Never issued for a [AuthProvider.GOOGLE] account.
  */
@@ -52,7 +71,7 @@ data class UserDocument(
     val email: String,
     val passwordHash: String,
     val createdAt: Long,
-    val authProvider: AuthProvider = AuthProvider.PASSWORD,
+    val authProvider: AuthProvider? = null,
     val resetToken: String? = null,
     val resetTokenExpiresAt: Long? = null
 
@@ -63,6 +82,20 @@ data class UserDocument(
     //  `auth/AuthRoutes.kt`. Do NOT add Firebase dependencies until that work
     //  is actually scoped.
 )
+
+/**
+ * How this account signs in, with the pre-Google-era `null` resolved.
+ *
+ * Read this instead of [UserDocument.authProvider] anywhere the answer matters.
+ * A document with no `authProvider` field predates Google sign-in, so it is a
+ * password account by definition — those all have a real BCrypt hash.
+ *
+ * A top-level extension rather than a member: members outside the primary
+ * constructor are none of the data-class codec's business, and keeping it out
+ * there guarantees it is never encoded as a stored field.
+ */
+val UserDocument.provider: AuthProvider
+    get() = authProvider ?: AuthProvider.PASSWORD
 
 /** An embedded subtask. Lives inside [TaskDocument.subtasks] — there is no subtask collection. */
 data class SubtaskDocument(

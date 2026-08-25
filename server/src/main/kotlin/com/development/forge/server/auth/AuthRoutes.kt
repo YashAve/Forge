@@ -1,6 +1,7 @@
 package com.development.forge.server.auth
 
 import com.development.forge.server.db.AuthProvider
+import com.development.forge.server.db.provider
 import com.development.forge.server.db.toDto
 import com.development.forge.server.error.BadRequestException
 import com.development.forge.server.error.ConflictException
@@ -98,7 +99,7 @@ fun Route.authRoutes(
             val user = authRepository.findByEmail(email)
             if (user == null) {
                 log.info("Password reset requested for unknown email (no-op)")
-            } else if (user.authProvider == AuthProvider.GOOGLE) {
+            } else if (user.provider == AuthProvider.GOOGLE) {
                 // A Google account has no password to reset. Issuing a token anyway
                 // would let /auth/reset write a real passwordHash onto it, silently
                 // turning it into a password account the owner never created — a way
@@ -188,7 +189,7 @@ fun Route.authRoutes(
                         log.info("Registered Google user {}", it.id)
                     }
 
-                existing.authProvider == AuthProvider.GOOGLE -> existing
+                existing.provider == AuthProvider.GOOGLE -> existing
 
                 // The address is spoken for by a password account. Signing in here
                 // would hand control of it to whoever holds the matching Google
