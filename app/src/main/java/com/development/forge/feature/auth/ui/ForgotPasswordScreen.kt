@@ -11,10 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
@@ -28,6 +24,8 @@ import com.development.forge.core.components.ForgeTextButton
 import com.development.forge.core.components.ForgeTextField
 import com.development.forge.core.designsystem.ForgeFonts
 import com.development.forge.core.designsystem.ForgeTheme
+import com.development.forge.feature.auth.contract.AuthError
+import com.development.forge.feature.auth.contract.AuthState
 
 /**
  * DESIGN SPEC — Forgot Password screen (Screens.jsx → ForgotPasswordScreen).
@@ -62,13 +60,13 @@ import com.development.forge.core.designsystem.ForgeTheme
 @Composable
 fun ForgotPasswordScreen(
     modifier: Modifier = Modifier,
+    state: AuthState = AuthState(),
+    onUpdateEmail: (String) -> Unit = { },
     onSendLink: () -> Unit = { },
     onRemembered: () -> Unit = { }
 ) {
-    var emailInput by rememberSaveable { mutableStateOf("") }
-    var isLoading by rememberSaveable { mutableStateOf(false) }
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 24.dp)
             .padding(top = 24.dp, bottom = 28.dp)
@@ -96,11 +94,13 @@ fun ForgotPasswordScreen(
             )
         )
         Spacer(modifier = Modifier.height(40.dp))
-        ForgeTextField(value = emailInput, onValueChange = { value ->
-            emailInput = value
-        }, label = "Email", leadingIcon = Icons.Default.MailOutline) {
-
-        }
+        ForgeTextField(
+            value = state.email,
+            onValueChange = onUpdateEmail,
+            error = state.error.emailMessage(),
+            label = "Email",
+            leadingIcon = Icons.Default.MailOutline
+        )
         Spacer(
             modifier = Modifier
                 .heightIn(min = 24.dp)
@@ -108,8 +108,8 @@ fun ForgotPasswordScreen(
         )
         ForgeButton(
             label = "Send reset link",
-            isEnabled = emailInput.matches(validEmailRegularExpression),
-            isLoading = isLoading
+            isEnabled = !state.isLoading && state.email.isNotEmpty(),
+            isLoading = state.isLoading
         ) {
             onSendLink()
         }
@@ -133,4 +133,9 @@ fun ForgotPasswordScreen(
             }
         }
     }
+}
+
+private fun AuthError?.emailMessage(): String? = when (this) {
+    AuthError.INVALID_EMAIL -> "That email doesn't look right"
+    else -> null
 }

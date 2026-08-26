@@ -130,6 +130,7 @@ fun ForgeNavHost(
                         clear()
                         add(Login)
                     }
+
                     else -> {
 
                     }
@@ -344,13 +345,26 @@ fun ForgeNavHost(
                     entry<ForgotPassword> {
                         ForgotPasswordScreen(
                             modifier = basicModifier,
+                            state = authState.value,
+                            onUpdateEmail = { authViewModel.onIntent(AuthIntent.UpdateEmail(it)) },
                             onSendLink = { authViewModel.onIntent(AuthIntent.SubmitForgotPassword) },
-                            onRemembered = { backStack.removeLastOrNull() }
+                            onRemembered = {
+                                backStack.removeLastOrNull()
+                                authViewModel.onIntent(AuthIntent.ResetFields)
+                            }
                         )
                     }
 
                     entry<EmailSent> {
-                        EmailSentScreen(basicModifier)
+                        EmailSentScreen(
+                            basicModifier,
+                            state = authState.value,
+                            onEnterToken = {
+                                backStack.removeLastOrNull()
+                                backStack.add(ResetPassword)
+                            },
+                            onResend = { authViewModel.onIntent(AuthIntent.SubmitForgotPassword) }
+                        )
                     }
 
                     entry<ResetPassword> {
