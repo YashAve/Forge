@@ -370,6 +370,10 @@ fun ForgeNavHost(
                     entry<ResetPassword> {
                         ResetPasswordScreen(
                             modifier = basicModifier,
+                            state = authState.value,
+                            onUpdateResetToken = { authViewModel.onIntent(AuthIntent.UpdateResetToken(it)) },
+                            onUpdatePassword = { authViewModel.onIntent(AuthIntent.UpdatePassword(it)) },
+                            onUpdateConfirmPassword = { authViewModel.onIntent(AuthIntent.UpdateConfirmPassword(it)) },
                             onResetPassword = { authViewModel.onIntent(AuthIntent.SubmitResetPassword) }
                         )
                     }
