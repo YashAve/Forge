@@ -108,7 +108,7 @@ fun RegistrationScreen(
         // CTA stack — 16dp gap
         ForgeButton(
             label = "Continue",
-            isEnabled = !state.isLoading,
+            isEnabled = !state.isLoading && state.email.isNotEmpty() && state.password.isNotEmpty(),
             isLoading = state.isLoading,
             icon = if (!state.isLoading)
                 Icons.AutoMirrored.Default.ArrowForward else null,

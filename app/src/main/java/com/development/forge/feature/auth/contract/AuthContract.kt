@@ -8,12 +8,16 @@ enum class AuthError {
     EMAIL_ALREADY_EXISTS,
     INVALID_AUTH_PROVIDER,
     NETWORK_ERROR,
+    INVALID_TOKEN,
+    EXPIRED_TOKEN,
     UNKNOWN
 }
 
 data class AuthState(
     val email: String = "",
     val password: String = "",
+    val confirmPassword: String = "",
+    val resetToken: String = "",
     val error: AuthError? = null,
     val isLoading: Boolean = false
 )
@@ -27,6 +31,8 @@ sealed interface AuthIntent {
     data class UpdateEmail(val email: String) : AuthIntent
     data class UpdatePassword(val password: String) : AuthIntent
     data object ResetFields : AuthIntent
+    data class UpdateConfirmPassword(val confirmPassword: String): AuthIntent
+    data class UpdateResetToken(val resetToken: String) : AuthIntent
 }
 
 sealed interface AuthEffect {

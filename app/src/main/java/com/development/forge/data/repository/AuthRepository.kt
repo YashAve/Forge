@@ -5,9 +5,12 @@ import com.development.forge.data.remote.AuthResult
 import com.development.forge.feature.auth.contract.AuthError
 import com.development.forge.shared.api.AuthResponse
 import com.development.forge.shared.api.ErrorResponse
+import com.development.forge.shared.api.ForgotPasswordRequest
 import com.development.forge.shared.api.GoogleAuthRequest
 import com.development.forge.shared.api.LoginRequest
+import com.development.forge.shared.api.MessageResponse
 import com.development.forge.shared.api.RegisterRequest
+import com.development.forge.shared.api.ResetPasswordRequest
 import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.isSuccess
@@ -29,6 +32,12 @@ class AuthRepository @Inject constructor(
     suspend fun googleAuth(idToken: String): AuthResult<AuthResponse> =
         safeCall { api.googleAuth(GoogleAuthRequest(idToken)) }
 
+    suspend fun forgotPassword(email: String): AuthResult<MessageResponse> =
+        safeCall { api.forgotPassword(ForgotPasswordRequest(email))}
+
+    suspend fun resetPassword(token: String, newPassword: String): AuthResult<MessageResponse> =
+        safeCall { api.resetPassword(ResetPasswordRequest(token, newPassword)) }
+
     /**
      * Runs an auth API call and folds the outcome into [AuthResult].
      *
@@ -37,9 +46,9 @@ class AuthRepository @Inject constructor(
      * server's error code is mapped to a typed [AuthError]. Only transport
      * failures reach the catch blocks.
      */
-    private suspend fun safeCall(
+    private suspend inline fun <reified T> safeCall(
         call: suspend () -> HttpResponse
-    ): AuthResult<AuthResponse> =
+    ): AuthResult<T> =
         try {
             val response = call()
             if (response.status.isSuccess()) {
@@ -60,6 +69,8 @@ class AuthRepository @Inject constructor(
         "invalid_credentials" -> AuthError.INVALID_CREDENTIAL
         "email_taken" -> AuthError.EMAIL_ALREADY_EXISTS
         "invalid_auth_provider" -> AuthError.INVALID_AUTH_PROVIDER
+        "token_required", "invalid_token" -> AuthError.INVALID_TOKEN
+        "expired_token" -> AuthError.EXPIRED_TOKEN
         else -> AuthError.UNKNOWN
     }
 }

@@ -1,8 +1,10 @@
 package com.development.forge.data.remote
 
+import com.development.forge.shared.api.ForgotPasswordRequest
 import com.development.forge.shared.api.GoogleAuthRequest
 import com.development.forge.shared.api.LoginRequest
 import com.development.forge.shared.api.RegisterRequest
+import com.development.forge.shared.api.ResetPasswordRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
@@ -51,6 +53,30 @@ class AuthApi @Inject constructor(
                 method = HttpMethod.Post
                 url {
                     appendPathSegments("auth", "google")
+                }
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+        }
+
+    suspend fun forgotPassword(request: ForgotPasswordRequest): HttpResponse =
+        withContext(Dispatchers.IO) {
+            client.request {
+                method = HttpMethod.Post
+                url {
+                    appendPathSegments("auth", "forgot")
+                }
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+        }
+
+    suspend fun resetPassword(request: ResetPasswordRequest): HttpResponse =
+        withContext(Dispatchers.IO) {
+            client.request {
+                method = HttpMethod.Post
+                url {
+                    appendPathSegments("auth", "reset")
                 }
                 contentType(ContentType.Application.Json)
                 setBody(request)

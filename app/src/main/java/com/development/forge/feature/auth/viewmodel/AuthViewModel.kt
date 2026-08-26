@@ -37,10 +37,12 @@ class AuthViewModel @Inject constructor(
             AuthIntent.SubmitLogin -> submitLogin()
             AuthIntent.SubmitRegistration -> submitRegistration()
             is AuthIntent.SignInWithGoogle -> signInWithGoogle(intent.idToken)
-            AuthIntent.SubmitForgotPassword -> {}
-            AuthIntent.SubmitResetPassword -> {}
+            AuthIntent.SubmitForgotPassword -> submitForgotPassword()
+            AuthIntent.SubmitResetPassword -> submitResetPassword()
             is AuthIntent.UpdateEmail -> updateEmail(intent.email)
             is AuthIntent.UpdatePassword -> updatePassword(intent.password)
+            is AuthIntent.UpdateResetToken -> updateResetToken(intent.resetToken)
+            is AuthIntent.UpdateConfirmPassword -> updateConfirmPassword(intent.confirmPassword)
             AuthIntent.ResetFields -> resetFields()
         }
     }
@@ -51,8 +53,23 @@ class AuthViewModel @Inject constructor(
     private fun updatePassword(password: String) =
         _authState.update { it.copy(password = password, error = null) }
 
+    private fun updateConfirmPassword(confirmPassword: String) =
+        _authState.update { it.copy(confirmPassword = confirmPassword, error = null) }
+
+    private fun updateResetToken(resetToken: String) =
+        _authState.update { it.copy(resetToken = resetToken, error = null) }
+
     private fun resetFields() =
-        _authState.update { it.copy(email = "", password = "", isLoading = false, error = null) }
+        _authState.update {
+            it.copy(
+                email = "",
+                password = "",
+                confirmPassword = "",
+                resetToken = "",
+                isLoading = false,
+                error = null
+            )
+        }
 
     private fun submitLogin() {
         val email = _authState.value.email.trim()
@@ -94,7 +111,7 @@ class AuthViewModel @Inject constructor(
             else -> null
         }
 
-        error?.let {
+        if (error != null) {
             _authState.update { it.copy(error = error) }
             return
         }
@@ -123,6 +140,60 @@ class AuthViewModel @Inject constructor(
                     preferences.storeAuth(response.data.token, response.data.user.email)
                     _authState.update { it.copy(isLoading = false) }
                     _effect.send(AuthEffect.NavigateToHome)
+                }
+
+                is AuthResult.Failure -> {
+                    _authState.update { it.copy(isLoading = false, error = response.error) }
+                }
+            }
+        }
+    }
+
+    private fun submitForgotPassword() {
+        val email = _authState.value.email.trim()
+        val error = if (!email.matches(emailRegex)) AuthError.INVALID_EMAIL else null
+
+        if (error != null) {
+            _authState.update { it.copy(error = error) }
+            return
+        }
+
+        viewModelScope.launch {
+            _authState.update { it.copy(isLoading = true, error = null) }
+            when (val response = authRepository.forgotPassword(email)) {
+                is AuthResult.Success -> {
+                    _authState.update { it.copy(isLoading = false) }
+                    _effect.send(AuthEffect.NavigateToEmailSent)
+                }
+
+                is AuthResult.Failure -> {
+                    _authState.update { it.copy(isLoading = false, error = response.error) }
+                }
+            }
+        }
+    }
+
+    private fun submitResetPassword() {
+        val resetToken = _authState.value.resetToken
+        val password = _authState.value.password
+
+        val error = when {
+            resetToken.isBlank() -> AuthError.INVALID_TOKEN
+            password.length < 8 -> AuthError.WEAK_PASSWORD
+            else -> null
+        }
+
+        if (error != null) {
+            _authState.update { it.copy(error = error) }
+            return
+        }
+
+        viewModelScope.launch {
+            _authState.update { it.copy(isLoading = true, error = null) }
+            when (val response = authRepository.resetPassword(resetToken, password)) {
+                is AuthResult.Success -> {
+                    resetFields()
+                    _effect.send(AuthEffect.NavigateToLogin)
                 }
 
                 is AuthResult.Failure -> {

@@ -175,9 +175,9 @@ fun LoginScreen(
         )
         ForgeButton(
             label = "Continue",
-            isEnabled = !state.isLoading,
-            isLoading = state.isLoading,                     // plain Boolean now
-            icon = if (!state.isLoading)        // ← arrow only when valid
+            isEnabled = !state.isLoading && state.email.isNotEmpty() && state.password.isNotEmpty(),
+            isLoading = state.isLoading,
+            icon = if (!state.isLoading)
                 Icons.AutoMirrored.Default.ArrowForward else null,
             onClick = onLogin
         )
