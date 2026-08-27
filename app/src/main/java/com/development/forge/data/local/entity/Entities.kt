@@ -12,8 +12,6 @@ import com.development.forge.domain.model.Priority
 import java.util.UUID
 import kotlin.time.Instant
 
-fun getPrimaryId(): String = "${System.currentTimeMillis()}-${UUID.randomUUID()}"
-
 class TypeConverters {
     @TypeConverter
     fun fromInstantToMilliseconds(input: Instant?): Long? = input?.toEpochMilliseconds()
@@ -23,12 +21,17 @@ class TypeConverters {
         input?.let { Instant.fromEpochMilliseconds(it) }
 }
 
-@Entity(
-    tableName = "tasks"
-)
+enum class SyncState {
+    SYNCED,
+    PENDING_CREATE,
+    PENDING_UPDATE,
+    PENDING_DELETE
+}
+
+@Entity(tableName = "tasks")
 data class TaskEntity(
     @PrimaryKey
-    @ColumnInfo("task_id") val taskId: String = getPrimaryId(),
+    @ColumnInfo("task_id") val taskId: String = UUID.randomUUID().toString(),
     @ColumnInfo("title") val title: String,
     @ColumnInfo("done") val done: Boolean = false,
     @ColumnInfo("priority") val priority: Priority = Priority.MED,
@@ -36,7 +39,8 @@ data class TaskEntity(
     @ColumnInfo("overdue") val overdue: Boolean = false,
     @ColumnInfo("project") val project: String? = null,
     @ColumnInfo("notes") val notes: String? = null,
-    @ColumnInfo("due_at") val dueAt: Instant? = null
+    @ColumnInfo("due_at") val dueAt: Instant? = null,
+    @ColumnInfo("sync_state") val syncState: SyncState = SyncState.PENDING_CREATE
 )
 
 @Entity(
@@ -52,7 +56,7 @@ data class TaskEntity(
 )
 data class SubTaskEntity(
     @PrimaryKey
-    @ColumnInfo("subtask_id") val subTaskId: String = getPrimaryId(),
+    @ColumnInfo("subtask_id") val subTaskId: String = UUID.randomUUID().toString(),
     @ColumnInfo("task_id") val taskId: String,
     @ColumnInfo("title") val title: String,
     @ColumnInfo("is_done") val isDone: Boolean = false

@@ -29,20 +29,23 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideHttpClient(json: Json): HttpClient = HttpClient(OkHttp) {
-        engine {
-            // Empty in release — see core/network/DebugNetworkInterceptors.kt in src/debug
-            // and src/release. Debug builds get the OkHttp Profiler interceptor here.
-            debugNetworkInterceptors().forEach(::addInterceptor)
+    fun provideHttpClient(
+        json: Json
+    ): HttpClient =
+        HttpClient(OkHttp) {
+            engine {
+                // Empty in release — see core/network/DebugNetworkInterceptors.kt in src/debug
+                // and src/release. Debug builds get the OkHttp Profiler interceptor here.
+                debugNetworkInterceptors().forEach(::addInterceptor)
+            }
+            install(ContentNegotiation) {
+                json(json)
+            }
+            install(Logging) {
+                level = LogLevel.INFO
+            }
+            install(DefaultRequest) {
+                url(BuildConfig.BASE_URL)
+            }
         }
-        install(ContentNegotiation) {
-            json(json)
-        }
-        install(Logging) {
-            level = LogLevel.INFO
-        }
-        install(DefaultRequest) {
-            url(BuildConfig.BASE_URL)
-        }
-    }
 }
