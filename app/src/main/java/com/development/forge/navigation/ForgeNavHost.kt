@@ -130,10 +130,6 @@ fun ForgeNavHost(
                         clear()
                         add(Login)
                     }
-
-                    else -> {
-
-                    }
                 }
             }
         }
@@ -381,7 +377,9 @@ fun ForgeNavHost(
                     entry<Success> {
                         SuccessScreen(
                             modifier = basicModifier,
+                            email = authState.value.email,
                             onContinue = {
+                                authViewModel.onIntent(AuthIntent.ResetFields)
                                 backStack.clear()
                                 backStack.add(ForgeNavKey.Home)
                             }

@@ -89,7 +89,7 @@ class AuthViewModel @Inject constructor(
             when (val response = authRepository.login(email, password)) {
                 is AuthResult.Success -> {
                     preferences.storeAuth(response.data.token, response.data.user.email)
-                    _authState.update { it.copy(isLoading = false) }
+                    resetFields()
                     _effect.send(AuthEffect.NavigateToHome)
                 }
 
