@@ -18,6 +18,8 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
+import org.slf4j.LoggerFactory
+import java.util.UUID
 
 /**
  * `/tasks/…` — every route JWT-authenticated and scoped to the caller.
@@ -27,6 +29,8 @@ import io.ktor.server.routing.route
  * runs. Handlers therefore only ever execute for a verified principal.
  */
 fun Route.taskRoutes(taskRepository: TaskRepository) {
+
+    val log = LoggerFactory.getLogger("TaskRoutes")
 
     authenticate(JWT_AUTH) {
         route("/tasks") {
@@ -38,14 +42,48 @@ fun Route.taskRoutes(taskRepository: TaskRepository) {
                 call.respond(HttpStatusCode.OK, tasks)
             }
 
-            /** POST /tasks → 201 + the created task. 400 if the title is blank. */
+            /**
+             * POST /tasks → **201** + the created task.
+             *
+             * 400 blank title · 400 `invalid_task_id` · 409 `task_id_taken` ·
+             * **200** + the stored task when the caller already has this id.
+             *
+             * The client chooses the id (see [TaskUpsertRequest.id]) so an
+             * offline-first task keeps one identity from the moment it is written to
+             * the local database. That makes a re-sent create the *normal* path
+             * rather than an error — the network can drop after the write lands but
+             * before the 201 does — so the caller's own id coming back answers 200
+             * with the stored task instead of a conflict the client would have to
+             * decode. 201 means "written now", 200 means "already there"; both are
+             * success, and the status code is the only difference.
+             *
+             * An id that is taken but **not** the caller's is a 409 that does not say
+             * whose it is. See [TaskRepository.create] for why that distinction has
+             * to exist at all.
+             */
             post {
                 val userId = call.userId()
                 val body = call.receive<TaskUpsertRequest>()
                 val title = Validation.taskTitle(body.title)
 
-                val created = taskRepository.create(userId, body, title)
-                call.respond(HttpStatusCode.Created, created.toDto())
+                // A blank id is a client bug, not an absent id: `null` means "did not
+                // supply one", `""` means "tried and got it wrong", and Validation
+                // rejects the second rather than quietly minting a replacement.
+                val taskId = body.id?.let { Validation.taskId(it) }
+                    ?: UUID.randomUUID().toString().also {
+                        log.info(
+                            "POST /tasks carried no client id — generated {}. An " +
+                                "offline-first client should send its own.", it
+                        )
+                    }
+
+                when (val result = taskRepository.create(userId, taskId, body, title)) {
+                    is TaskCreateResult.Created ->
+                        call.respond(HttpStatusCode.Created, result.task.toDto())
+
+                    is TaskCreateResult.AlreadyExisted ->
+                        call.respond(HttpStatusCode.OK, result.task.toDto())
+                }
             }
 
             /**
@@ -53,6 +91,11 @@ fun Route.taskRoutes(taskRepository: TaskRepository) {
              *
              * 404 when the id is unknown **or owned by someone else** — the repository
              * filters on owner, so the two cases are indistinguishable by design.
+             *
+             * **The body's [TaskUpsertRequest.id] is ignored here — read the path.**
+             * That field exists for `POST`, and this route shares the request type
+             * with it. Honouring it would let a caller name one task in the path and
+             * another in the body, which is a re-homing primitive, not a convenience.
              */
             put("/{id}") {
                 val userId = call.userId()

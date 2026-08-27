@@ -3,7 +3,9 @@ package com.development.forge.server.task
 import com.development.forge.server.db.MongoDatabase
 import com.development.forge.server.db.SubtaskDocument
 import com.development.forge.server.db.TaskDocument
+import com.development.forge.server.error.ConflictException
 import com.development.forge.shared.api.TaskUpsertRequest
+import com.mongodb.MongoWriteException
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Sorts
 import kotlinx.coroutines.flow.firstOrNull
@@ -48,16 +50,45 @@ class TaskRepository(private val mongo: MongoDatabase) {
         mongo.tasks.find(ownedBy(userId, taskId)).firstOrNull()
 
     /**
-     * Creates a task owned by [userId].
+     * Creates a task owned by [userId] under the caller-chosen [taskId], or reports
+     * that the caller already has a task with that id.
      *
-     * Note what is NOT taken from the request: id, userId, and both timestamps are
-     * server-assigned, so a client can't choose its own id or plant a task in
-     * another user's account.
+     * `userId` and both timestamps are still server-assigned, so a client cannot
+     * plant a task in another user's account or re-date one. [taskId] is the single
+     * thing the client now chooses, and `TaskRoutes` has already checked it is a
+     * canonical UUID before it gets here.
+     *
+     * ## Why a duplicate is not simply a conflict
+     * For an offline-first client a re-sent create is *ordinary*: the network drops
+     * after the write lands but before the 201 does, and the sync queue retries. So
+     * the caller's own id coming back is success — [TaskCreateResult.AlreadyExisted]
+     * — not an error the client has to special-case.
+     *
+     * ## Why the ownership check is load-bearing
+     * `_id` is unique across the **whole collection**, not per user: the owner
+     * filter that scopes every other method here does not scope the uniqueness
+     * namespace. So a duplicate-key error can come from a document belonging to
+     * somebody else, and "catch duplicate, return the existing task" — the obvious
+     * implementation — would hand one user another user's task. That is why the
+     * only read on this path goes through [findForUser], and why the fallback when
+     * it finds nothing is a deliberately vague 409 that does not say whose id it is.
+     * Same posture as the 404 that conflates "no such task" with "not yours".
+     *
+     * The re-read inside the catch closes the race where two concurrent creates from
+     * the same client both miss the first lookup: the loser would otherwise be told
+     * its own task conflicts.
      */
-    suspend fun create(userId: String, request: TaskUpsertRequest, title: String): TaskDocument {
+    suspend fun create(
+        userId: String,
+        taskId: String,
+        request: TaskUpsertRequest,
+        title: String
+    ): TaskCreateResult {
+        findForUser(userId, taskId)?.let { return TaskCreateResult.AlreadyExisted(it) }
+
         val now = System.currentTimeMillis()
         val task = TaskDocument(
-            id = UUID.randomUUID().toString(),
+            id = taskId,
             userId = userId,
             title = title,
             done = request.done,
@@ -70,8 +101,18 @@ class TaskRepository(private val mongo: MongoDatabase) {
             createdAt = now,
             updatedAt = now
         )
-        mongo.tasks.insertOne(task)
-        return task
+        try {
+            mongo.tasks.insertOne(task)
+        } catch (e: MongoWriteException) {
+            if (e.error.category != com.mongodb.ErrorCategory.DUPLICATE_KEY) throw e
+            // Either we lost a race with the caller's own concurrent create, or the
+            // id belongs to another account. Re-reading under the owner filter tells
+            // the two apart without ever reading a document the caller does not own.
+            val alreadyTheirs = findForUser(userId, taskId)
+                ?: throw ConflictException("task_id_taken", "That task id is already in use.")
+            return TaskCreateResult.AlreadyExisted(alreadyTheirs)
+        }
+        return TaskCreateResult.Created(task)
     }
 
     /**
@@ -118,4 +159,33 @@ class TaskRepository(private val mongo: MongoDatabase) {
                 isDone = input.isDone
             )
         }
+}
+
+/**
+ * What [TaskRepository.create] actually did.
+ *
+ * Both outcomes are successes and both carry the same [task]; they differ only in
+ * the status code the route should answer with. A sealed type rather than a
+ * boolean so the `when` in `TaskRoutes` is checked by the compiler — and so the
+ * two cases are named at the call site instead of being a `true` whose meaning has
+ * to be remembered.
+ */
+sealed interface TaskCreateResult {
+
+    val task: TaskDocument
+
+    /** Inserted by this request → **201**. */
+    data class Created(override val task: TaskDocument) : TaskCreateResult
+
+    /**
+     * The caller already had this id and nothing was written → **200**.
+     *
+     * The stored task is returned as-is: the request body is deliberately *not*
+     * applied. A retry normally carries an identical body, and where it doesn't —
+     * the client edited the task between the failed create and the retry — silently
+     * replacing the stored version here would duplicate `PUT /tasks/{id}` while
+     * bypassing its explicit full-replace contract. A client that edits after a
+     * failed create should follow the 200 with a PUT.
+     */
+    data class AlreadyExisted(override val task: TaskDocument) : TaskCreateResult
 }

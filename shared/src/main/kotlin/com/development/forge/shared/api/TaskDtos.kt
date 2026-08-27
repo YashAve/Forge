@@ -68,12 +68,31 @@ data class TaskDto(
 /**
  * The body for `POST /tasks` (create) and `PUT /tasks/{id}` (full replace).
  *
- * Intentionally has no `id`, `userId`, `createdAt` or `updatedAt`: identity,
- * ownership and timestamps are the server's business. `PUT` is a full replace —
- * every omitted field falls back to the default below, it is **not** a merge.
+ * Ownership and timestamps stay the server's business — there is deliberately no
+ * `userId`, `createdAt` or `updatedAt` here. `PUT` is a full replace: every
+ * omitted field falls back to the default below, it is **not** a merge.
+ *
+ * @param id the task's identity, chosen by the **client**, so that an
+ *   offline-first client can write a task to its local database and sync it later
+ *   under one id instead of reconciling a local id against a server-assigned one.
+ *
+ *   Must be a canonical lowercase UUID — exactly what `UUID.randomUUID().toString()`
+ *   produces. The server rejects anything else with `400 invalid_task_id`,
+ *   including a blank or whitespace-only value, because a primary key is not a
+ *   free-text field.
+ *
+ *   **Nullable, not required, and only for `POST`.** This request is the body for
+ *   `PUT /tasks/{id}` too, where the id lives in the path — a mandatory field that
+ *   one of its two routes has to ignore would be a standing invitation to read it
+ *   there, which is how a client would get to re-home someone else's task. `PUT`
+ *   ignores this field entirely. On `POST`, absent means the server mints one and
+ *   logs that it did; that fallback exists so an older client keeps working, not
+ *   as a supported mode — it reintroduces the two-identities problem this field
+ *   was added to remove.
  */
 @Serializable
 data class TaskUpsertRequest(
+    val id: String? = null,
     val title: String,
     val done: Boolean = false,
     val priority: Priority = Priority.MED,
