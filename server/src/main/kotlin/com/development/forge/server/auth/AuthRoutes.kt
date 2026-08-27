@@ -6,6 +6,7 @@ import com.development.forge.server.db.toDto
 import com.development.forge.server.error.BadRequestException
 import com.development.forge.server.error.ConflictException
 import com.development.forge.server.error.UnauthorizedException
+import com.development.forge.server.security.AttemptLimiter
 import com.development.forge.server.validation.Validation
 import com.development.forge.shared.api.AuthResponse
 import com.development.forge.shared.api.ForgotPasswordRequest
@@ -15,6 +16,7 @@ import com.development.forge.shared.api.MessageResponse
 import com.development.forge.shared.api.RegisterRequest
 import com.development.forge.shared.api.ResetPasswordRequest
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.plugins.origin
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -29,7 +31,8 @@ import org.slf4j.LoggerFactory
 fun Route.authRoutes(
     authRepository: AuthRepository,
     jwtService: JwtService,
-    googleTokenVerifier: GoogleTokenVerifier
+    googleTokenVerifier: GoogleTokenVerifier,
+    resetAttemptLimiter: AttemptLimiter
 ) {
     val log = LoggerFactory.getLogger("AuthRoutes")
 
@@ -133,21 +136,40 @@ fun Route.authRoutes(
         /**
          * POST /auth/reset → 200 + [MessageResponse]
          *
-         * 400 on a blank/unknown/expired token or a weak new password. The token is
-         * single-use: `updatePassword` clears it in the same write.
+         * 400 on a blank/unknown/expired token or a weak new password ·
+         * 429 too_many_attempts. The token is single-use: `updatePassword` clears it
+         * in the same write.
+         *
+         * **Rate limited**, because the reset code is only 8 characters / 40 bits
+         * (see [ResetTokens]). [AttemptLimiter] carries the reasoning; the shape here
+         * is: check before the lookup so a caller who is out of budget cannot keep
+         * probing, and count only genuine token failures so a correct code — or a
+         * merely weak new password — never spends anything.
          */
         post("/reset") {
+            val callerAddress = call.request.origin.remoteAddress
+            resetAttemptLimiter.check(callerAddress)
+
             val body = call.receive<ResetPasswordRequest>()
+            // Normalise first, then check for blank: a code of only spaces and
+            // hyphens is "no code given", which is token_required rather than a
+            // wrong guess. Neither counts against the limit.
             val token = Validation.requireNotBlank(
-                body.token, "token_required", "Reset token is required."
+                ResetTokens.normalise(body.token), "token_required", "Reset token is required."
             )
             val newPassword = Validation.password(body.newPassword)
 
             val user = authRepository.findByResetToken(token)
-                ?: throw BadRequestException("invalid_token", "That reset token is not valid.")
+            if (user == null) {
+                resetAttemptLimiter.recordFailure(callerAddress)
+                throw BadRequestException("invalid_token", "That reset token is not valid.")
+            }
 
             val expiresAt = user.resetTokenExpiresAt
             if (expiresAt == null || expiresAt < System.currentTimeMillis()) {
+                // Counted too: an expired code is one an attacker could have guessed
+                // just as easily as a live one, so the guess should still cost.
+                resetAttemptLimiter.recordFailure(callerAddress)
                 throw BadRequestException("expired_token", "That reset token has expired.")
             }
 

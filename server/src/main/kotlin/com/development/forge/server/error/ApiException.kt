@@ -47,3 +47,17 @@ class ConflictException(
     error: String = "conflict",
     message: String
 ) : ApiException(HttpStatusCode.Conflict, error, message)
+
+/**
+ * 429 — the caller has made too many attempts recently.
+ *
+ * Only `/auth/reset` throws this today: the reset code is short enough to be worth
+ * guessing, so failed attempts are counted
+ * (`security/AttemptLimiter.kt`). Adding it needed **no StatusPages change** — the
+ * `exception<ApiException>` handler already renders any subclass with its own
+ * status and error code, which is the point of the sealed hierarchy.
+ */
+class TooManyRequestsException(
+    error: String = "too_many_attempts",
+    message: String
+) : ApiException(HttpStatusCode.TooManyRequests, error, message)

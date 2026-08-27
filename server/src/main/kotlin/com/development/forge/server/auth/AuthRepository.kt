@@ -9,7 +9,6 @@ import com.mongodb.MongoWriteException
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.flow.firstOrNull
-import java.security.SecureRandom
 import java.util.UUID
 
 /**
@@ -85,27 +84,62 @@ class AuthRepository(private val mongo: MongoDatabase) {
     }
 
     /**
-     * Generates a single-use reset token, stores it with an expiry, and returns it.
+     * Generates a single-use reset code, stores it with an expiry, and returns it.
      *
-     * The token is 32 bytes from [SecureRandom] hex-encoded — not a UUID, and not
-     * derived from anything guessable about the user.
+     * The code is 8 characters from [ResetTokens] — short because a human reads it
+     * off the server console and types it into the app; email delivery is out of
+     * scope. See [ResetTokens] for the alphabet and the 40-bit figure, and
+     * [com.development.forge.server.security.AttemptLimiter] for the rate limiting
+     * that makes a code that short safe to accept.
+     *
+     * **The retry loop is the price of a short code.** At 256 bits a collision was
+     * unthinkable and a plain write was fine. At 40 bits two live codes could
+     * coincide, and because [findByResetToken] matches on the code alone that would
+     * let one account's code reset a different account's password. The unique
+     * partial index on `resetToken` (see
+     * [com.development.forge.server.db.MongoDatabase.ensureIndexes]) turns that into
+     * a duplicate-key error instead of a silent cross-account reset — so here, a
+     * duplicate key means "that code is already out there" and we simply draw
+     * another.
+     *
+     * Exhausting [RESET_TOKEN_ATTEMPTS] needs the keyspace to be saturated, which
+     * would take on the order of a trillion outstanding codes. It surfaces as a 500
+     * rather than a wrong answer, which is the correct failure for a state that
+     * cannot occur.
      */
     suspend fun createResetToken(user: UserDocument): String {
-        val token = randomToken()
-        mongo.users.updateOne(
-            Filters.eq("_id", user.id),
-            Updates.combine(
-                Updates.set(UserDocument::resetToken.name, token),
-                Updates.set(
-                    UserDocument::resetTokenExpiresAt.name,
-                    System.currentTimeMillis() + ServerConfig.resetTokenValidityMillis
+        repeat(RESET_TOKEN_ATTEMPTS) {
+            val token = ResetTokens.generate()
+            try {
+                mongo.users.updateOne(
+                    Filters.eq("_id", user.id),
+                    Updates.combine(
+                        Updates.set(UserDocument::resetToken.name, token),
+                        Updates.set(
+                            UserDocument::resetTokenExpiresAt.name,
+                            System.currentTimeMillis() + ServerConfig.resetTokenValidityMillis
+                        )
+                    )
                 )
-            )
+                return token
+            } catch (e: MongoWriteException) {
+                if (e.error.category != com.mongodb.ErrorCategory.DUPLICATE_KEY) throw e
+            }
+        }
+        throw IllegalStateException(
+            "Could not find an unused reset code in $RESET_TOKEN_ATTEMPTS attempts."
         )
-        return token
     }
 
-    /** Looks up the holder of a reset token. Expiry is checked by the caller. */
+    /**
+     * Looks up the holder of a reset code. Expiry is checked by the caller.
+     *
+     * Expects an **already-normalised** code: `/auth/reset` runs
+     * [ResetTokens.normalise] before calling, the same arrangement [findByEmail] has
+     * with `Validation.email`. This is an exact match, so a lowercase or
+     * hyphen-grouped code that skipped normalisation would silently find nothing and
+     * be reported as `invalid_token`.
+     */
     suspend fun findByResetToken(token: String): UserDocument? =
         mongo.users.find(Filters.eq(UserDocument::resetToken.name, token)).firstOrNull()
 
@@ -124,9 +158,8 @@ class AuthRepository(private val mongo: MongoDatabase) {
         )
     }
 
-    private fun randomToken(): String {
-        val bytes = ByteArray(32)
-        SecureRandom().nextBytes(bytes)
-        return bytes.joinToString("") { "%02x".format(it) }
+    private companion object {
+        /** Draws before giving up on finding an unused reset code. See [createResetToken]. */
+        const val RESET_TOKEN_ATTEMPTS = 5
     }
 }

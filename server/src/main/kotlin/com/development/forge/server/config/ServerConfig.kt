@@ -53,6 +53,31 @@ object ServerConfig {
     val resetTokenValidityMillis: Long =
         env("RESET_TOKEN_VALIDITY_MS")?.toLongOrNull() ?: (60L * 60 * 1000)
 
+    /**
+     * How many **failed** `/auth/reset` attempts one address may make per
+     * [resetAttemptWindowMillis] before the endpoint answers `429 too_many_attempts`.
+     *
+     * Ten is generous for a human copying an 8-character code off a screen — two or
+     * three fumbles is typical — and useless for a search: it caps one address at
+     * roughly forty guesses an hour against a keyspace of 1.1 × 10¹².
+     */
+    val resetMaxAttemptsPerIp: Int = env("RESET_MAX_ATTEMPTS_PER_IP")?.toIntOrNull() ?: 10
+
+    /**
+     * Server-wide ceiling on failed `/auth/reset` attempts per window — the backstop
+     * against an attacker rotating addresses, which per-address counting cannot see.
+     * A hundred failed resets in fifteen minutes is not a user having a bad day.
+     */
+    val resetMaxAttemptsGlobal: Int = env("RESET_MAX_ATTEMPTS_GLOBAL")?.toIntOrNull() ?: 100
+
+    /**
+     * Sliding window for both reset-attempt limits. A quarter of the code's life, so
+     * a throttled legitimate user recovers well inside the window in which their own
+     * code is still valid.
+     */
+    val resetAttemptWindowMillis: Long =
+        env("RESET_ATTEMPT_WINDOW_MS")?.toLongOrNull() ?: (15L * 60 * 1000)
+
     /** Minimum accepted password length, enforced on register and reset. */
     val minPasswordLength: Int = env("MIN_PASSWORD_LENGTH")?.toIntOrNull() ?: 8
 

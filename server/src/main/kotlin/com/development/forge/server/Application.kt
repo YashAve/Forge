@@ -11,6 +11,7 @@ import com.development.forge.server.plugins.configureMonitoring
 import com.development.forge.server.plugins.configureSecurity
 import com.development.forge.server.plugins.configureSerialization
 import com.development.forge.server.plugins.configureStatusPages
+import com.development.forge.server.security.AttemptLimiter
 import com.development.forge.server.task.TaskRepository
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -56,6 +57,7 @@ fun Application.forgeModule() {
     val googleTokenVerifier by inject<GoogleTokenVerifier>()
     val authRepository by inject<AuthRepository>()
     val taskRepository by inject<TaskRepository>()
+    val resetAttemptLimiter by inject<AttemptLimiter>()
 
     // Cross-cutting plugins first, then routes.
     configureSerialization()
@@ -63,11 +65,14 @@ fun Application.forgeModule() {
     configureCors()
     configureStatusPages()
     configureSecurity(jwtService)
-    configureRouting(authRepository, taskRepository, jwtService, googleTokenVerifier)
+    configureRouting(
+        authRepository, taskRepository, jwtService, googleTokenVerifier, resetAttemptLimiter
+    )
 
-    // Unique index on users.email + owner index on tasks.userId. Blocking on
-    // purpose: if Mongo is unreachable the server should fail loudly at startup
-    // rather than serve requests that will fail one by one.
+    // Unique index on users.email, unique partial index on users.resetToken, and
+    // the owner index on tasks.userId. Blocking on purpose: if Mongo is unreachable
+    // the server should fail loudly at startup rather than serve requests that will
+    // fail one by one.
     runBlocking { mongo.ensureIndexes() }
 
     if (ServerConfig.isUsingDevGoogleWebClientId) {

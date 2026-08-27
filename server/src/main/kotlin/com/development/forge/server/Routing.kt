@@ -4,6 +4,7 @@ import com.development.forge.server.auth.AuthRepository
 import com.development.forge.server.auth.GoogleTokenVerifier
 import com.development.forge.server.auth.JwtService
 import com.development.forge.server.auth.authRoutes
+import com.development.forge.server.security.AttemptLimiter
 import com.development.forge.server.task.TaskRepository
 import com.development.forge.server.task.taskRoutes
 import com.development.forge.shared.api.MessageResponse
@@ -24,7 +25,8 @@ fun Application.configureRouting(
     authRepository: AuthRepository,
     taskRepository: TaskRepository,
     jwtService: JwtService,
-    googleTokenVerifier: GoogleTokenVerifier
+    googleTokenVerifier: GoogleTokenVerifier,
+    resetAttemptLimiter: AttemptLimiter
 ) {
     routing {
         /** Unauthenticated liveness probe — handy for checking the server is up. */
@@ -32,7 +34,8 @@ fun Application.configureRouting(
             call.respond(HttpStatusCode.OK, MessageResponse("Forge server is running."))
         }
 
-        authRoutes(authRepository, jwtService, googleTokenVerifier)  // /auth/* — no token required
+        // /auth/* — no token required
+        authRoutes(authRepository, jwtService, googleTokenVerifier, resetAttemptLimiter)
         taskRoutes(taskRepository)               // /tasks/* — JWT required, user-scoped
     }
 }

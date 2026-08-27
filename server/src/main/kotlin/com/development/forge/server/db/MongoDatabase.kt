@@ -2,6 +2,7 @@ package com.development.forge.server.db
 
 import com.development.forge.server.config.ServerConfig
 import com.mongodb.MongoClientSettings
+import com.mongodb.client.model.Filters
 import com.mongodb.client.model.IndexOptions
 import com.mongodb.client.model.Indexes
 import com.mongodb.kotlin.client.coroutine.MongoClient
@@ -43,11 +44,25 @@ class MongoDatabase(
      *    guarantee, not just an application check. The 409 path in
      *    `AuthRepository.createUser` relies on this to close the race where two
      *    simultaneous registrations both pass the "does this email exist?" read.
+     *  - users.resetToken UNIQUE, PARTIAL → the reset code is only 40 bits (see
+     *    `auth/ResetTokens.kt`), so two live codes coinciding is improbable rather
+     *    than impossible. `findByResetToken` matches on the code alone, so a
+     *    collision would let one account's code reset another account's password.
+     *    This index makes that a duplicate-key error that `createResetToken`
+     *    retries. **Partial** rather than plain unique because `updatePassword`
+     *    *unsets* the field: without the filter, every account with no reset in
+     *    flight would collide on a missing value.
      *  - tasks.userId → every task query filters by owner, so this is *the* index
      *    that keeps user-scoped reads fast.
      */
     suspend fun ensureIndexes() {
         users.createIndex(Indexes.ascending(UserDocument::email.name), IndexOptions().unique(true))
+        users.createIndex(
+            Indexes.ascending(UserDocument::resetToken.name),
+            IndexOptions()
+                .unique(true)
+                .partialFilterExpression(Filters.exists(UserDocument::resetToken.name, true))
+        )
         tasks.createIndex(Indexes.ascending(TaskDocument::userId.name))
         log.info("Mongo indexes ensured on '{}' ({}, {})", database.name, USERS, TASKS)
     }
