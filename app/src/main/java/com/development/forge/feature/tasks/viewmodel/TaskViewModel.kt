@@ -68,16 +68,16 @@ class TaskViewModel @Inject constructor(
         }
 
     private fun saveTask() {
-        val editingTaskId = _taskState.value.editingTaskId
-        val title = _taskState.value.title
+        val editingTaskId = taskState.value.editingTaskId
+        val title = taskState.value.title
 
         if (title.isBlank()) return
 
-        val priority = _taskState.value.priority
-        val project = _taskState.value.project
-        val dueAt = _taskState.value.dueAt
-        val notes = _taskState.value.notes
-        val subtasks = _taskState.value.subtasks.map { it.title }
+        val priority = taskState.value.priority
+        val project = taskState.value.project
+        val dueAt = taskState.value.dueAt
+        val notes = taskState.value.notes
+        val subtasks = taskState.value.subtasks.map { it.title }
 
         viewModelScope.launch {
             _taskState.update { it.copy(isSaving = true) }
