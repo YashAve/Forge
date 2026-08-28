@@ -26,7 +26,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -69,9 +68,11 @@ import com.development.forge.feature.splash.contract.SplashIntent
 import com.development.forge.feature.splash.ui.SplashScreen
 import com.development.forge.feature.splash.viewmodel.SplashViewModel
 import com.development.forge.feature.stats.StatsScreen
+import com.development.forge.feature.tasks.contract.TaskEffect
 import com.development.forge.feature.tasks.ui.AddOrEditTaskScreen
 import com.development.forge.feature.tasks.ui.TaskDetailScreen
 import com.development.forge.feature.tasks.ui.TaskListScreen
+import com.development.forge.feature.tasks.viewmodel.TaskViewModel
 import com.development.forge.navigation.ForgeNavKey.EmailSent
 import com.development.forge.navigation.ForgeNavKey.ForgotPassword
 import com.development.forge.navigation.ForgeNavKey.Login
@@ -89,25 +90,20 @@ fun ForgeNavHost(
     initialDestination: ForgeNavKey = Splash,
     onToggleTheme: () -> Unit = {}
 ) {
-    val context = LocalContext.current
     val activity = LocalActivity.current
+
     val scope = rememberCoroutineScope()
     val backStack = rememberNavBackStack(initialDestination)
     val currentDestination = backStack.lastOrNull()
+
     val snackBarHostState = remember { SnackbarHostState() }
     val snackBarHost = @Composable { SnackbarHost(snackBarHostState) }
+    val amber = ForgeTheme.colors.amber
 
-    val amber = ForgeTheme.colors.amber   // captured for the drawBehind ambient wash below
-
-    // One AuthViewModel for the whole auth flow. Activity-scoped in practice because the
-    // Nav3 ViewModel-store decorator isn't wired (see libs.versions.toml), so every
-    // hiltViewModel() below resolves to the same instance. The ViewModel owns all auth
-    // decisions; screens only send intents.
     val authViewModel: AuthViewModel = hiltViewModel()
+    val taskViewModel : TaskViewModel = hiltViewModel()
     val authState = authViewModel.authState.collectAsStateWithLifecycle()
 
-    // Auth effects are collected here, beside NavDisplay, tied to the nav host's lifecycle —
-    // not inside an entry, where it would be at the mercy of entryProvider recomposition.
     LaunchedEffect(Unit) {
         authViewModel.effect.collect { effect ->
             with(backStack) {
@@ -131,6 +127,14 @@ fun ForgeNavHost(
                         add(Login)
                     }
                 }
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        taskViewModel.effect.collect { effect ->
+            when (effect) {
+                TaskEffect.NavigateBack -> { }
             }
         }
     }
@@ -203,7 +207,7 @@ fun ForgeNavHost(
                     is ForgeNavKey.TaskList -> ForgeTaskTopBar(
                         label = "All tasks",
                         onStart = { OnForgeOnBack { backStack.removeLastOrNull() } },
-                        onEnd = { OnForgeOnAdd { /* TODO: open add sheet */ } }
+                        onEnd = { OnForgeOnAdd {  } }
                     )
 
                     is ForgeNavKey.TaskDetail -> ForgeTaskTopBar(
@@ -396,7 +400,7 @@ fun ForgeNavHost(
                                 backStack.add(ForgeNavKey.TaskDetail(taskId))
                             },
                             onToggle = {
-                                // TODO: toggle task done state
+
                             },
                             onAdd = {
 
@@ -440,7 +444,7 @@ fun ForgeNavHost(
                                 backStack.add(ForgeNavKey.TaskDetail(taskId))
                             },
                             onToggle = {
-                                // TODO: toggle task done state
+
                             },
                             onAdd = {
                                 backStack.add(ForgeNavKey.AddOrEditTask)
@@ -456,13 +460,13 @@ fun ForgeNavHost(
                                 modifier = basicModifier,
                                 task = task,
                                 onToggle = {
-                                    // TODO: reopen task
+
                                 },
                                 onComplete = {
-                                    // TODO: complete task
+
                                 },
                                 onToggleSub = {
-                                    // TODO: toggle subtask
+
                                 },
                                 onEdit = {
 

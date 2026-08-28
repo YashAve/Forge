@@ -1,21 +1,31 @@
 package com.development.forge.feature.tasks.contract
 
 import com.development.forge.domain.model.Priority
+import com.development.forge.domain.model.Subtask
 import kotlin.time.Instant
 
 data class TaskState(
-    val taskId: String = "",
+    val editingTaskId: String? = null,
     val title: String = "",
     val priority: Priority = Priority.MED,
     val dueAt: Instant? = null,
     val project: String? = null,
     val notes: String? = null,
-    val subTask: List<String> = emptyList(),
+    val subtasks: List<Subtask> = emptyList(),
     val isSaving: Boolean = false
 )
 
 sealed interface TaskIntent {
-
+    data class StartEdit(val taskId: String) : TaskIntent
+    data object ClearForm : TaskIntent
+    data class UpdateTitle(val title: String) : TaskIntent
+    data class UpdatePriority(val priority: Priority) : TaskIntent
+    data class UpdateDueAt(val dueAt: Instant?) : TaskIntent
+    data class UpdateProject(val project: String?) : TaskIntent
+    data class UpdateNotes(val notes: String?) : TaskIntent
+    data class AddSubtask(val title: String) : TaskIntent
+    data class RemoveSubtask(val index: Int) : TaskIntent
+    data object SaveTask : TaskIntent
 }
 
 sealed interface TaskEffect {

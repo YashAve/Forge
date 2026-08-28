@@ -7,7 +7,11 @@ import com.development.forge.data.local.database.AppDatabase
 import com.development.forge.data.local.entity.SubTaskEntity
 import com.development.forge.data.local.entity.SyncState
 import com.development.forge.data.local.entity.TaskEntity
+import com.development.forge.data.local.entity.TaskWithSubTask
 import com.development.forge.domain.model.Priority
+import com.development.forge.domain.model.Subtask
+import com.development.forge.domain.model.Task
+import kotlinx.coroutines.flow.first
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -39,6 +43,20 @@ class TaskRepository @Inject constructor(
             syncState = SyncState.PENDING_CREATE
         )
     }
+
+    suspend fun getTaskById(taskId: String): Task? =
+        taskDao.getTaskById(taskId).first().toTask()
+
+    private fun TaskWithSubTask.toTask() = Task(
+        id = task.taskId,
+        title = task.title,
+        done = task.done,
+        priority = task.priority,
+        dueAt = task.dueAt,
+        project = task.project,
+        notes = task.notes,
+        subtasks = subtasks.map { Subtask(it.subTaskId, it.title, it.isDone) }
+    )
 
     suspend fun updateTask(
         taskId: String,

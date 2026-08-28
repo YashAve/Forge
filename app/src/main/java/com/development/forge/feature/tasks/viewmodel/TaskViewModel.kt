@@ -1,6 +1,9 @@
 package com.development.forge.feature.tasks.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.development.forge.data.repository.TaskRepository
+import com.development.forge.domain.model.Priority
 import com.development.forge.feature.tasks.contract.TaskEffect
 import com.development.forge.feature.tasks.contract.TaskIntent
 import com.development.forge.feature.tasks.contract.TaskState
@@ -9,10 +12,16 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
+import kotlin.time.Instant
 
 @HiltViewModel
-class TaskViewModel @Inject constructor() : ViewModel() {
+class TaskViewModel @Inject constructor(
+    private val taskRepository: TaskRepository
+) : ViewModel() {
 
     private val _taskState = MutableStateFlow(TaskState())
     val taskState = _taskState.asStateFlow()
@@ -21,6 +30,83 @@ class TaskViewModel @Inject constructor() : ViewModel() {
     val effect = _effect.receiveAsFlow()
 
     fun onIntent(intent: TaskIntent) {
+        when (intent) {
+            is TaskIntent.StartEdit -> loadTask(intent.taskId)
+            TaskIntent.ClearForm -> clearForm()
+            is TaskIntent.UpdateTitle -> updateTitle(intent.title)
+            is TaskIntent.UpdatePriority -> updatePriority(intent.priority)
+            is TaskIntent.UpdateProject -> updateProject(intent.project)
+            is TaskIntent.UpdateDueAt -> updateDueAt(intent.dueAt)
+            is TaskIntent.UpdateNotes -> updateNotes(intent.notes)
+            is TaskIntent.AddSubtask -> addSubTask(intent.title)
+            is TaskIntent.RemoveSubtask -> removeSubTask(intent.index)
+            is TaskIntent.SaveTask -> saveTask()
+        }
+    }
 
+    private fun updateTitle(title: String) = _taskState.update { it.copy(title = title) }
+    private fun updatePriority(priority: Priority) =
+        _taskState.update { it.copy(priority = priority) }
+    private fun updateProject(project: String?) = _taskState.update { it.copy(project = project) }
+    private fun updateDueAt(dueAt: Instant?) = _taskState.update { it.copy(dueAt = dueAt) }
+    private fun updateNotes(notes: String?) = _taskState.update { it.copy(notes = notes) }
+    private fun clearForm() = _taskState.update { TaskState() }
+
+    private fun addSubTask(title: String) =
+        _taskState.update {
+            it.copy(
+                subtasks = it.subtasks + com.development.forge.domain.model.Subtask(
+                    id = UUID.randomUUID().toString(),
+                    title = title
+                )
+            )
+        }
+
+    private fun removeSubTask(index: Int) =
+        _taskState.update {
+            it.copy(subtasks = it.subtasks.toMutableList().apply { removeAt(index) })
+        }
+
+    private fun saveTask() {
+        val editingTaskId = _taskState.value.editingTaskId
+        val title = _taskState.value.title
+
+        if (title.isBlank()) return
+
+        val priority = _taskState.value.priority
+        val project = _taskState.value.project
+        val dueAt = _taskState.value.dueAt
+        val notes = _taskState.value.notes
+        val subtasks = _taskState.value.subtasks.map { it.title }
+
+        viewModelScope.launch {
+            _taskState.update { it.copy(isSaving = true) }
+            if (editingTaskId == null) {
+                taskRepository.createTask(title, priority, dueAt, project, notes, subtasks)
+            } else {
+                taskRepository.updateTask(
+                    editingTaskId, title, priority, dueAt, project, notes, subtasks
+                )
+            }
+            _taskState.update { it.copy(isSaving = false) }
+            _effect.send(TaskEffect.NavigateBack)
+        }
+    }
+
+    private fun loadTask(taskId: String) {
+        viewModelScope.launch {
+            val task = taskRepository.getTaskById(taskId) ?: return@launch
+            _taskState.update {
+                it.copy(
+                    editingTaskId = taskId,
+                    title = task.title,
+                    priority = task.priority,
+                    dueAt = task.dueAt,
+                    project = task.project,
+                    notes = task.notes,
+                    subtasks = task.subtasks
+                )
+            }
+        }
     }
 }
