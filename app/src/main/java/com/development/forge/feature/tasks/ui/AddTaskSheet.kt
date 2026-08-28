@@ -1,4 +1,4 @@
-package com.development.forge.feature.tasks
+package com.development.forge.feature.tasks.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -50,7 +50,7 @@ import com.development.forge.core.components.ForgeTextField
 import com.development.forge.core.designsystem.ForgeFonts
 import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.domain.model.Task
-import com.development.forge.feature.tasks.components.ForgeSelectionChip
+import com.development.forge.core.components.ForgeSelectionChip
 
 /**
  * DESIGN SPECIFICATION — Add / Edit Task bottom sheet (v2, redesigned)

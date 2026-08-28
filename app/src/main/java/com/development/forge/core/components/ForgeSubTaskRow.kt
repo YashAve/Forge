@@ -1,4 +1,4 @@
-package com.development.forge.feature.tasks.components
+package com.development.forge.core.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

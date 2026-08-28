@@ -1,4 +1,4 @@
-package com.development.forge.feature.tasks.components
+package com.development.forge.core.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background

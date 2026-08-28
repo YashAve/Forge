@@ -30,14 +30,13 @@ interface TaskDao {
     suspend fun getPendingTasks(): List<TaskWithSubTask>
     @Query("DELETE FROM tasks WHERE task_id = :taskId AND sync_state = 'PENDING_DELETE'")
     suspend fun deletePending(taskId: String)
+    @Query("UPDATE tasks SET done = :isDone, sync_state = 'PENDING_UPDATE' WHERE task_id = :taskId")
+    suspend fun toggleTaskDone(taskId: String, isDone: Boolean)
+    @Query("UPDATE tasks SET sync_state = 'PENDING_DELETE' WHERE task_id = :taskId")
+    suspend fun softDeleteTask(taskId: String)
     @Transaction
     @Query("SELECT * FROM tasks WHERE sync_state != 'PENDING_DELETE'")
     fun getVisibleTasks(): Flow<List<TaskWithSubTask>>
-    @Transaction
-    suspend fun createTaskWithSubtasks(subtaskDao: SubtaskDao, task: TaskEntity, subtasks: List<SubTaskEntity>) {
-        upsertTask(task)
-        subtasks.forEach { subtaskDao.upsertSubTask(it) }
-    }
 }
 
 @Dao

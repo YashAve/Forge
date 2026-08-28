@@ -1,4 +1,4 @@
-package com.development.forge.feature.tasks.components
+package com.development.forge.core.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.EaseOut

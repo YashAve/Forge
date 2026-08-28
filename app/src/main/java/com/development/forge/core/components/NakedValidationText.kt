@@ -1,4 +1,4 @@
-package com.development.forge.feature.tasks.components
+package com.development.forge.core.components
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer

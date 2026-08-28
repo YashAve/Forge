@@ -69,9 +69,9 @@ import com.development.forge.feature.splash.contract.SplashIntent
 import com.development.forge.feature.splash.ui.SplashScreen
 import com.development.forge.feature.splash.viewmodel.SplashViewModel
 import com.development.forge.feature.stats.StatsScreen
-import com.development.forge.feature.tasks.AddOrEditTaskScreen
-import com.development.forge.feature.tasks.TaskDetailScreen
-import com.development.forge.feature.tasks.TaskListScreen
+import com.development.forge.feature.tasks.ui.AddOrEditTaskScreen
+import com.development.forge.feature.tasks.ui.TaskDetailScreen
+import com.development.forge.feature.tasks.ui.TaskListScreen
 import com.development.forge.navigation.ForgeNavKey.EmailSent
 import com.development.forge.navigation.ForgeNavKey.ForgotPassword
 import com.development.forge.navigation.ForgeNavKey.Login

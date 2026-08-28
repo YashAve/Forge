@@ -1,4 +1,4 @@
-package com.development.forge.feature.tasks
+package com.development.forge.feature.tasks.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -60,14 +60,14 @@ import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.domain.model.Priority
 import com.development.forge.domain.model.Task
 import com.development.forge.domain.model.tasks
-import com.development.forge.feature.tasks.components.DynamicSubTaskUiItem
-import com.development.forge.feature.tasks.components.ForgeDatePickerDialog
-import com.development.forge.feature.tasks.components.ForgeNakedValidationText
-import com.development.forge.feature.tasks.components.ForgePickerField
-import com.development.forge.feature.tasks.components.ForgePrioritySegmented
-import com.development.forge.feature.tasks.components.ForgeSelectionChip
-import com.development.forge.feature.tasks.components.ForgeSubTaskRow
-import com.development.forge.feature.tasks.components.ForgeTimePickerDialog
+import com.development.forge.core.components.DynamicSubTaskUiItem
+import com.development.forge.core.components.ForgeDatePickerDialog
+import com.development.forge.core.components.ForgeNakedValidationText
+import com.development.forge.core.components.ForgePickerField
+import com.development.forge.core.components.ForgePrioritySegmented
+import com.development.forge.core.components.ForgeSelectionChip
+import com.development.forge.core.components.ForgeSubTaskRow
+import com.development.forge.core.components.ForgeTimePickerDialog
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar

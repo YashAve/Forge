@@ -1,4 +1,4 @@
-package com.development.forge.feature.tasks
+package com.development.forge.feature.tasks.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
