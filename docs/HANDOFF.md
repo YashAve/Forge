@@ -111,6 +111,39 @@ user1 GET  /tasks                          -> both of their own tasks
 So the "catch duplicate, return the existing task" shortcut you rejected would indeed have handed
 one user another user's task. Scoping holds on both the read and write paths.
 
+## 🔧 The task form was wired up, and the edit path was duplicating tasks
+
+Two commits after the note above was first written — flagging them because the second is a data bug,
+not plumbing.
+
+`8efc2f1` (Yash's) connects `AddOrEditTaskScreen` to `TaskViewModel`. It had been called with only a
+modifier and an `onBack`, so nothing typed into it ever reached the ViewModel. `SaveTask` also
+changed shape to carry its subtask titles as `List<String>`.
+
+`6f8fbc6` then wires the four routes that reach that screen. **All four navigated without telling
+the ViewModel what they were opening**, and `TaskViewModel` is scoped to the nav host, so its state
+outlives any single visit:
+
+| Route | Was |
+|---|---|
+| TaskList top-bar `+` | an empty lambda — did nothing at all |
+| Bottom-nav add, TaskList `onAdd` | navigated without clearing; form held the last task edited |
+| TaskDetail edit | navigated without `StartEdit`, so `editingTaskId` was never set |
+
+That last one matters: with `editingTaskId` null, `saveTask()` takes the create branch, so **editing
+a task and saving would have written a second task** rather than updating it. Silent duplication,
+and only reachable once `8efc2f1` made the screen functional.
+
+`TaskIntent.ClearForm` and `TaskIntent.StartEdit` already existed and were already dispatched in
+`onIntent` — neither had a caller. The fix only adds the dispatches.
+
+This is also the long-carried "`+` always opens Edit Task on task[0]" item: nothing ever reset the
+form, so once any task had been opened for editing, every later "add" reopened it. That line can
+come off the carried-over list.
+
+**Not run.** The save path still has no device pass, and `TaskRepository.createTask` sits on the
+offline-first Room layer that doesn't build yet.
+
 ## What the Android client still owes (unchanged, now with evidence)
 
 `too_many_attempts` is reachable in under a second of tapping, and it maps to `AuthError.UNKNOWN`.
@@ -159,8 +192,8 @@ a round-trip in most of them. It is the cheapest thing on either of our lists.
 - `TaskDao.deleteTask`/`deleteTasks` duplicate `@Delete vararg`, only one `suspend`.
 - `core/mvi` base still has zero implementors while four ViewModels hand-roll the same shape.
 - `:shared` still declares `implementation(libs.kotlinx.serialization.json)`, not `api(...)`.
-- **New-task capture unreachable**; `ForgeDatePickerDialog` NPEs on OK-without-selection; save
-  hardcoded; `AddTaskSheet.kt` orphaned; Task List bucket-overlap crash.
+- `ForgeDatePickerDialog` NPEs on OK-without-selection; save hardcoded; `AddTaskSheet.kt`
+  orphaned; Task List bucket-overlap crash. (New-task capture is now reachable — see above.)
 - Server `TaskDto` exposes `due: String?` vs. the local typed `Instant?`.
 - Stats hardcoded; `Motion.kt` empty; `SuccessScreen` reset button not deleted.
 - **`ForgeTextField` focus ring still an empty `drawBehind { }` stub — 40th note running.**
