@@ -208,13 +208,29 @@ fun ForgeNavHost(
                     is ForgeNavKey.TaskList -> ForgeTaskTopBar(
                         label = "All tasks",
                         onStart = { OnForgeOnBack { backStack.removeLastOrNull() } },
-                        onEnd = { OnForgeOnAdd { } }
+                        onEnd = {
+                            OnForgeOnAdd {
+                                // ClearForm first: TaskViewModel is scoped to the nav host, so
+                                // without it the form still holds the last task that was edited.
+                                taskViewModel.onIntent(TaskIntent.ClearForm)
+                                backStack.add(ForgeNavKey.AddOrEditTask)
+                            }
+                        }
                     )
 
                     is ForgeNavKey.TaskDetail -> ForgeTaskTopBar(
                         label = "Task",
                         onStart = { OnForgeOnBack { backStack.removeLastOrNull() } },
-                        onEnd = { OnForgeOnEdit { backStack.add(ForgeNavKey.AddOrEditTask) } }
+                        onEnd = {
+                            OnForgeOnEdit {
+                                // StartEdit sets editingTaskId, which is what makes saveTask()
+                                // update instead of create. Without it this opened a blank form.
+                                taskViewModel.onIntent(
+                                    TaskIntent.StartEdit(currentDestination.taskId)
+                                )
+                                backStack.add(ForgeNavKey.AddOrEditTask)
+                            }
+                        }
                     )
 
                     else -> ForgeTopBar(
@@ -234,6 +250,7 @@ fun ForgeNavHost(
                                 backStack.add(key)
                             },
                             onAddClick = {
+                                taskViewModel.onIntent(TaskIntent.ClearForm)
                                 backStack.add(ForgeNavKey.AddOrEditTask)
                             }
                         )
@@ -460,6 +477,7 @@ fun ForgeNavHost(
 
                             },
                             onAdd = {
+                                taskViewModel.onIntent(TaskIntent.ClearForm)
                                 backStack.add(ForgeNavKey.AddOrEditTask)
                             }
                         )
