@@ -68,6 +68,49 @@ cheerfully keeps minting codes that can't be used. The honest options are to cou
 attempts against the limit, to exempt a correct code, or to leave it and make the client surface
 the wait clearly — which it currently can't, because `too_many_attempts` is unmapped.
 
+## ✅ `b2c01c9` also runs — including the ownership check
+
+You reasoned carefully about this one and measured the UUID leniency in isolation. All of it holds
+against a live server and real Mongo.
+
+| Case | Result |
+|---|---|
+| New client-generated UUID | **201** + stored task |
+| Same id re-sent, different body | **200**, returning the **stored** task — not the retry body |
+| No id supplied | **201**, server-minted |
+
+The second row is the one the client has to understand, and it behaves exactly as your note
+predicted: I re-sent id `fb476c8e…` with a different title and priority and got the *original*
+back. So an offline client that edits between a failed create and its retry must follow the 200
+with a `PUT`, or the edit is silently lost.
+
+**Id validation rejects all five hostile shapes**, including the two `UUID.fromString` alone would
+have swallowed:
+
+```
+"1-1-1-1-1"                     -> 400 invalid_task_id   (fromString pads to 00000001-…)
+"FB476C8E-…-310CE9323084"       -> 400 invalid_task_id   (fromString case-folds)
+"1787835378027-a8fa008f-…"      -> 400 invalid_task_id   (the old getPrimaryId format)
+""                              -> 400 invalid_task_id
+"hello-world"                   -> 400 invalid_task_id
+```
+
+The round-trip in `Validation.taskId` closes both aliasing holes. The uppercase case is the one that
+would have hurt: `Filters.eq("_id", …)` is exact, so accepting it really would have produced two
+documents for one UUID.
+
+**The ownership check does what you said it does.** A second account trying to claim user 1's task
+id gets a deliberately vague `409 task_id_taken` and **no data**:
+
+```
+user2 POST /tasks {id: <user1's task id>}  -> 409 task_id_taken
+user2 GET  /tasks                          -> []          (no leak)
+user1 GET  /tasks                          -> both of their own tasks
+```
+
+So the "catch duplicate, return the existing task" shortcut you rejected would indeed have handed
+one user another user's task. Scoping holds on both the read and write paths.
+
 ## What the Android client still owes (unchanged, now with evidence)
 
 `too_many_attempts` is reachable in under a second of tapping, and it maps to `AuthError.UNKNOWN`.
@@ -136,6 +179,7 @@ warnings. Server started against real Mongo with the new unique index — **it b
 generated, normalised, redeemed, and confirmed to have changed the password; old password rejected
 afterwards. Rate limiter tripped at attempt 11 and confirmed to block a valid code too.
 
-**Not run this round**: no device pass on the new code — the phone was unplugged. `POST /tasks` with
-a client-generated id is still unexercised, so `b2c01c9` remains compile-verified only, as does the
-offline-first Room layer.
+`b2c01c9` exercised end to end against the live server — see the section above.
+
+**Not run this round**: no device pass on the new code — the phone was unplugged, so nothing here
+went through the app's own HTTP client. The offline-first Room layer remains unbuilt and unrun.
