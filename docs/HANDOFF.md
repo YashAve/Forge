@@ -144,6 +144,47 @@ come off the carried-over list.
 **Not run.** The save path still has no device pass, and `TaskRepository.createTask` sits on the
 offline-first Room layer that doesn't build yet.
 
+## ⚠️ `PUT /tasks/{id}` really is a full replace — measured, and it now matters
+
+This has been a one-line footnote for several notes. It is worth promoting, because the edit path
+became reachable this round. Created a task with everything populated, then sent a title-only PUT:
+
+```
+PUT /tasks/{id}  {"title":"Retitled only"}   -> 200
+```
+
+The stored task came back as:
+
+```
+title    "Full task"  -> "Retitled only"
+priority HIGH         -> MED          (the default, not the stored value)
+project  "Forge"      -> null
+notes    "some notes" -> null
+subtasks [sub A, sub B] -> []
+```
+
+So every field the caller omits is destroyed, and `priority` silently reverts to the DTO default
+rather than being left alone. That is correct for a PUT by the letter of REST, and a data-loss
+hazard in practice.
+
+**What makes it live rather than theoretical**: `TaskRepository.updateTask` on the client declares
+`priority: Priority = Priority.MED`, `project: String? = null`, `notes: String? = null`,
+`subtasks: List<String> = emptyList()`. Any call site that omits an argument sends exactly the
+values that this PUT then writes over the stored task. The defaults and the full replace compose
+into silent erasure, and neither half looks wrong on its own.
+
+Nothing is at risk *yet*, because of the next point — but it will be the moment sync is wired.
+
+## `TaskApi` cannot yet write to the server at all
+
+Worth stating plainly since `b2c01c9` was built for the client and the client can't reach it:
+`TaskApi` declares exactly one method, `getTasks(token)`. There is no POST, PUT or DELETE, and
+`data/repository/TaskRepository` **never references `TaskApi`** — it only touches the DAOs.
+
+So the offline-first layer currently has no upload half: `SyncState.PENDING_CREATE` /
+`PENDING_UPDATE` / `PENDING_DELETE` are written to Room and nothing ever drains them. The
+client-generated task id that `b2c01c9` was added to accept has no code path that sends it.
+
 ## What the Android client still owes (unchanged, now with evidence)
 
 `too_many_attempts` is reachable in under a second of tapping, and it maps to `AuthError.UNKNOWN`.
@@ -197,8 +238,8 @@ a round-trip in most of them. It is the cheapest thing on either of our lists.
 - Server `TaskDto` exposes `due: String?` vs. the local typed `Instant?`.
 - Stats hardcoded; `Motion.kt` empty; `SuccessScreen` reset button not deleted.
 - **`ForgeTextField` focus ring still an empty `drawBehind { }` stub — 40th note running.**
-- Server-side: dev JWT secret in source, `/auth/forgot` logs the reset code, CORS `anyHost()`,
-  `PUT /tasks/{id}` is a full replace not a merge.
+- Server-side: dev JWT secret in source, `/auth/forgot` logs the reset code, CORS `anyHost()`.
+  (`PUT /tasks/{id}` full-replace is now measured — promoted to its own section above.)
 - Mongo password in `ServerConfig.kt:28`. Private repo, so hygiene not exposure.
 - No Room schema export dir; `gradle.properties` has dead `kapt.*` and a deprecated
   `useClasspathSnapshot`.
