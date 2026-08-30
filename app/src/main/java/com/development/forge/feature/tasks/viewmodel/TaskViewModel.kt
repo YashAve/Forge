@@ -40,7 +40,7 @@ class TaskViewModel @Inject constructor(
             is TaskIntent.UpdateNotes -> updateNotes(intent.notes)
             is TaskIntent.AddSubtask -> addSubTask(intent.title)
             is TaskIntent.RemoveSubtask -> removeSubTask(intent.index)
-            is TaskIntent.SaveTask -> saveTask()
+            is TaskIntent.SaveTask -> saveTask(intent.subtasks)
         }
     }
 
@@ -67,26 +67,22 @@ class TaskViewModel @Inject constructor(
             it.copy(subtasks = it.subtasks.toMutableList().apply { removeAt(index) })
         }
 
-    private fun saveTask() {
-        val editingTaskId = taskState.value.editingTaskId
-        val title = taskState.value.title
-
+    private fun saveTask(subtasks: List<String>) {
+        val editingTaskId = _taskState.value.editingTaskId
+        val title = _taskState.value.title
         if (title.isBlank()) return
 
-        val priority = taskState.value.priority
-        val project = taskState.value.project
-        val dueAt = taskState.value.dueAt
-        val notes = taskState.value.notes
-        val subtasks = taskState.value.subtasks.map { it.title }
+        val priority = _taskState.value.priority
+        val project = _taskState.value.project
+        val dueAt = _taskState.value.dueAt
+        val notes = _taskState.value.notes
 
         viewModelScope.launch {
             _taskState.update { it.copy(isSaving = true) }
             if (editingTaskId == null) {
                 taskRepository.createTask(title, priority, dueAt, project, notes, subtasks)
             } else {
-                taskRepository.updateTask(
-                    editingTaskId, title, priority, dueAt, project, notes, subtasks
-                )
+                taskRepository.updateTask(editingTaskId, title, priority, dueAt, project, notes, subtasks)
             }
             _taskState.update { it.copy(isSaving = false) }
             _effect.send(TaskEffect.NavigateBack)

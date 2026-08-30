@@ -12,6 +12,7 @@ data class TaskState(
     val project: String? = null,
     val notes: String? = null,
     val subtasks: List<Subtask> = emptyList(),
+    val existingProjects: List<String> = emptyList(),
     val isSaving: Boolean = false
 )
 
@@ -25,7 +26,7 @@ sealed interface TaskIntent {
     data class UpdateNotes(val notes: String?) : TaskIntent
     data class AddSubtask(val title: String) : TaskIntent
     data class RemoveSubtask(val index: Int) : TaskIntent
-    data object SaveTask : TaskIntent
+    data class SaveTask(val subtasks: List<String>) : TaskIntent
 }
 
 sealed interface TaskEffect {

@@ -33,7 +33,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -47,7 +46,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -66,78 +64,85 @@ import com.development.forge.core.components.OnForgeOnBack
 import com.development.forge.core.designsystem.ForgeFonts
 import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.domain.model.Priority
-import com.development.forge.domain.model.Task
-import com.development.forge.domain.model.tasks
+import com.development.forge.feature.tasks.contract.TaskState
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
+import kotlin.time.Instant
 
-// ... your full KDoc block stays exactly as it is ...
-
-@Preview
+/**
+ * Add / Edit task screen.
+ *
+ * Hoisted: title, priority, project, notes, and dueAt live in TaskState and are
+ * changed through callbacks. Subtasks are kept LOCAL to this screen (as
+ * DynamicSubTaskUiItem, which carries the isNew focus flag and supports inline
+ * editing) and are handed up only on save, via onSave(subtaskTitles).
+ *
+ * dueAt: the date + time pickers are the real source. The quick chips are
+ * shortcuts that pre-fill a date. The chip highlight and the picker field text
+ * are both derived from state.dueAt, so there is one source of truth.
+ */
 @Composable
 fun AddOrEditTaskScreen(
     modifier: Modifier = Modifier,
-    editingTask: Task? = null,
-    existingProjects: List<String> = listOf(
-        *tasks.mapNotNull { it.project }.distinct().toTypedArray()
-    ),
-    onSave: () -> Unit = { },
+    state: TaskState = TaskState(),
+    existingProjects: List<String> = emptyList(),
+    onUpdateTitle: (String) -> Unit = { },
+    onUpdatePriority: (Priority) -> Unit = { },
+    onUpdateProject: (String?) -> Unit = { },
+    onUpdateDueAt: (Instant?) -> Unit = { },
+    onUpdateNotes: (String?) -> Unit = { },
+    onSave: (List<String>) -> Unit = { },
     onBack: () -> Unit = { }
 ) {
+    // ── Compose infrastructure ──
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
-    var title by rememberSaveable { mutableStateOf(editingTask?.title ?: "") }
-    var notes by rememberSaveable { mutableStateOf(editingTask?.notes ?: "") }
-    var project by rememberSaveable { mutableStateOf(editingTask?.project ?: "") }
     val focusRequester = remember { FocusRequester() }
     val interactionSource = remember { MutableInteractionSource() }
-    val canSave by remember {
-        derivedStateOf {
-            title.trim().isNotEmpty()
-        }
-    }
+
+    // ── Derived from state ──
+    val canSave = state.title.trim().isNotEmpty() && !state.isSaving
+    val isEditing = state.editingTaskId != null
+
     val animateSaveColor by animateColorAsState(
         targetValue = if (canSave) ForgeTheme.colors.amber else ForgeTheme.colors.fgDisabled,
         animationSpec = tween(160, easing = EaseOut),
         label = "save animate color"
     )
 
-    val labels = listOf("Today", "Tomorrow", "This weekend", "Next week")
-    val selections = remember {
-        mutableStateListOf(
-            *(editingTask?.due?.let { due -> labels.map { it == due } }
-                ?: List(labels.size) { false }).toTypedArray()
-        )
-    }
+    // Display text derived from state.dueAt (single source of truth).
+    val dateText = state.dueAt?.let { formatDate(it) }
+    val timeText = state.dueAt?.let { formatInstantTime(it) }
 
-    var date: String? by rememberSaveable { mutableStateOf(null) }
-    var time: String? by rememberSaveable { mutableStateOf(null) }
+    // ── Due chips ──
+    val labels = listOf("Today", "Tomorrow", "This weekend", "Next week")
+    val selectedChip = state.dueAt?.let { chipIndexFor(it) } ?: -1
+
+    // ── Picker dialog visibility (UI-only) ──
     var isShowDate by rememberSaveable { mutableStateOf(false) }
     var isShowTime by rememberSaveable { mutableStateOf(false) }
 
-    // reminder window
+    // ── Reminder section (UI-only, not persisted) ──
     var remind by rememberSaveable { mutableStateOf(false) }
     var remindStart by rememberSaveable { mutableStateOf("9:00 AM") }
     var remindEnd by rememberSaveable { mutableStateOf("6:00 PM") }
     var isShowRemindStart by rememberSaveable { mutableStateOf(false) }
     var isShowRemindEnd by rememberSaveable { mutableStateOf(false) }
 
-    var priority by rememberSaveable { mutableStateOf(Priority.HIGH) }
-
+    // ── More details toggle ──
     var expanded by rememberSaveable { mutableStateOf(false) }
     val angle by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
         animationSpec = tween(200, easing = EaseOut)
     )
 
-    val subTaskLists = remember(editingTask) {
+    // ── Subtasks: LOCAL UI state. Seeded once from the loaded task. ──
+    val subTaskLists = remember(state.editingTaskId) {
         mutableStateListOf<DynamicSubTaskUiItem>().apply {
-            editingTask?.subtasks?.map { subTask ->
-                DynamicSubTaskUiItem(title = subTask.title)
-            }?.let { mappedList -> addAll(mappedList) }
+            state.subtasks.forEach { add(DynamicSubTaskUiItem(title = it.title)) }
         }
     }
 
@@ -147,7 +152,7 @@ fun AddOrEditTaskScreen(
 
     Column(modifier = modifier) {
         ForgeTaskTopBar(
-            label = editingTask?.let { "Edit Task" } ?: "Add Task",
+            label = if (isEditing) "Edit Task" else "Add Task",
             onStart = {
                 OnForgeOnBack {
                     onBack()
@@ -155,21 +160,28 @@ fun AddOrEditTaskScreen(
             },
             onEnd = {
                 Text(
-                    text = "Save", style = TextStyle(
+                    text = "Save",
+                    style = TextStyle(
                         fontFamily = ForgeFonts.spaceGrotesk,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.W700,
                         color = animateSaveColor
                     ),
                     modifier = Modifier.clickable(
-                        indication = null, interactionSource = interactionSource,
+                        indication = null,
+                        interactionSource = interactionSource,
                         enabled = canSave,
                         onClick = {
-                            onSave()
+                            onSave(
+                                subTaskLists
+                                    .map { it.title.trim() }
+                                    .filter { it.isNotEmpty() }
+                            )
                         }
                     )
                 )
-            })
+            }
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -178,18 +190,16 @@ fun AddOrEditTaskScreen(
                 .verticalScroll(scrollState)
         ) {
             ForgeNakedValidationText(
-                input = title,
+                input = state.title,
                 placeholder = "What needs forging?",
                 maxLines = 3,
                 isTakeFocus = true,
                 inputLength = 120
             ) { value ->
-                title = value.take(120)
+                onUpdateTitle(value.take(120))
             }
             Spacer(modifier = Modifier.height(36.dp))
-            ForgeSectionLabel(
-                label = "DUE"
-            )
+            ForgeSectionLabel(label = "DUE")
             Spacer(modifier = Modifier.height(12.dp))
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -198,11 +208,12 @@ fun AddOrEditTaskScreen(
                 labels.forEachIndexed { index, value ->
                     ForgeSelectionChip(
                         label = value,
-                        selected = selections[index]
+                        selected = index == selectedChip
                     ) {
-                        val wasSelected = selections[index]
-                        selections.indices.forEach { i -> selections[i] = false }
-                        if (!wasSelected) selections[index] = true
+                        // Tapping a selected chip clears the date; otherwise sets it.
+                        onUpdateDueAt(
+                            if (index == selectedChip) null else instantForChip(index)
+                        )
                     }
                 }
             }
@@ -213,14 +224,14 @@ fun AddOrEditTaskScreen(
             ) {
                 ForgePickerField(
                     icon = Icons.Outlined.CalendarMonth,
-                    value = date,
+                    value = dateText,
                     placeholder = "Pick a date"
                 ) {
                     isShowDate = true
                 }
                 ForgePickerField(
                     icon = Icons.Outlined.Schedule,
-                    value = time,
+                    value = timeText,
                     placeholder = "Time"
                 ) {
                     isShowTime = true
@@ -230,9 +241,9 @@ fun AddOrEditTaskScreen(
             ForgeSectionLabel(label = "Priority")
             Spacer(modifier = Modifier.height(10.dp))
             ForgePrioritySegmented(
-                value = priority
+                value = state.priority
             ) { value ->
-                priority = value
+                onUpdatePriority(value)
             }
             Spacer(modifier = Modifier.height(34.dp))
             Spacer(
@@ -273,7 +284,7 @@ fun AddOrEditTaskScreen(
                 exit = shrinkVertically(tween(320, easing = EaseOut))
             ) {
                 Column {
-                    // ── PROJECT ──────────────────────────────────────────
+                    // ── PROJECT ──
                     Spacer(modifier = Modifier.height(24.dp))
                     ForgeSectionLabel(label = "Project")
                     Spacer(modifier = Modifier.height(16.dp))
@@ -284,22 +295,24 @@ fun AddOrEditTaskScreen(
                         existingProjects.forEach { projectName ->
                             ForgeSelectionChip(
                                 label = projectName,
-                                selected = project == projectName
+                                selected = state.project == projectName
                             ) {
-                                project = if (project == projectName) "" else projectName
+                                onUpdateProject(
+                                    if (state.project == projectName) null else projectName
+                                )
                             }
                         }
                     }
                     Spacer(modifier = Modifier.height(14.dp))
                     ForgeNakedValidationText(
-                        input = project,
+                        input = state.project ?: "",
                         placeholder = "Or type a new project",
                         inputSize = 18.sp,
                         maxLines = 1,
                         isTakeFocus = false,
                         inputLength = 30
                     ) { value ->
-                        project = value.take(30)
+                        onUpdateProject(value.take(30).ifEmpty { null })
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Spacer(
@@ -315,8 +328,6 @@ fun AddOrEditTaskScreen(
                     )
 
                     val onAddSubTask: () -> Unit = {
-                        // clear the isNew flag on every existing row so only the
-                        // newest one grabs focus
                         subTaskLists.indices.forEach { i ->
                             subTaskLists[i] = subTaskLists[i].copy(isNew = false)
                         }
@@ -335,8 +346,6 @@ fun AddOrEditTaskScreen(
                             ForgeSubTaskRow(
                                 dynamicSubTaskUiItem = subTask,
                                 onTitleChange = { newTitle ->
-                                    // write the typed text back into the list so the
-                                    // parent always holds the current value
                                     subTaskLists[index] = subTask.copy(title = newTitle)
                                 },
                                 onAddNewSubTask = onAddSubTask,
@@ -374,11 +383,7 @@ fun AddOrEditTaskScreen(
                         )
                     }
 
-                    /**   6c. REMINDER (30dp gap above)
-                     *     A Row with the two ends pushed apart: a ForgeSectionLabel "Remind me"
-                     *     on the left, and a ForgeToggle on the right bound to `remind`.
-                     *     BELOW that, wrapped in its OWN AnimatedVisibility (visible only when
-                     *     remind == true), the from/to pickers and the explaining microcopy.*/
+                    // ── REMINDER (UI-only, not persisted) ──
                     Spacer(modifier = Modifier.height(30.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -443,22 +448,19 @@ fun AddOrEditTaskScreen(
                         }
                     }
 
-                    /**   6d. NOTES (30dp gap above)
-                     *     A ForgeSectionLabel "Notes". Then a NakedInput (normal size), placeholder
-                     *     "Anything else worth noting", bound to `notes`, with 8dp bottom padding and
-                     *     a 1dp bottom line — same single-underline look as the project text field.*/
+                    // ── NOTES ──
                     Spacer(modifier = Modifier.height(30.dp))
                     ForgeSectionLabel(label = "Notes")
                     Spacer(modifier = Modifier.height(12.dp))
                     ForgeNakedValidationText(
-                        input = notes,
+                        input = state.notes ?: "",
                         placeholder = "Anything else worth noting",
                         inputSize = 15.sp,
                         maxLines = 4,
                         isTakeFocus = false,
                         inputLength = 500
                     ) { value ->
-                        notes = value.take(500)
+                        onUpdateNotes(value.take(500).ifEmpty { null })
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Spacer(
@@ -472,38 +474,104 @@ fun AddOrEditTaskScreen(
         }
     }
 
-    /**
-     * 7. THE PICKER DIALOGS — moved OUTSIDE the scrolling Column so they overlay
-     *    the whole screen rather than being clipped inside the scroll area.
-     */
+    // ── Picker dialogs, overlaid outside the scroll area ──
     if (isShowDate) ForgeDatePickerDialog(
         onDateSelected = { millis ->
-            val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
-                timeInMillis = millis
-            }
-            date = SimpleDateFormat("EEE, MMM d", Locale.ENGLISH).format(calendar.time)
+            onUpdateDueAt(combineDateTime(dateMillis = millis, existing = state.dueAt))
             isShowDate = false
         },
         onDismiss = { isShowDate = false }
     )
     if (isShowTime) ForgeTimePickerDialog(
         onTimeSelected = { hour, minute ->
-            time = formatTime(hour, minute)
+            onUpdateDueAt(combineTime(hour = hour, minute = minute, existing = state.dueAt))
+            isShowTime = false
         },
         onDismiss = { isShowTime = false }
     )
     if (isShowRemindStart) ForgeTimePickerDialog(
         onTimeSelected = { hour, minute ->
             remindStart = formatTime(hour, minute)
+            isShowRemindStart = false
         },
         onDismiss = { isShowRemindStart = false }
     )
     if (isShowRemindEnd) ForgeTimePickerDialog(
         onTimeSelected = { hour, minute ->
             remindEnd = formatTime(hour, minute)
+            isShowRemindEnd = false
         },
         onDismiss = { isShowRemindEnd = false }
     )
+}
+
+// ── dueAt helpers ─────────────────────────────────────────────────────────────
+
+/** Merge a newly picked calendar date into an existing instant, keeping its time. */
+private fun combineDateTime(dateMillis: Long, existing: Instant?): Instant {
+    val picked = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        timeInMillis = dateMillis
+    }
+    val result = Calendar.getInstance()
+    if (existing != null) result.timeInMillis = existing.toEpochMilliseconds()
+    result.set(Calendar.YEAR, picked.get(Calendar.YEAR))
+    result.set(Calendar.MONTH, picked.get(Calendar.MONTH))
+    result.set(Calendar.DAY_OF_MONTH, picked.get(Calendar.DAY_OF_MONTH))
+    return Instant.fromEpochMilliseconds(result.timeInMillis)
+}
+
+/** Merge a newly picked time into an existing instant, keeping its date. */
+private fun combineTime(hour: Int, minute: Int, existing: Instant?): Instant {
+    val result = Calendar.getInstance()
+    if (existing != null) result.timeInMillis = existing.toEpochMilliseconds()
+    result.set(Calendar.HOUR_OF_DAY, hour)
+    result.set(Calendar.MINUTE, minute)
+    result.set(Calendar.SECOND, 0)
+    result.set(Calendar.MILLISECOND, 0)
+    return Instant.fromEpochMilliseconds(result.timeInMillis)
+}
+
+/** A concrete instant for each quick chip, at 9:00 AM local time. */
+private fun instantForChip(index: Int): Instant {
+    val c = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 9)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    when (index) {
+        0 -> Unit                                   // Today
+        1 -> c.add(Calendar.DAY_OF_MONTH, 1)        // Tomorrow
+        2 -> {                                       // This weekend → upcoming Saturday
+            while (c.get(Calendar.DAY_OF_WEEK) != Calendar.SATURDAY) {
+                c.add(Calendar.DAY_OF_MONTH, 1)
+            }
+        }
+        3 -> c.add(Calendar.DAY_OF_MONTH, 7)        // Next week
+    }
+    return Instant.fromEpochMilliseconds(c.timeInMillis)
+}
+
+/** Which chip, if any, exactly matches the stored instant's day (at 9 AM). */
+private fun chipIndexFor(dueAt: Instant): Int {
+    for (i in 0..3) {
+        val chip = Calendar.getInstance().apply { timeInMillis = instantForChip(i).toEpochMilliseconds() }
+        val due = Calendar.getInstance().apply { timeInMillis = dueAt.toEpochMilliseconds() }
+        val sameDay = chip.get(Calendar.YEAR) == due.get(Calendar.YEAR) &&
+                chip.get(Calendar.DAY_OF_YEAR) == due.get(Calendar.DAY_OF_YEAR)
+        if (sameDay) return i
+    }
+    return -1
+}
+
+private fun formatDate(instant: Instant): String {
+    val c = Calendar.getInstance().apply { timeInMillis = instant.toEpochMilliseconds() }
+    return SimpleDateFormat("EEE, MMM d", Locale.ENGLISH).format(c.time)
+}
+
+private fun formatInstantTime(instant: Instant): String {
+    val c = Calendar.getInstance().apply { timeInMillis = instant.toEpochMilliseconds() }
+    return formatTime(c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE))
 }
 
 // converts the picker's 24h hour + minute into "6:00 PM" style display text

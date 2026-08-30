@@ -69,6 +69,7 @@ import com.development.forge.feature.splash.ui.SplashScreen
 import com.development.forge.feature.splash.viewmodel.SplashViewModel
 import com.development.forge.feature.stats.StatsScreen
 import com.development.forge.feature.tasks.contract.TaskEffect
+import com.development.forge.feature.tasks.contract.TaskIntent
 import com.development.forge.feature.tasks.ui.AddOrEditTaskScreen
 import com.development.forge.feature.tasks.ui.TaskDetailScreen
 import com.development.forge.feature.tasks.ui.TaskListScreen
@@ -101,7 +102,7 @@ fun ForgeNavHost(
     val amber = ForgeTheme.colors.amber
 
     val authViewModel: AuthViewModel = hiltViewModel()
-    val taskViewModel : TaskViewModel = hiltViewModel()
+    val taskViewModel: TaskViewModel = hiltViewModel()
     val authState = authViewModel.authState.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
@@ -134,7 +135,7 @@ fun ForgeNavHost(
     LaunchedEffect(Unit) {
         taskViewModel.effect.collect { effect ->
             when (effect) {
-                TaskEffect.NavigateBack -> { }
+                TaskEffect.NavigateBack -> {}
             }
         }
     }
@@ -207,7 +208,7 @@ fun ForgeNavHost(
                     is ForgeNavKey.TaskList -> ForgeTaskTopBar(
                         label = "All tasks",
                         onStart = { OnForgeOnBack { backStack.removeLastOrNull() } },
-                        onEnd = { OnForgeOnAdd {  } }
+                        onEnd = { OnForgeOnAdd { } }
                     )
 
                     is ForgeNavKey.TaskDetail -> ForgeTaskTopBar(
@@ -371,9 +372,21 @@ fun ForgeNavHost(
                         ResetPasswordScreen(
                             modifier = basicModifier,
                             state = authState.value,
-                            onUpdateResetToken = { authViewModel.onIntent(AuthIntent.UpdateResetToken(it)) },
+                            onUpdateResetToken = {
+                                authViewModel.onIntent(
+                                    AuthIntent.UpdateResetToken(
+                                        it
+                                    )
+                                )
+                            },
                             onUpdatePassword = { authViewModel.onIntent(AuthIntent.UpdatePassword(it)) },
-                            onUpdateConfirmPassword = { authViewModel.onIntent(AuthIntent.UpdateConfirmPassword(it)) },
+                            onUpdateConfirmPassword = {
+                                authViewModel.onIntent(
+                                    AuthIntent.UpdateConfirmPassword(
+                                        it
+                                    )
+                                )
+                            },
                             onResetPassword = { authViewModel.onIntent(AuthIntent.SubmitResetPassword) }
                         )
                     }
@@ -474,10 +487,22 @@ fun ForgeNavHost(
                             )
                         }
                     }
+
                     entry<ForgeNavKey.AddOrEditTask> {
-                        AddOrEditTaskScreen(basicModifier, onBack = {
-                            backStack.removeLastOrNull()
-                        })
+
+                        val state = taskViewModel.taskState.collectAsStateWithLifecycle()
+
+                        AddOrEditTaskScreen(
+                            basicModifier,
+                            state = state.value,
+                            existingProjects = state.value.existingProjects,
+                            onUpdateTitle = { taskViewModel.onIntent(TaskIntent.UpdateTitle(it)) },
+                            onUpdatePriority = { taskViewModel.onIntent(TaskIntent.UpdatePriority(it)) },
+                            onUpdateProject = { taskViewModel.onIntent(TaskIntent.UpdateProject(it)) },
+                            onUpdateDueAt = { taskViewModel.onIntent(TaskIntent.UpdateDueAt(it)) },
+                            onUpdateNotes = { taskViewModel.onIntent(TaskIntent.UpdateNotes(it)) },
+                            onSave = { taskViewModel.onIntent(TaskIntent.SaveTask(it)) },
+                            onBack = { backStack.removeLastOrNull() })
                     }
                 }
             )
