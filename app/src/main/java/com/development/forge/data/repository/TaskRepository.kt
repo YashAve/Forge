@@ -12,6 +12,7 @@ import com.development.forge.domain.model.Priority
 import com.development.forge.domain.model.Subtask
 import com.development.forge.domain.model.Task
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -47,6 +48,9 @@ class TaskRepository @Inject constructor(
     suspend fun getTaskById(taskId: String): Task? =
         taskDao.getTaskById(taskId).first().toTask()
 
+    fun getVisibleTasks() = taskDao.getVisibleTasks()
+        .map { list -> list.map { it.toTask() } }
+
     private fun TaskWithSubTask.toTask() = Task(
         id = task.taskId,
         title = task.title,
@@ -79,11 +83,14 @@ class TaskRepository @Inject constructor(
         )
     }
 
+    suspend fun getTopProjects() = taskDao.getTopProjects()
+
     suspend fun deleteTask(taskId: String) =
         taskDao.softDeleteTask(taskId)
 
     suspend fun toggleTaskDone(taskId: String, isDone: Boolean) =
         taskDao.toggleTaskDone(taskId, isDone)
+    suspend fun completeAllSubtasks(taskId: String) = subtaskDao.completeAllForTask(taskId)
 
     private suspend fun saveTask(
         taskId: String,

@@ -32,6 +32,14 @@ interface TaskDao {
     suspend fun deletePending(taskId: String)
     @Query("UPDATE tasks SET done = :isDone, sync_state = 'PENDING_UPDATE' WHERE task_id = :taskId")
     suspend fun toggleTaskDone(taskId: String, isDone: Boolean)
+    @Query("""
+    SELECT project FROM tasks
+    WHERE project IS NOT NULL
+    GROUP BY project
+    ORDER BY COUNT(*) DESC
+    LIMIT 5
+""")
+    suspend fun getTopProjects(): List<String>
     @Query("UPDATE tasks SET sync_state = 'PENDING_DELETE' WHERE task_id = :taskId")
     suspend fun softDeleteTask(taskId: String)
     @Transaction
@@ -43,6 +51,8 @@ interface TaskDao {
 interface SubtaskDao {
     @Upsert
     suspend fun upsertSubTask(vararg subTask: SubTaskEntity)
+    @Query("UPDATE subtasks SET is_done = 1 WHERE task_id = :taskId")
+    suspend fun completeAllForTask(taskId: String)
     @Delete
     suspend fun deleteSubTask(vararg subTask: SubTaskEntity)
     @Query("DELETE FROM subtasks WHERE subtask_id = :subtaskId")

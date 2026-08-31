@@ -104,6 +104,10 @@ fun ForgeNavHost(
     val authViewModel: AuthViewModel = hiltViewModel()
     val taskViewModel: TaskViewModel = hiltViewModel()
     val authState = authViewModel.authState.collectAsStateWithLifecycle()
+    val taskState = taskViewModel.taskState.collectAsStateWithLifecycle()
+
+    val clearToHome = setOf(Login, Registration, ForgeNavKey.Home)
+    val resetToHome = setOf(ForgeNavKey.Statistics, ForgeNavKey.Settings)
 
     LaunchedEffect(Unit) {
         authViewModel.effect.collect { effect ->
@@ -135,7 +139,9 @@ fun ForgeNavHost(
     LaunchedEffect(Unit) {
         taskViewModel.effect.collect { effect ->
             when (effect) {
-                TaskEffect.NavigateBack -> {}
+                TaskEffect.NavigateBack -> {
+                    backStack.clear()
+                }
             }
         }
     }
@@ -149,14 +155,16 @@ fun ForgeNavHost(
 
     BackHandler {
         when (currentDestination) {
-            Login, Registration, ForgeNavKey.Home -> backStack.clear()
-            ForgeNavKey.TaskList -> backStack.removeLastOrNull()
-            ForgeNavKey.Statistics, ForgeNavKey.Settings -> {
+            in clearToHome -> backStack.clear()
+            in resetToHome -> {
                 backStack.clear()
                 backStack.add(ForgeNavKey.Home)
             }
-
-            else -> {}
+            ForgeNavKey.AddOrEditTask -> {
+                taskViewModel.onIntent(TaskIntent.ClearForm)
+                backStack.removeLastOrNull()
+            }
+            else -> backStack.removeLastOrNull()
         }
     }
 
@@ -433,7 +441,8 @@ fun ForgeNavHost(
 
                             },
                             onAdd = {
-
+                                taskViewModel.onIntent(TaskIntent.StartCreate)
+                                backStack.add(ForgeNavKey.AddOrEditTask)
                             }
                         )
                     }
@@ -471,56 +480,53 @@ fun ForgeNavHost(
                             modifier = basicModifier,
                             onBack = { backStack.removeLastOrNull() },
                             onOpen = { taskId ->
-                                backStack.add(ForgeNavKey.TaskDetail(taskId))
+                                taskViewModel.onIntent(TaskIntent.StartEdit(taskId))
+                                backStack.add(ForgeNavKey.AddOrEditTask)
                             },
                             onToggle = {
 
                             },
                             onAdd = {
-                                taskViewModel.onIntent(TaskIntent.ClearForm)
+                                taskViewModel.onIntent(TaskIntent.StartCreate)
                                 backStack.add(ForgeNavKey.AddOrEditTask)
                             }
                         )
                     }
 
                     entry<ForgeNavKey.TaskDetail> { key ->
-                        val task = com.development.forge.domain.model.tasks
-                            .find { it.id == key.taskId }
+                        val task = taskState.value.tasks.find { it.id == key.taskId }
                         if (task != null) {
                             TaskDetailScreen(
                                 modifier = basicModifier,
                                 task = task,
-                                onToggle = {
-
-                                },
-                                onComplete = {
-
-                                },
+                                onToggle = { taskViewModel.onIntent(TaskIntent.ToggleDone(it)) },
+                                onComplete = { taskViewModel.onIntent(TaskIntent.ToggleDone(it)) },
                                 onToggleSub = {
 
                                 },
                                 onEdit = {
-
+                                    taskViewModel.onIntent(TaskIntent.StartEdit(task.id))
+                                    backStack.add(ForgeNavKey.AddOrEditTask)
                                 }
                             )
                         }
                     }
 
                     entry<ForgeNavKey.AddOrEditTask> {
-
-                        val state = taskViewModel.taskState.collectAsStateWithLifecycle()
-
                         AddOrEditTaskScreen(
                             basicModifier,
-                            state = state.value,
-                            existingProjects = state.value.existingProjects,
+                            state = taskState.value,
+                            existingProjects = taskState.value.existingProjects,
                             onUpdateTitle = { taskViewModel.onIntent(TaskIntent.UpdateTitle(it)) },
                             onUpdatePriority = { taskViewModel.onIntent(TaskIntent.UpdatePriority(it)) },
                             onUpdateProject = { taskViewModel.onIntent(TaskIntent.UpdateProject(it)) },
                             onUpdateDueAt = { taskViewModel.onIntent(TaskIntent.UpdateDueAt(it)) },
                             onUpdateNotes = { taskViewModel.onIntent(TaskIntent.UpdateNotes(it)) },
                             onSave = { taskViewModel.onIntent(TaskIntent.SaveTask(it)) },
-                            onBack = { backStack.removeLastOrNull() })
+                            onBack = {
+                                taskViewModel.onIntent(TaskIntent.ClearForm)
+                                backStack.removeLastOrNull()
+                            })
                     }
                 }
             )

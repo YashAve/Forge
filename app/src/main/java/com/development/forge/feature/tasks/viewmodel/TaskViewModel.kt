@@ -29,14 +29,24 @@ class TaskViewModel @Inject constructor(
     private val _effect = Channel<TaskEffect>(Channel.BUFFERED)
     val effect = _effect.receiveAsFlow()
 
+    init {
+        viewModelScope.launch {
+            taskRepository.getVisibleTasks().collect { tasks ->
+                _taskState.update { it.copy(tasks = tasks) }
+            }
+        }
+    }
+
     fun onIntent(intent: TaskIntent) {
         when (intent) {
-            is TaskIntent.StartEdit -> loadTask(intent.taskId)
+            is TaskIntent.StartEdit -> startEdit(intent.taskId)
+            is TaskIntent.StartCreate -> startCreate()
             TaskIntent.ClearForm -> clearForm()
             is TaskIntent.UpdateTitle -> updateTitle(intent.title)
             is TaskIntent.UpdatePriority -> updatePriority(intent.priority)
             is TaskIntent.UpdateProject -> updateProject(intent.project)
             is TaskIntent.UpdateDueAt -> updateDueAt(intent.dueAt)
+            is TaskIntent.ToggleDone -> toggleDone(intent.taskId)
             is TaskIntent.UpdateNotes -> updateNotes(intent.notes)
             is TaskIntent.AddSubtask -> addSubTask(intent.title)
             is TaskIntent.RemoveSubtask -> removeSubTask(intent.index)
@@ -47,6 +57,7 @@ class TaskViewModel @Inject constructor(
     private fun updateTitle(title: String) = _taskState.update { it.copy(title = title) }
     private fun updatePriority(priority: Priority) =
         _taskState.update { it.copy(priority = priority) }
+
     private fun updateProject(project: String?) = _taskState.update { it.copy(project = project) }
     private fun updateDueAt(dueAt: Instant?) = _taskState.update { it.copy(dueAt = dueAt) }
     private fun updateNotes(notes: String?) = _taskState.update { it.copy(notes = notes) }
@@ -82,7 +93,15 @@ class TaskViewModel @Inject constructor(
             if (editingTaskId == null) {
                 taskRepository.createTask(title, priority, dueAt, project, notes, subtasks)
             } else {
-                taskRepository.updateTask(editingTaskId, title, priority, dueAt, project, notes, subtasks)
+                taskRepository.updateTask(
+                    editingTaskId,
+                    title,
+                    priority,
+                    dueAt,
+                    project,
+                    notes,
+                    subtasks
+                )
             }
             _taskState.update { it.copy(isSaving = false) }
             _effect.send(TaskEffect.NavigateBack)
@@ -102,6 +121,35 @@ class TaskViewModel @Inject constructor(
                     notes = task.notes,
                     subtasks = task.subtasks
                 )
+            }
+        }
+    }
+
+    private fun startEdit(taskId: String) {
+        loadTask(taskId)
+        loadExistingProjects()
+    }
+
+    private fun startCreate() {
+        clearForm()
+        loadExistingProjects()
+    }
+
+    private fun toggleDone(taskId: String) {
+        val task = _taskState.value.tasks.find { it.id == taskId } ?: return
+        val newDone = !task.done
+        viewModelScope.launch {
+            taskRepository.toggleTaskDone(taskId, newDone)
+            if (newDone) {
+                taskRepository.completeAllSubtasks(taskId)
+            }
+        }
+    }
+
+    private fun loadExistingProjects() {
+        viewModelScope.launch {
+            _taskState.update {
+                it.copy(existingProjects = taskRepository.getTopProjects())
             }
         }
     }
