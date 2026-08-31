@@ -1,259 +1,73 @@
-# Handoff note — laptop → desktop
+# Handoff note — desktop → laptop
 
-**From:** laptop Claude session · **Date:** 2026-08-27 · **On top of:** `aae597a`
+**From:** desktop Claude session · **Date:** 2026-08-31 · **On top of:** `8dc89e8`
 
-`./gradlew :app:compileDebugKotlin :server:compileKotlin :shared:compileKotlin --rerun-tasks` →
-**BUILD SUCCESSFUL**, and `:app` now has **zero source warnings** — your dead-`else` removal landed
-and holds. Only the two `@BsonId` KT-73255 notices remain, in `:server`.
+This round was scoped by Yash to **commit and push only** — no code completion, no build
+verification. So unlike every prior note, there is no `BUILD SUCCESSFUL` line below: I read the
+diff and reasoned about it, but did not run Gradle. Treat everything here as read-from-the-code,
+not observed.
 
-Small round from me by design: **I ran the things you built.** Your last note's closing line was
-"still nothing has been run — the rate limiter has never throttled anything, the 8-character code
-has never been typed." All of that is now exercised against a live server and real Mongo.
+## What landed — `8dc89e8`
 
-## ✅ The question you aimed at this machine: the unique index is safe
+`TaskViewModel` now collects `taskRepository.getVisibleTasks()` into `TaskState.tasks`, so
+`TaskDetail` reads the live task by id instead of the static sample list in `domain.model.tasks`
+(`ForgeNavHost.kt` — the `com.development.forge.domain.model.tasks.find { … }` line is gone).
+Toggling done/complete now dispatches `TaskIntent.ToggleDone`, which flips the task and marks its
+subtasks complete together via the new `completeAllSubtasks`.
 
-You flagged that `users.resetToken`'s new unique partial index **fails at boot** if two rows already
-share a code, and that you couldn't check without Mongo. Checked, by the only test that actually
-matters — starting the server:
+`StartCreate` and `StartEdit` centralize the two ways into `AddOrEditTask` — both now load the
+existing-projects list via the new `getTopProjects` query, and every entry point (`TaskList` top
+bar, bottom-nav add, `TaskDetail` edit) goes through one of them. Previously only some did, which
+was the seed of the duplicate-task bug from two rounds back — this round's whole point is that class
+of gap.
 
-```
-INFO c.d.forge.server.db.MongoDatabase - Mongo indexes ensured on 'forge' (users, tasks)
-INFO Forge - Forge server listening on 0.0.0.0:9292 · mongo db 'forge'
-```
+The system back handler now routes `AddOrEditTask` through `ClearForm` before popping, matching the
+explicit `onBack` the screen already had, and falls back to a plain pop for any destination not
+named in the two existing `clearToHome` / `resetToHome` sets, rather than doing nothing.
 
-No `E11000`, no duplicate-key failure. There *were* several live reset tokens on the collection from
-my earlier testing (mixed 64-char hex and 8-digit), so this wasn't a vacuous pass — the index built
-over real rows with real tokens in them. **`dcc6807` is safe to deploy.**
+## ⚠️ Worth a look, found reading only — not verified, not fixed
 
-## ✅ `dcc6807` works, including the parts that are easy to get wrong
+- **`TaskEffect.NavigateBack` now clears the whole back stack**, where it used to be a no-op.
+  `AddOrEditTask` is reachable from both `TaskList` and `TaskDetail` now, so a save from either path
+  currently returns all the way to `Home` rather than one screen up. That may be intentional — it's
+  a defensible product choice — but it's a behaviour change riding on a rename from `{}` to
+  `backStack.clear()`, and I'd confirm it was deliberate rather than the obvious-looking fix for "the
+  effect used to do nothing."
+- **Two callbacks are still empty**, unchanged this round: `TaskList`'s `onToggle` (`ForgeNavHost.kt`
+  entry for `TaskList`) and `TaskDetail`'s `onToggleSub`. The done-toggle wiring landed on
+  `TaskDetail`'s `onToggle`/`onComplete` but not on `TaskList`'s row-level toggle, and subtask
+  completion has no toggle at all yet — only the "mark all done when the task completes" path from
+  `ToggleDone`.
 
-Every claim in your note about the reset code checks out end to end:
+## Carried over from the laptop's last note (unchanged; I did not re-verify any of it)
 
-| Test | Result |
-|---|---|
-| Code format | `CH4NBFL5` — 8 chars, all within `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` |
-| `forgot` → `reset` → `login` with new password | 200 → 200 → 200 |
-| Login with the *old* password afterwards | **401** — the write really landed |
-| Submitted as `"  dx7x-dnyt  "` for code `DX7XDNYT` | **200** — lowercase, hyphen and whitespace all normalised |
+- **`TaskApi` still can't write** — one method, `getTasks(token)`, no POST/PUT/DELETE, and the
+  client `TaskRepository` never references `TaskApi`. `PENDING_CREATE`/`PENDING_UPDATE`/
+  `PENDING_DELETE` are written to Room and nothing drains them.
+- **`PUT /tasks/{id}` is a measured full replace** — an omitted field is destroyed, not left alone,
+  and `priority` reverts to the DTO default. The client's `updateTask` currently always passes all
+  seven arguments from one call site, so this is dormant until a second call site omits one.
+- **`BASE_URL` is `10.162.134.25`** (`6a0b8dd`) — eighth value in three days, wrong for this desktop.
+  `local.properties` remains the cheapest unfixed item across every note.
+- **The reset code (`dcc6807`) and client id (`b2c01c9`) are both verified against live Mongo** by
+  the laptop last round — see its note for the walkthroughs. Nothing here touched either.
+- `too_many_attempts`, `invalid_task_id`, `task_id_taken`, `invalid_google_token`,
+  `id_token_required` are all still unmapped on the client, collapsing to `AuthError.UNKNOWN`.
+- The sign-out credential leak (logout half), the reset-screen password inheritance from Login, the
+  duplicate-`EmailSent` push, the orphaned pre-rename token, `userEmail()`'s zero call sites, the
+  non-compiling release variant, zero server tests, `safeCall`'s stale `expectSuccess` KDoc,
+  `createGoogleUser`'s `email_taken` on `/auth/google`, the unexercised `invalid_auth_provider` 409,
+  the duplicate `@Delete vararg` on `TaskDao`, `core/mvi`'s zero implementors, `:shared`'s
+  `implementation` vs `api` on `kotlinx-serialization-json`, `ForgeDatePickerDialog`'s NPE,
+  hardcoded save/stats, `Motion.kt` empty, `SuccessScreen`'s undeleted reset button,
+  `ForgeTextField`'s empty focus-ring stub (41st note), the dev JWT secret, `/auth/forgot` logging
+  the code to console, CORS `anyHost()`, the Mongo password in source, no Room schema-export dir,
+  the deprecated `useClasspathSnapshot` — all still open, all untouched this round.
+- **Gradle daemon SIGSEGV = JBR 21 G1 GC fault, not memory pressure.** Not exercised this round —
+  no Gradle command was run.
 
-That last row is the one worth having: case-folding and separator-stripping are exactly what a
-human typing off a console will need, and they now demonstrably work rather than merely being
-written.
+## Not done this round, deliberately
 
-## ✅ The rate limiter throttles — and one behaviour worth a decision
-
-13 consecutive wrong codes from one IP:
-
-```
-attempts  1–10 → 400 invalid_token
-attempt  11    → 429 too_many_attempts
-attempts 12–13 → 429
-```
-
-Exactly the 10-per-window design, and `/auth/login` stayed unaffected throughout, so the limiter is
-correctly scoped to `/auth/reset`.
-
-**The behaviour to decide on:** because the check runs *before* the token lookup — which is right,
-it's what stops the lookup being the oracle — a **correct** code is also rejected once you're
-limited:
-
-```
-POST /auth/forgot            → 200   (still issues a fresh code)
-POST /auth/reset  <correct>  → 429   (blocked anyway)
-```
-
-That's defensible and I'd not change it silently, but it's a real UX edge: a user who fat-fingers
-their code ten times is locked out of their own reset for fifteen minutes, and `/auth/forgot`
-cheerfully keeps minting codes that can't be used. The honest options are to count only *malformed*
-attempts against the limit, to exempt a correct code, or to leave it and make the client surface
-the wait clearly — which it currently can't, because `too_many_attempts` is unmapped.
-
-## ✅ `b2c01c9` also runs — including the ownership check
-
-You reasoned carefully about this one and measured the UUID leniency in isolation. All of it holds
-against a live server and real Mongo.
-
-| Case | Result |
-|---|---|
-| New client-generated UUID | **201** + stored task |
-| Same id re-sent, different body | **200**, returning the **stored** task — not the retry body |
-| No id supplied | **201**, server-minted |
-
-The second row is the one the client has to understand, and it behaves exactly as your note
-predicted: I re-sent id `fb476c8e…` with a different title and priority and got the *original*
-back. So an offline client that edits between a failed create and its retry must follow the 200
-with a `PUT`, or the edit is silently lost.
-
-**Id validation rejects all five hostile shapes**, including the two `UUID.fromString` alone would
-have swallowed:
-
-```
-"1-1-1-1-1"                     -> 400 invalid_task_id   (fromString pads to 00000001-…)
-"FB476C8E-…-310CE9323084"       -> 400 invalid_task_id   (fromString case-folds)
-"1787835378027-a8fa008f-…"      -> 400 invalid_task_id   (the old getPrimaryId format)
-""                              -> 400 invalid_task_id
-"hello-world"                   -> 400 invalid_task_id
-```
-
-The round-trip in `Validation.taskId` closes both aliasing holes. The uppercase case is the one that
-would have hurt: `Filters.eq("_id", …)` is exact, so accepting it really would have produced two
-documents for one UUID.
-
-**The ownership check does what you said it does.** A second account trying to claim user 1's task
-id gets a deliberately vague `409 task_id_taken` and **no data**:
-
-```
-user2 POST /tasks {id: <user1's task id>}  -> 409 task_id_taken
-user2 GET  /tasks                          -> []          (no leak)
-user1 GET  /tasks                          -> both of their own tasks
-```
-
-So the "catch duplicate, return the existing task" shortcut you rejected would indeed have handed
-one user another user's task. Scoping holds on both the read and write paths.
-
-## 🔧 The task form was wired up, and the edit path was duplicating tasks
-
-Two commits after the note above was first written — flagging them because the second is a data bug,
-not plumbing.
-
-`8efc2f1` (Yash's) connects `AddOrEditTaskScreen` to `TaskViewModel`. It had been called with only a
-modifier and an `onBack`, so nothing typed into it ever reached the ViewModel. `SaveTask` also
-changed shape to carry its subtask titles as `List<String>`.
-
-`6f8fbc6` then wires the four routes that reach that screen. **All four navigated without telling
-the ViewModel what they were opening**, and `TaskViewModel` is scoped to the nav host, so its state
-outlives any single visit:
-
-| Route | Was |
-|---|---|
-| TaskList top-bar `+` | an empty lambda — did nothing at all |
-| Bottom-nav add, TaskList `onAdd` | navigated without clearing; form held the last task edited |
-| TaskDetail edit | navigated without `StartEdit`, so `editingTaskId` was never set |
-
-That last one matters: with `editingTaskId` null, `saveTask()` takes the create branch, so **editing
-a task and saving would have written a second task** rather than updating it. Silent duplication,
-and only reachable once `8efc2f1` made the screen functional.
-
-`TaskIntent.ClearForm` and `TaskIntent.StartEdit` already existed and were already dispatched in
-`onIntent` — neither had a caller. The fix only adds the dispatches.
-
-This is also the long-carried "`+` always opens Edit Task on task[0]" item: nothing ever reset the
-form, so once any task had been opened for editing, every later "add" reopened it. That line can
-come off the carried-over list.
-
-**Not run.** The save path still has no device pass, and `TaskRepository.createTask` sits on the
-offline-first Room layer that doesn't build yet.
-
-## ⚠️ `PUT /tasks/{id}` really is a full replace — measured, and it now matters
-
-This has been a one-line footnote for several notes. It is worth promoting, because the edit path
-became reachable this round. Created a task with everything populated, then sent a title-only PUT:
-
-```
-PUT /tasks/{id}  {"title":"Retitled only"}   -> 200
-```
-
-The stored task came back as:
-
-```
-title    "Full task"  -> "Retitled only"
-priority HIGH         -> MED          (the default, not the stored value)
-project  "Forge"      -> null
-notes    "some notes" -> null
-subtasks [sub A, sub B] -> []
-```
-
-So every field the caller omits is destroyed, and `priority` silently reverts to the DTO default
-rather than being left alone. That is correct for a PUT by the letter of REST, and a data-loss
-hazard in practice.
-
-**What makes it live rather than theoretical**: `TaskRepository.updateTask` on the client declares
-`priority: Priority = Priority.MED`, `project: String? = null`, `notes: String? = null`,
-`subtasks: List<String> = emptyList()`. Any call site that omits an argument sends exactly the
-values that this PUT then writes over the stored task. The defaults and the full replace compose
-into silent erasure, and neither half looks wrong on its own.
-
-Nothing is at risk *yet*, because of the next point — but it will be the moment sync is wired.
-
-## `TaskApi` cannot yet write to the server at all
-
-Worth stating plainly since `b2c01c9` was built for the client and the client can't reach it:
-`TaskApi` declares exactly one method, `getTasks(token)`. There is no POST, PUT or DELETE, and
-`data/repository/TaskRepository` **never references `TaskApi`** — it only touches the DAOs.
-
-So the offline-first layer currently has no upload half: `SyncState.PENDING_CREATE` /
-`PENDING_UPDATE` / `PENDING_DELETE` are written to Room and nothing ever drains them. The
-client-generated task id that `b2c01c9` was added to accept has no code path that sends it.
-
-## What the Android client still owes (unchanged, now with evidence)
-
-`too_many_attempts` is reachable in under a second of tapping, and it maps to `AuthError.UNKNOWN`.
-So the user gets a generic failure with no indication they're throttled or for how long. Same for
-`invalid_task_id`, `task_id_taken`, `invalid_google_token`, `id_token_required`.
-
-## ⚠️ `BASE_URL` moved again — `10.162.134.25` (`6a0b8dd`)
-
-**Seventh value in three days.** It was `10.37.153.25` in your note, and had already moved twice
-more before I got to it. `local.properties` is now nineteen notes old as an open item and has cost
-a round-trip in most of them. It is the cheapest thing on either of our lists.
-
-## Housekeeping
-
-- **A collision worth knowing about**: I had independently written an 8-digit numeric reset code on
-  this machine before pulling — Yash asked for it here too. Yours is strictly better (40 bits vs 27,
-  no ambiguous glyphs, unbiased masking, plus the rate limiting and unique index), so mine was
-  dropped rather than merged. `stash@{0}` on this machine now holds only that superseded change and
-  a stale IP; it can be dropped.
-- The dev database has accumulated throwaway rows from testing: `codec-probe@example.com`,
-  `codec-probe2@example.com`, `reset-walk@example.com`, `token-walk@example.com`. Two real Google
-  accounts also exist (`agarwalyash929@gmail.com`, `enlightmentyash3769@gmail.com`) plus
-  `karishmakapoor@gmail.com`, whose password is currently `eight-digit-test` from an earlier walk.
-- Your uncommitted Room breakage is still uncommitted here too — nothing in this pull touches it.
-
-## Carried over (still open, untouched)
-
-- **The Home back-button bug — nineteenth note running.** Still a product decision, still unmade.
-- **The sign-out credential leak, logout half** — `ResetFields` still not dispatched in the
-  `SettingsEffect.NavigateToLogin` handler. The login half is fixed; logout is the last path.
-- **The reset screen inherits the password typed on Login** — `onForgotPassword` is the one
-  transition that doesn't clear. Still a design call about whether `email` keeps carrying forward.
-- **"Resend link" pushes a duplicate `EmailSent`** and resets its own cooldown.
-- **The orphaned pre-rename token** under `"auth_is_stored"`.
-- **`userEmail()` has zero call sites** — `SettingsScreen` still shows `karishma.kapoor@cosmiq.co.in`.
-- **The release variant still does not compile** — `BASE_URL` is `debug`-only.
-- **Zero test files under `server/src`.** A rate limiter and a UUID validator now ride on
-  compile-checking alone; I exercised both by hand this round, which is not the same as a test.
-- The reset-token field's helper still reads "From the reset email."; `EmailSentScreen` hardcodes
-  "60 minutes". I confirmed last round that 60 is currently *correct* — it matches
-  `resetTokenValidityMillis` — but it will drift the moment `RESET_TOKEN_VALIDITY_MS` is set.
-- `safeCall`'s KDoc still claims `expectSuccess = false` is configured. Seventh note.
-- `createGoogleUser` can still throw `email_taken` on `/auth/google`.
-- The 409 `invalid_auth_provider` branch remains unexercised — it needs a Google token for an
-  address that already exists as a password account.
-- `TaskDao.deleteTask`/`deleteTasks` duplicate `@Delete vararg`, only one `suspend`.
-- `core/mvi` base still has zero implementors while four ViewModels hand-roll the same shape.
-- `:shared` still declares `implementation(libs.kotlinx.serialization.json)`, not `api(...)`.
-- `ForgeDatePickerDialog` NPEs on OK-without-selection; save hardcoded; `AddTaskSheet.kt`
-  orphaned; Task List bucket-overlap crash. (New-task capture is now reachable — see above.)
-- Server `TaskDto` exposes `due: String?` vs. the local typed `Instant?`.
-- Stats hardcoded; `Motion.kt` empty; `SuccessScreen` reset button not deleted.
-- **`ForgeTextField` focus ring still an empty `drawBehind { }` stub — 40th note running.**
-- Server-side: dev JWT secret in source, `/auth/forgot` logs the reset code, CORS `anyHost()`.
-  (`PUT /tasks/{id}` full-replace is now measured — promoted to its own section above.)
-- Mongo password in `ServerConfig.kt:28`. Private repo, so hygiene not exposure.
-- No Room schema export dir; `gradle.properties` has dead `kapt.*` and a deprecated
-  `useClasspathSnapshot`.
-- **Gradle daemon SIGSEGV = JBR 21 G1 GC fault, not memory pressure.** `-XX:+UseParallelGC` on every
-  invocation. No crash this round.
-
-## Verified
-
-Forced `--rerun-tasks` across all three modules → BUILD SUCCESSFUL, `:app` with zero source
-warnings. Server started against real Mongo with the new unique index — **it built**. Reset code
-generated, normalised, redeemed, and confirmed to have changed the password; old password rejected
-afterwards. Rate limiter tripped at attempt 11 and confirmed to block a valid code too.
-
-`b2c01c9` exercised end to end against the live server — see the section above.
-
-**Not run this round**: no device pass on the new code — the phone was unplugged, so nothing here
-went through the app's own HTTP client. The offline-first Room layer remains unbuilt and unrun.
+Per Yash's instruction: no code was completed or fixed, and `./gradlew … compileDebugKotlin …` was
+not run. The two items in the "worth a look" section above are exactly that — observations from
+reading the diff, left for whoever picks this up next rather than acted on.
