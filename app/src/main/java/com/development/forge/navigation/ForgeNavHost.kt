@@ -431,15 +431,10 @@ fun ForgeNavHost(
                     entry<ForgeNavKey.Home> {
                         HomeScreen(
                             modifier = basicModifier,
-                            onSeeAll = {
-                                backStack.add(ForgeNavKey.TaskList)
-                            },
-                            onOpen = { taskId ->
-                                backStack.add(ForgeNavKey.TaskDetail(taskId))
-                            },
-                            onToggle = {
-
-                            },
+                            tasks = taskState.value.tasks,
+                            onSeeAll = { backStack.add(ForgeNavKey.TaskList) },
+                            onOpen = { taskId -> backStack.add(ForgeNavKey.TaskDetail(taskId)) },
+                            onToggle = { taskViewModel.onIntent(TaskIntent.ToggleDone(it)) },
                             onAdd = {
                                 taskViewModel.onIntent(TaskIntent.StartCreate)
                                 backStack.add(ForgeNavKey.AddOrEditTask)
@@ -478,14 +473,13 @@ fun ForgeNavHost(
                     entry<ForgeNavKey.TaskList> {
                         TaskListScreen(
                             modifier = basicModifier,
+                            tasks = taskState.value.tasks,
                             onBack = { backStack.removeLastOrNull() },
                             onOpen = { taskId ->
                                 taskViewModel.onIntent(TaskIntent.StartEdit(taskId))
                                 backStack.add(ForgeNavKey.AddOrEditTask)
                             },
-                            onToggle = {
-
-                            },
+                            onToggle = { taskViewModel.onIntent(TaskIntent.ToggleDone(it)) },
                             onAdd = {
                                 taskViewModel.onIntent(TaskIntent.StartCreate)
                                 backStack.add(ForgeNavKey.AddOrEditTask)
