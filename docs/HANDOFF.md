@@ -1,73 +1,77 @@
 # Handoff note — desktop → laptop
 
-**From:** desktop Claude session · **Date:** 2026-08-31 · **On top of:** `8dc89e8`
+**From:** desktop Claude session · **Date:** 2026-09-01 · **On top of:** `2954450`
 
-This round was scoped by Yash to **commit and push only** — no code completion, no build
-verification. So unlike every prior note, there is no `BUILD SUCCESSFUL` line below: I read the
-diff and reasoned about it, but did not run Gradle. Treat everything here as read-from-the-code,
-not observed.
+Same scope as the last two rounds: **commit and push only** — no code completion, no build
+verification. Everything below is read from the diff, not observed at runtime.
 
-## What landed — `8dc89e8`
+## `TaskEffect.NavigateBack` question from two notes ago — answered
 
-`TaskViewModel` now collects `taskRepository.getVisibleTasks()` into `TaskState.tasks`, so
-`TaskDetail` reads the live task by id instead of the static sample list in `domain.model.tasks`
-(`ForgeNavHost.kt` — the `com.development.forge.domain.model.tasks.find { … }` line is gone).
-Toggling done/complete now dispatches `TaskIntent.ToggleDone`, which flips the task and marks its
-subtasks complete together via the new `completeAllSubtasks`.
+I'd flagged that `backStack.clear()` might have been the "obvious-looking fix for a no-op" rather
+than a deliberate choice, since `AddOrEditTask` is now reachable from both `TaskList` and
+`TaskDetail`. It's now `backStack.removeLastOrNull()` — a single pop, returning to whichever screen
+opened the form. That resolves the question the way I'd have guessed the product intent pointed.
 
-`StartCreate` and `StartEdit` centralize the two ways into `AddOrEditTask` — both now load the
-existing-projects list via the new `getTopProjects` query, and every entry point (`TaskList` top
-bar, bottom-nav add, `TaskDetail` edit) goes through one of them. Previously only some did, which
-was the seed of the duplicate-task bug from two rounds back — this round's whole point is that class
-of gap.
+## Subtask ids are now preserved across edits — this was a real duplication bug
 
-The system back handler now routes `AddOrEditTask` through `ClearForm` before popping, matching the
-explicit `onBack` the screen already had, and falls back to a plain pop for any destination not
-named in the two existing `clearToHome` / `resetToHome` sets, rather than doing nothing.
+`SaveTask` and both repository create/update calls carry `List<Subtask>` (id + title + isDone) end
+to end now, instead of `List<String>`. The reason is in `AddOrEditTaskScreen`'s new KDoc, and it's
+worth restating because it's non-obvious: the screen seeds its local `DynamicSubTaskUiItem` list
+from `state.subtasks`, and **every previous save re-derived a subtask's id from scratch** rather than
+carrying the stored one forward. Since `SubtaskDao.upsertSubTask` is `@Upsert`, a "same title, new
+id" write doesn't update the existing row — it inserts a second one. So **every edit of a task with
+subtasks was quietly duplicating them**, one extra row per subtask per edit, with the display title
+looking correct because both rows had the same text.
 
-## ⚠️ Worth a look, found reading only — not verified, not fixed
+Fixed by carrying the id forward when seeding the local list, and minting a fresh UUID only at the
+moment a brand-new row is added via "Add subtask". Worth a look at whatever dev-database task
+already has subtasks and has been edited more than once — the duplicates would have accumulated
+silently and the UI would show the count as correct-looking (title-deduplicated) even if the
+underlying table has extras.
 
-- **`TaskEffect.NavigateBack` now clears the whole back stack**, where it used to be a no-op.
-  `AddOrEditTask` is reachable from both `TaskList` and `TaskDetail` now, so a save from either path
-  currently returns all the way to `Home` rather than one screen up. That may be intentional — it's
-  a defensible product choice — but it's a behaviour change riding on a rename from `{}` to
-  `backStack.clear()`, and I'd confirm it was deliberate rather than the obvious-looking fix for "the
-  effect used to do nothing."
-- **Two callbacks are still empty**, unchanged this round: `TaskList`'s `onToggle` (`ForgeNavHost.kt`
-  entry for `TaskList`) and `TaskDetail`'s `onToggleSub`. The done-toggle wiring landed on
-  `TaskDetail`'s `onToggle`/`onComplete` but not on `TaskList`'s row-level toggle, and subtask
-  completion has no toggle at all yet — only the "mark all done when the task completes" path from
-  `ToggleDone`.
+## 🔴 Worth a look, found reading only: debug builds always skip auth
 
-## Carried over from the laptop's last note (unchanged; I did not re-verify any of it)
+`SplashViewModel` gained:
 
-- **`TaskApi` still can't write** — one method, `getTasks(token)`, no POST/PUT/DELETE, and the
-  client `TaskRepository` never references `TaskApi`. `PENDING_CREATE`/`PENDING_UPDATE`/
-  `PENDING_DELETE` are written to Room and nothing drains them.
-- **`PUT /tasks/{id}` is a measured full replace** — an omitted field is destroyed, not left alone,
-  and `priority` reverts to the DTO default. The client's `updateTask` currently always passes all
-  seven arguments from one call site, so this is dormant until a second call site omits one.
-- **`BASE_URL` is `10.162.134.25`** (`6a0b8dd`) — eighth value in three days, wrong for this desktop.
-  `local.properties` remains the cheapest unfixed item across every note.
-- **The reset code (`dcc6807`) and client id (`b2c01c9`) are both verified against live Mongo** by
-  the laptop last round — see its note for the walkthroughs. Nothing here touched either.
-- `too_many_attempts`, `invalid_task_id`, `task_id_taken`, `invalid_google_token`,
-  `id_token_required` are all still unmapped on the client, collapsing to `AuthError.UNKNOWN`.
-- The sign-out credential leak (logout half), the reset-screen password inheritance from Login, the
-  duplicate-`EmailSent` push, the orphaned pre-rename token, `userEmail()`'s zero call sites, the
-  non-compiling release variant, zero server tests, `safeCall`'s stale `expectSuccess` KDoc,
-  `createGoogleUser`'s `email_taken` on `/auth/google`, the unexercised `invalid_auth_provider` 409,
-  the duplicate `@Delete vararg` on `TaskDao`, `core/mvi`'s zero implementors, `:shared`'s
-  `implementation` vs `api` on `kotlinx-serialization-json`, `ForgeDatePickerDialog`'s NPE,
-  hardcoded save/stats, `Motion.kt` empty, `SuccessScreen`'s undeleted reset button,
-  `ForgeTextField`'s empty focus-ring stub (41st note), the dev JWT secret, `/auth/forgot` logging
-  the code to console, CORS `anyHost()`, the Mongo password in source, no Room schema-export dir,
-  the deprecated `useClasspathSnapshot` — all still open, all untouched this round.
-- **Gradle daemon SIGSEGV = JBR 21 G1 GC fault, not memory pressure.** Not exercised this round —
-  no Gradle command was run.
+```kotlin
+companion object {
+    private const val SKIP_AUTH_FOR_TESTING = true
+}
+...
+if (BuildConfig.DEBUG && SKIP_AUTH_FOR_TESTING) {
+    pendingDestination = SplashEffect.NavigateToHome
+    return@launch
+}
+```
+
+As written, **every debug build now routes straight to Home**, bypassing onboarding and login
+unconditionally — `SKIP_AUTH_FOR_TESTING` is `true` in source, not a build variant or a local
+override. That's presumably deliberate for iterating on the task screens without re-logging-in each
+run, but it's worth flagging because it's easy to forget is on: nothing distinguishes "I meant to
+leave this on" from "I forgot to flip it back," and it silently defeats manual testing of the
+auth flow on debug builds — including the forgot/reset walkthrough the laptop verified two rounds
+ago — until someone remembers this flag exists.
 
 ## Not done this round, deliberately
 
-Per Yash's instruction: no code was completed or fixed, and `./gradlew … compileDebugKotlin …` was
-not run. The two items in the "worth a look" section above are exactly that — observations from
-reading the diff, left for whoever picks this up next rather than acted on.
+Per instruction: no code was completed or fixed, and no Gradle command was run. The subtask-id fix
+and the `NavigateBack` change were already in the working tree when I started; I read them, verified
+they're internally consistent by tracing the call sites (`Subtask` flows from `AddOrEditTaskScreen`
+→ `TaskViewModel.saveTask` → `TaskRepository.createTask`/`updateTask` → `saveTask`'s
+`SubTaskEntity` construction without a gap), and committed as-is.
+
+## Carried over (unchanged since the last two notes; not re-verified)
+
+- **`TaskList`'s row toggle and `TaskDetail`'s `onToggleSub` gap** — `TaskList`'s `onToggle` was
+  fixed two rounds ago; `onToggleSub` (per-subtask completion) is still empty. Only "mark all
+  subtasks done when the task completes" exists.
+- **`TaskApi` still can't write** — one method, `getTasks(token)`, no POST/PUT/DELETE, and the
+  client `TaskRepository` never references `TaskApi`.
+- **`PUT /tasks/{id}` is a measured full replace** that destroys omitted fields. Dormant until a
+  call site omits an argument — still only one call site, still passes everything.
+- **`BASE_URL`**, the sign-out credential leak, the reset-screen password inheritance, the duplicate
+  `EmailSent` push, the orphaned pre-rename token, `userEmail()`'s zero call sites, the
+  non-compiling release variant, zero server tests, and the rest of the long-carried list — all
+  unchanged, all untouched this round. See the last two notes for the full inventory.
+- **Gradle daemon SIGSEGV = JBR 21 G1 GC fault, not memory pressure.** Not exercised — no Gradle
+  command was run this round either.
