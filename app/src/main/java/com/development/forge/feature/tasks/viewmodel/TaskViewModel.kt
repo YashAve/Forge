@@ -63,7 +63,9 @@ class TaskViewModel @Inject constructor(
     private fun updateProject(project: String?) = _taskState.update { it.copy(project = project) }
     private fun updateDueAt(dueAt: Instant?) = _taskState.update { it.copy(dueAt = dueAt) }
     private fun updateNotes(notes: String?) = _taskState.update { it.copy(notes = notes) }
-    private fun clearForm() = _taskState.update { TaskState() }
+    private fun clearForm() = _taskState.update {
+        TaskState(tasks = it.tasks)
+    }
 
     private fun addSubTask(title: String) =
         _taskState.update {
