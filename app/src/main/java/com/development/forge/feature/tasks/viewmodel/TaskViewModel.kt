@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.development.forge.data.repository.TaskRepository
 import com.development.forge.domain.model.Priority
+import com.development.forge.domain.model.Subtask
 import com.development.forge.feature.tasks.contract.TaskEffect
 import com.development.forge.feature.tasks.contract.TaskIntent
 import com.development.forge.feature.tasks.contract.TaskState
@@ -78,7 +79,7 @@ class TaskViewModel @Inject constructor(
             it.copy(subtasks = it.subtasks.toMutableList().apply { removeAt(index) })
         }
 
-    private fun saveTask(subtasks: List<String>) {
+    private fun saveTask(subtasks: List<Subtask>) {
         val editingTaskId = _taskState.value.editingTaskId
         val title = _taskState.value.title
         if (title.isBlank()) return

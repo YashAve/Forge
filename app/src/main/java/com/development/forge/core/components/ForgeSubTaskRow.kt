@@ -25,7 +25,7 @@ import com.development.forge.core.designsystem.ForgeTheme
 import java.util.UUID
 
 data class DynamicSubTaskUiItem(
-    val id: UUID = UUID.randomUUID(),
+    val id: String = UUID.randomUUID().toString(),
     val title: String = "",
     val isNew: Boolean = false
 )

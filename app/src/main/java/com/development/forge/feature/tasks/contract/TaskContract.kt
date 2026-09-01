@@ -30,7 +30,7 @@ sealed interface TaskIntent {
     data object StartCreate : TaskIntent
     data class AddSubtask(val title: String) : TaskIntent
     data class RemoveSubtask(val index: Int) : TaskIntent
-    data class SaveTask(val subtasks: List<String>) : TaskIntent
+    data class SaveTask(val subtasks: List<Subtask>) : TaskIntent
 }
 
 sealed interface TaskEffect {

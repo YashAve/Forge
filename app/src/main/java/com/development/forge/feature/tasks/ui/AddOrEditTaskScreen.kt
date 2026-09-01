@@ -64,12 +64,14 @@ import com.development.forge.core.components.OnForgeOnBack
 import com.development.forge.core.designsystem.ForgeFonts
 import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.domain.model.Priority
+import com.development.forge.domain.model.Subtask
 import com.development.forge.feature.tasks.contract.TaskState
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
+import java.util.UUID
 import kotlin.time.Instant
 
 /**
@@ -78,7 +80,13 @@ import kotlin.time.Instant
  * Hoisted: title, priority, project, notes, and dueAt live in TaskState and are
  * changed through callbacks. Subtasks are kept LOCAL to this screen (as
  * DynamicSubTaskUiItem, which carries the isNew focus flag and supports inline
- * editing) and are handed up only on save, via onSave(subtaskTitles).
+ * editing) and are handed up only on save, via onSave(subtasks).
+ *
+ * Subtask IDs: an existing subtask's id is carried forward from state.subtasks
+ * when the screen seeds its local list -- never re-derived. Only a brand-new row
+ * (added via "Add subtask") gets a fresh id, generated once at that moment. This
+ * is what makes @Upsert update an existing subtask instead of inserting a
+ * duplicate with the same title and a new id.
  *
  * dueAt: the date + time pickers are the real source. The quick chips are
  * shortcuts that pre-fill a date. The chip highlight and the picker field text
@@ -94,16 +102,16 @@ fun AddOrEditTaskScreen(
     onUpdateProject: (String?) -> Unit = { },
     onUpdateDueAt: (Instant?) -> Unit = { },
     onUpdateNotes: (String?) -> Unit = { },
-    onSave: (List<String>) -> Unit = { },
+    onSave: (List<Subtask>) -> Unit = { },
     onBack: () -> Unit = { }
 ) {
-    // ── Compose infrastructure ──
+    // -- Compose infrastructure --
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
     val focusRequester = remember { FocusRequester() }
     val interactionSource = remember { MutableInteractionSource() }
 
-    // ── Derived from state ──
+    // -- Derived from state --
     val canSave = state.title.trim().isNotEmpty() && !state.isSaving
     val isEditing = state.editingTaskId != null
 
@@ -117,32 +125,34 @@ fun AddOrEditTaskScreen(
     val dateText = state.dueAt?.let { formatDate(it) }
     val timeText = state.dueAt?.let { formatInstantTime(it) }
 
-    // ── Due chips ──
+    // -- Due chips --
     val labels = listOf("Today", "Tomorrow", "This weekend", "Next week")
     val selectedChip = state.dueAt?.let { chipIndexFor(it) } ?: -1
 
-    // ── Picker dialog visibility (UI-only) ──
+    // -- Picker dialog visibility (UI-only) --
     var isShowDate by rememberSaveable { mutableStateOf(false) }
     var isShowTime by rememberSaveable { mutableStateOf(false) }
 
-    // ── Reminder section (UI-only, not persisted) ──
+    // -- Reminder section (UI-only, not persisted) --
     var remind by rememberSaveable { mutableStateOf(false) }
     var remindStart by rememberSaveable { mutableStateOf("9:00 AM") }
     var remindEnd by rememberSaveable { mutableStateOf("6:00 PM") }
     var isShowRemindStart by rememberSaveable { mutableStateOf(false) }
     var isShowRemindEnd by rememberSaveable { mutableStateOf(false) }
 
-    // ── More details toggle ──
+    // -- More details toggle --
     var expanded by rememberSaveable { mutableStateOf(false) }
     val angle by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
         animationSpec = tween(200, easing = EaseOut)
     )
 
-    // ── Subtasks: LOCAL UI state. Seeded once from the loaded task. ──
+    // -- Subtasks: LOCAL UI state. Seeded once from the loaded task, ID preserved. --
     val subTaskLists = remember(state.editingTaskId) {
         mutableStateListOf<DynamicSubTaskUiItem>().apply {
-            state.subtasks.forEach { add(DynamicSubTaskUiItem(title = it.title)) }
+            state.subtasks.forEach { subtask ->
+                add(DynamicSubTaskUiItem(id = subtask.id, title = subtask.title))
+            }
         }
     }
 
@@ -174,8 +184,11 @@ fun AddOrEditTaskScreen(
                         onClick = {
                             onSave(
                                 subTaskLists
-                                    .map { it.title.trim() }
-                                    .filter { it.isNotEmpty() }
+                                    .mapNotNull { item ->
+                                        val trimmed = item.title.trim()
+                                        if (trimmed.isEmpty()) return@mapNotNull null
+                                        Subtask(id = item.id, title = trimmed)
+                                    }
                             )
                         }
                     )
@@ -284,7 +297,7 @@ fun AddOrEditTaskScreen(
                 exit = shrinkVertically(tween(320, easing = EaseOut))
             ) {
                 Column {
-                    // ── PROJECT ──
+                    // -- PROJECT --
                     Spacer(modifier = Modifier.height(24.dp))
                     ForgeSectionLabel(label = "Project")
                     Spacer(modifier = Modifier.height(16.dp))
@@ -324,14 +337,17 @@ fun AddOrEditTaskScreen(
 
                     Spacer(modifier = Modifier.height(30.dp))
                     ForgeSectionLabel(
-                        label = "Subtasks${if (subTaskLists.isNotEmpty()) " · ${subTaskLists.size}" else ""}"
+                        label = "Subtasks${if (subTaskLists.isNotEmpty()) " . ${subTaskLists.size}" else ""}"
                     )
 
                     val onAddSubTask: () -> Unit = {
                         subTaskLists.indices.forEach { i ->
                             subTaskLists[i] = subTaskLists[i].copy(isNew = false)
                         }
-                        subTaskLists.add(DynamicSubTaskUiItem(title = "", isNew = true))
+                        // Fresh row -> fresh id, generated once, right here.
+                        subTaskLists.add(
+                            DynamicSubTaskUiItem(id = UUID.randomUUID().toString(), title = "", isNew = true)
+                        )
                         scope.launch {
                             scrollState.animateScrollTo(scrollState.maxValue)
                         }
@@ -383,7 +399,7 @@ fun AddOrEditTaskScreen(
                         )
                     }
 
-                    // ── REMINDER (UI-only, not persisted) ──
+                    // -- REMINDER (UI-only, not persisted) --
                     Spacer(modifier = Modifier.height(30.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -448,7 +464,7 @@ fun AddOrEditTaskScreen(
                         }
                     }
 
-                    // ── NOTES ──
+                    // -- NOTES --
                     Spacer(modifier = Modifier.height(30.dp))
                     ForgeSectionLabel(label = "Notes")
                     Spacer(modifier = Modifier.height(12.dp))
@@ -474,7 +490,7 @@ fun AddOrEditTaskScreen(
         }
     }
 
-    // ── Picker dialogs, overlaid outside the scroll area ──
+    // -- Picker dialogs, overlaid outside the scroll area --
     if (isShowDate) ForgeDatePickerDialog(
         onDateSelected = { millis ->
             onUpdateDueAt(combineDateTime(dateMillis = millis, existing = state.dueAt))
@@ -505,7 +521,7 @@ fun AddOrEditTaskScreen(
     )
 }
 
-// ── dueAt helpers ─────────────────────────────────────────────────────────────
+// -- dueAt helpers -----------------------------------------------------------
 
 /** Merge a newly picked calendar date into an existing instant, keeping its time. */
 private fun combineDateTime(dateMillis: Long, existing: Instant?): Instant {
@@ -542,7 +558,7 @@ private fun instantForChip(index: Int): Instant {
     when (index) {
         0 -> Unit                                   // Today
         1 -> c.add(Calendar.DAY_OF_MONTH, 1)        // Tomorrow
-        2 -> {                                       // This weekend → upcoming Saturday
+        2 -> {                                       // This weekend -> upcoming Saturday
             while (c.get(Calendar.DAY_OF_WEEK) != Calendar.SATURDAY) {
                 c.add(Calendar.DAY_OF_MONTH, 1)
             }

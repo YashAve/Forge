@@ -31,7 +31,7 @@ class TaskRepository @Inject constructor(
         dueAt: Instant? = null,
         project: String? = null,
         notes: String? = null,
-        subtasks: List<String> = emptyList()
+        subtasks: List<Subtask> = emptyList()
     ) {
         saveTask(
             taskId = UUID.randomUUID().toString(),
@@ -69,7 +69,7 @@ class TaskRepository @Inject constructor(
         dueAt: Instant? = null,
         project: String? = null,
         notes: String? = null,
-        subtasks: List<String> = emptyList()
+        subtasks: List<Subtask> = emptyList()
     ) {
         saveTask(
             taskId = taskId,
@@ -90,6 +90,7 @@ class TaskRepository @Inject constructor(
 
     suspend fun toggleTaskDone(taskId: String, isDone: Boolean) =
         taskDao.toggleTaskDone(taskId, isDone)
+
     suspend fun completeAllSubtasks(taskId: String) = subtaskDao.completeAllForTask(taskId)
 
     private suspend fun saveTask(
@@ -99,7 +100,7 @@ class TaskRepository @Inject constructor(
         dueAt: Instant?,
         project: String?,
         notes: String?,
-        subtasks: List<String>,
+        subtasks: List<Subtask>,
         syncState: SyncState
     ) {
         val task = TaskEntity(
@@ -111,8 +112,13 @@ class TaskRepository @Inject constructor(
             notes = notes,
             syncState = syncState
         )
-        val subtaskEntities = subtasks.map { subtaskTitle ->
-            SubTaskEntity(taskId = taskId, title = subtaskTitle)
+        val subtaskEntities = subtasks.map { subtask ->
+            SubTaskEntity(
+                subTaskId = subtask.id,
+                taskId = taskId,
+                title = subtask.title,
+                isDone = subtask.isDone
+            )
         }
         database.withTransaction {
             taskDao.upsertTask(task)

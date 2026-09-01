@@ -139,9 +139,7 @@ fun ForgeNavHost(
     LaunchedEffect(Unit) {
         taskViewModel.effect.collect { effect ->
             when (effect) {
-                TaskEffect.NavigateBack -> {
-                    backStack.clear()
-                }
+                TaskEffect.NavigateBack -> backStack.removeLastOrNull()
             }
         }
     }
