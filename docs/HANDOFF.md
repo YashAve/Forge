@@ -1,9 +1,20 @@
 # Handoff note — desktop → laptop
 
-**From:** desktop Claude session · **Date:** 2026-09-01 · **On top of:** `2954450`
+**From:** desktop Claude session · **Date:** 2026-09-01 · **On top of:** `d4eeac4`
 
-Same scope as the last two rounds: **commit and push only** — no code completion, no build
+Same scope as the last three rounds: **commit and push only** — no code completion, no build
 verification. Everything below is read from the diff, not observed at runtime.
+
+## Update — `d4eeac4`: the `onToggleSub` gap from below is now closed
+
+`TaskDetail`'s per-subtask checkboxes now dispatch `TaskIntent.ToggleSubtask`, which reaches
+`SubtaskDao.toggleSubtaskDone`. That resolves the first bullet of the "carried over" list below —
+delete that bullet when you get to it, I'm leaving the rest of this note as originally written.
+`TaskEntity` also gained `completed_at` (set on done, cleared on un-done; DB now version 3),
+`StatsScreen` takes live tasks instead of the sample list, and `TaskList`'s "open" now routes to
+`TaskDetail` instead of straight into the edit form — the old direct-to-edit block is left
+commented out in `ForgeNavHost.kt` rather than deleted, in case that was intentional and gets
+reverted.
 
 ## `TaskEffect.NavigateBack` question from two notes ago — answered
 
