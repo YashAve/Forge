@@ -170,7 +170,7 @@ fun ForgeProgressRing(
 @Composable
 fun StatsScreen(
     modifier: Modifier = Modifier,
-    tasks: List<Task> = com.development.forge.domain.model.tasks
+    tasks: List<Task> = emptyList()
 ) {
     val total = tasks.size
     val done = tasks.filter { it.done }.size
@@ -338,9 +338,10 @@ fun StatsScreen(
                             fontSize = 28.sp,
                             fontWeight = FontWeight.W600,
                             letterSpacing = (-0.02).em,
-                            lineHeight = 1.em,
                             color = ForgeTheme.colors.fgPrimary
-                        )
+                        ),
+                        maxLines = 1,
+                        softWrap = false
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
@@ -385,7 +386,8 @@ fun StatsScreen(
                             fontFamily = ForgeFonts.spaceGrotesk,
                             fontSize = 12.5.sp,
                             color = ForgeTheme.colors.fgSecondary
-                        )
+                        ),
+                        maxLines = 1
                     )
                 }
             }

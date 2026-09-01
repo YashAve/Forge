@@ -89,9 +89,17 @@ class TaskRepository @Inject constructor(
         taskDao.softDeleteTask(taskId)
 
     suspend fun toggleTaskDone(taskId: String, isDone: Boolean) =
-        taskDao.toggleTaskDone(taskId, isDone)
+        taskDao.toggleTaskDone(taskId, isDone, if (isDone) kotlin.time.Clock.System.now() else null)
 
-    suspend fun completeAllSubtasks(taskId: String) = subtaskDao.completeAllForTask(taskId)
+    suspend fun toggleSubtaskDone(subtaskId: String, isDone: Boolean) =
+        subtaskDao.toggleSubtaskDone(subtaskId, isDone)
+
+    suspend fun completeAllSubtasks(taskId: String) {
+        database.withTransaction {
+            subtaskDao.completeAllForTask(taskId)
+            toggleTaskDone(taskId, true)
+        }
+    }
 
     private suspend fun saveTask(
         taskId: String,

@@ -8,7 +8,7 @@ import com.development.forge.data.local.dao.TaskDao
 import com.development.forge.data.local.entity.SubTaskEntity
 import com.development.forge.data.local.entity.TaskEntity
 
-@Database(entities = [TaskEntity::class, SubTaskEntity::class], version = 2)
+@Database(entities = [TaskEntity::class, SubTaskEntity::class], version = 3)
 @TypeConverters(com.development.forge.data.local.entity.TypeConverters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao

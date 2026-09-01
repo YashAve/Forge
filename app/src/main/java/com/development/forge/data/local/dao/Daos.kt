@@ -9,6 +9,7 @@ import com.development.forge.data.local.entity.SubTaskEntity
 import com.development.forge.data.local.entity.TaskEntity
 import com.development.forge.data.local.entity.TaskWithSubTask
 import kotlinx.coroutines.flow.Flow
+import kotlin.time.Instant
 
 @Dao
 interface TaskDao {
@@ -30,8 +31,8 @@ interface TaskDao {
     suspend fun getPendingTasks(): List<TaskWithSubTask>
     @Query("DELETE FROM tasks WHERE task_id = :taskId AND sync_state = 'PENDING_DELETE'")
     suspend fun deletePending(taskId: String)
-    @Query("UPDATE tasks SET done = :isDone, sync_state = 'PENDING_UPDATE' WHERE task_id = :taskId")
-    suspend fun toggleTaskDone(taskId: String, isDone: Boolean)
+    @Query("UPDATE tasks SET done = :isDone, completed_at = :completedAt, sync_state = 'PENDING_UPDATE' WHERE task_id = :taskId")
+    suspend fun toggleTaskDone(taskId: String, isDone: Boolean, completedAt: Instant?)
     @Query("""
     SELECT project FROM tasks
     WHERE project IS NOT NULL
@@ -53,6 +54,8 @@ interface SubtaskDao {
     suspend fun upsertSubTask(vararg subTask: SubTaskEntity)
     @Query("UPDATE subtasks SET is_done = 1 WHERE task_id = :taskId")
     suspend fun completeAllForTask(taskId: String)
+    @Query("UPDATE subtasks SET is_done = :isDone WHERE subtask_id = :subtaskId")
+    suspend fun toggleSubtaskDone(subtaskId: String, isDone: Boolean)
     @Delete
     suspend fun deleteSubTask(vararg subTask: SubTaskEntity)
     @Query("DELETE FROM subtasks WHERE subtask_id = :subtaskId")

@@ -158,10 +158,12 @@ fun ForgeNavHost(
                 backStack.clear()
                 backStack.add(ForgeNavKey.Home)
             }
+
             ForgeNavKey.AddOrEditTask -> {
                 taskViewModel.onIntent(TaskIntent.ClearForm)
                 backStack.removeLastOrNull()
             }
+
             else -> backStack.removeLastOrNull()
         }
     }
@@ -441,7 +443,10 @@ fun ForgeNavHost(
                     }
 
                     entry<ForgeNavKey.Statistics> {
-                        StatsScreen(basicModifier)
+                        StatsScreen(
+                            basicModifier,
+                            tasks = taskState.value.tasks
+                        )
                     }
 
                     entry<ForgeNavKey.Settings> {
@@ -474,8 +479,9 @@ fun ForgeNavHost(
                             tasks = taskState.value.tasks,
                             onBack = { backStack.removeLastOrNull() },
                             onOpen = { taskId ->
-                                taskViewModel.onIntent(TaskIntent.StartEdit(taskId))
-                                backStack.add(ForgeNavKey.AddOrEditTask)
+                                backStack.add(ForgeNavKey.TaskDetail(taskId))
+                                /*taskViewModel.onIntent(TaskIntent.StartEdit(taskId))
+                                backStack.add(ForgeNavKey.AddOrEditTask)*/
                             },
                             onToggle = { taskViewModel.onIntent(TaskIntent.ToggleDone(it)) },
                             onAdd = {
@@ -493,9 +499,7 @@ fun ForgeNavHost(
                                 task = task,
                                 onToggle = { taskViewModel.onIntent(TaskIntent.ToggleDone(it)) },
                                 onComplete = { taskViewModel.onIntent(TaskIntent.ToggleDone(it)) },
-                                onToggleSub = {
-
-                                },
+                                onToggleSub = { taskViewModel.onIntent(TaskIntent.ToggleSubtask(it)) },
                                 onEdit = {
                                     taskViewModel.onIntent(TaskIntent.StartEdit(task.id))
                                     backStack.add(ForgeNavKey.AddOrEditTask)

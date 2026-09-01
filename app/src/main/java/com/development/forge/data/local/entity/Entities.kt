@@ -40,6 +40,7 @@ data class TaskEntity(
     @ColumnInfo("project") val project: String? = null,
     @ColumnInfo("notes") val notes: String? = null,
     @ColumnInfo("due_at") val dueAt: Instant? = null,
+    @ColumnInfo("completed_at") val completedAt: Instant? = null,
     @ColumnInfo("sync_state") val syncState: SyncState = SyncState.PENDING_CREATE
 )
 

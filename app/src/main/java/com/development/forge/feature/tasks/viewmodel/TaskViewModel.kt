@@ -48,6 +48,7 @@ class TaskViewModel @Inject constructor(
             is TaskIntent.UpdateProject -> updateProject(intent.project)
             is TaskIntent.UpdateDueAt -> updateDueAt(intent.dueAt)
             is TaskIntent.ToggleDone -> toggleDone(intent.taskId)
+            is TaskIntent.ToggleSubtask -> toggleSubtask(intent.subtaskId)
             is TaskIntent.UpdateNotes -> updateNotes(intent.notes)
             is TaskIntent.AddSubtask -> addSubTask(intent.title)
             is TaskIntent.RemoveSubtask -> removeSubTask(intent.index)
@@ -140,10 +141,20 @@ class TaskViewModel @Inject constructor(
         val task = _taskState.value.tasks.find { it.id == taskId } ?: return
         val newDone = !task.done
         viewModelScope.launch {
-            taskRepository.toggleTaskDone(taskId, newDone)
             if (newDone) {
                 taskRepository.completeAllSubtasks(taskId)
+            } else {
+                taskRepository.toggleTaskDone(taskId, false)
             }
+        }
+    }
+
+    private fun toggleSubtask(subtaskId: String) {
+        val subtask = _taskState.value.tasks
+            .flatMap { it.subtasks }
+            .find { it.id == subtaskId } ?: return
+        viewModelScope.launch {
+            taskRepository.toggleSubtaskDone(subtaskId, !subtask.isDone)
         }
     }
 

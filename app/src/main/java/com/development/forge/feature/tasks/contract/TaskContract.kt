@@ -27,6 +27,7 @@ sealed interface TaskIntent {
     data class UpdateProject(val project: String?) : TaskIntent
     data class UpdateNotes(val notes: String?) : TaskIntent
     data class ToggleDone(val taskId: String) : TaskIntent
+    data class ToggleSubtask(val subtaskId: String) : TaskIntent
     data object StartCreate : TaskIntent
     data class AddSubtask(val title: String) : TaskIntent
     data class RemoveSubtask(val index: Int) : TaskIntent
