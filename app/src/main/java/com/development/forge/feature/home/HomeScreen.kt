@@ -173,7 +173,7 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    tasks: List<Task> = com.development.forge.domain.model.tasks,
+    tasks: List<Task> = emptyList(),
     onToggle: (String) -> Unit = { },
     onOpen: (String) -> Unit = { },
     onSeeAll: () -> Unit = { },

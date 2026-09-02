@@ -15,6 +15,11 @@ data class TaskState(
     val subtasks: List<Subtask> = emptyList(),
     val existingProjects: List<String> = emptyList(),
     val tasks: List<Task> = emptyList(),
+    val doneThisWeek: Int = 0,
+    /** Seven completion counts, Monday first, matching the chart's M T W T F S S labels. */
+    val weekCompletions: List<Int> = List(7) { 0 },
+    val currentStreak: Int = 0,
+    val longestStreak: Int = 0,
     val isSaving: Boolean = false
 )
 
@@ -32,6 +37,12 @@ sealed interface TaskIntent {
     data class AddSubtask(val title: String) : TaskIntent
     data class RemoveSubtask(val index: Int) : TaskIntent
     data class SaveTask(val subtasks: List<Subtask>) : TaskIntent
+
+    /** Drain anything pending to the server. Silent when the server is unreachable. */
+    data object Sync : TaskIntent
+
+    /** Debug builds only — fills the database with fixtures for the Stats screen. */
+    data object SeedDebugData : TaskIntent
 }
 
 sealed interface TaskEffect {

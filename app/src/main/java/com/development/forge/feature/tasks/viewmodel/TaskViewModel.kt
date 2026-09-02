@@ -36,6 +36,26 @@ class TaskViewModel @Inject constructor(
                 _taskState.update { it.copy(tasks = tasks) }
             }
         }
+        // Separate collectors rather than one combine(): these are independent
+        // queries that change at different times, and combine() would re-emit all
+        // four values whenever any one of them moved.
+        viewModelScope.launch {
+            taskRepository.doneThisWeek().collect { count ->
+                _taskState.update { it.copy(doneThisWeek = count) }
+            }
+        }
+        viewModelScope.launch {
+            taskRepository.weekCompletions().collect { counts ->
+                _taskState.update { it.copy(weekCompletions = counts) }
+            }
+        }
+        viewModelScope.launch {
+            taskRepository.streaks().collect { streak ->
+                _taskState.update {
+                    it.copy(currentStreak = streak.current, longestStreak = streak.longest)
+                }
+            }
+        }
     }
 
     fun onIntent(intent: TaskIntent) {
@@ -53,6 +73,8 @@ class TaskViewModel @Inject constructor(
             is TaskIntent.AddSubtask -> addSubTask(intent.title)
             is TaskIntent.RemoveSubtask -> removeSubTask(intent.index)
             is TaskIntent.SaveTask -> saveTask(intent.subtasks)
+            TaskIntent.Sync -> sync()
+            TaskIntent.SeedDebugData -> seedDebugData()
         }
     }
 
@@ -108,6 +130,7 @@ class TaskViewModel @Inject constructor(
                 )
             }
             _taskState.update { it.copy(isSaving = false) }
+            syncPendingTasks()
             _effect.send(TaskEffect.NavigateBack)
         }
     }
@@ -148,6 +171,7 @@ class TaskViewModel @Inject constructor(
             } else {
                 taskRepository.toggleTaskDone(taskId, false)
             }
+            syncPendingTasks()
         }
     }
 
@@ -157,7 +181,28 @@ class TaskViewModel @Inject constructor(
             .find { it.id == subtaskId } ?: return
         viewModelScope.launch {
             taskRepository.toggleSubtaskDone(subtaskId, !subtask.isDone)
+            syncPendingTasks()
         }
+    }
+
+    /**
+     * Drains pending work to the server.
+     *
+     * Fired on app start and after every local mutation, so a change made while the
+     * server was unreachable goes up on the next thing the user does rather than
+     * waiting for a restart. [TaskRepository.syncPendingTasks] is silent by design
+     * when the host is absent, so this never needs an error branch — there is no
+     * failure here the user could act on.
+     */
+    /** Called inline from a mutation's own coroutine, so the push follows the write. */
+    private suspend fun syncPendingTasks() = taskRepository.syncPendingTasks()
+
+    private fun sync() {
+        viewModelScope.launch { taskRepository.syncPendingTasks() }
+    }
+
+    private fun seedDebugData() {
+        viewModelScope.launch { taskRepository.seedDebugData() }
     }
 
     private fun loadExistingProjects() {

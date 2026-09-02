@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Shield
@@ -137,7 +138,10 @@ fun SettingsScreen(
     email: String = "karishma.kapoor@cosmiq.co.in",
     isDark: Boolean = true,
     onToggleTheme: () -> Unit = { },
-    onSignOut: () -> Unit = { }
+    onSignOut: () -> Unit = { },
+    /** True only in debug builds — gates the developer-tools section below. */
+    showDebugTools: Boolean = false,
+    onSeedData: () -> Unit = { }
 ) {
     val name = email.substringBefore(".")
     Column(
@@ -260,6 +264,21 @@ fun SettingsScreen(
             title = "Privacy",
             onClick = { }
         )
+
+        // Developer tools. The caller passes BuildConfig.DEBUG, and the seeder it
+        // reaches is guarded again on its own side, so this cannot ship as a live
+        // button that quietly rewrites someone's task list.
+        if (showDebugTools) {
+            Spacer(modifier = Modifier.height(24.dp))
+            ForgeSectionLabel(label = "Developer")
+            Spacer(modifier = Modifier.height(6.dp))
+            SettingRow(
+                icon = Icons.Outlined.Science,
+                title = "Seed sample tasks",
+                value = "debug",
+                onClick = onSeedData
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
         SettingRow(

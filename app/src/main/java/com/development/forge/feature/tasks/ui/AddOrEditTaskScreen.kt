@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -51,6 +55,9 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.development.forge.core.components.DynamicSubTaskUiItem
 import com.development.forge.core.components.ForgeDatePickerDialog
+import androidx.compose.ui.focus.onFocusEvent
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import com.development.forge.core.components.ForgeNakedValidationText
 import com.development.forge.core.components.ForgePickerField
 import com.development.forge.core.components.ForgePrioritySegmented
@@ -110,6 +117,19 @@ fun AddOrEditTaskScreen(
     val scrollState = rememberScrollState()
     val focusRequester = remember { FocusRequester() }
     val interactionSource = remember { MutableInteractionSource() }
+
+    // Keyboard chain: Project -> Notes. Title is deliberately NOT in the chain --
+    // it is maxLines = 3 and wraps by design, and a multi-line BasicTextField shows
+    // the IME's newline key rather than an action button.
+    //
+    // .imePadding() (applied upstream via basicModifier) only reserves space for the
+    // keyboard; it does not scroll. Moving focus does not scroll the enclosing
+    // verticalScroll either, so each chained field asks to be brought into view when
+    // it gains focus -- otherwise the keyboard covers the field it just focused.
+    val focusManager = LocalFocusManager.current
+    val notesFocusRequester = remember { FocusRequester() }
+    val projectBringIntoView = remember { BringIntoViewRequester() }
+    val notesBringIntoView = remember { BringIntoViewRequester() }
 
     // -- Derived from state --
     val canSave = state.title.trim().isNotEmpty() && !state.isSaving
@@ -318,12 +338,26 @@ fun AddOrEditTaskScreen(
                     }
                     Spacer(modifier = Modifier.height(14.dp))
                     ForgeNakedValidationText(
+                        modifier = Modifier
+                            .bringIntoViewRequester(projectBringIntoView)
+                            .onFocusEvent { focus ->
+                                if (focus.isFocused) {
+                                    scope.launch { projectBringIntoView.bringIntoView() }
+                                }
+                            },
                         input = state.project ?: "",
                         placeholder = "Or type a new project",
                         inputSize = 18.sp,
                         maxLines = 1,
                         isTakeFocus = false,
-                        inputLength = 30
+                        inputLength = 30,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(
+                            // Explicit requester rather than focusManager.moveFocus(Down):
+                            // the reminder switch and time fields sit between Project and
+                            // Notes, so "the next focusable" is not the next text field.
+                            onNext = { notesFocusRequester.requestFocus() }
+                        )
                     ) { value ->
                         onUpdateProject(value.take(30).ifEmpty { null })
                     }
@@ -469,12 +503,22 @@ fun AddOrEditTaskScreen(
                     ForgeSectionLabel(label = "Notes")
                     Spacer(modifier = Modifier.height(12.dp))
                     ForgeNakedValidationText(
+                        modifier = Modifier
+                            .bringIntoViewRequester(notesBringIntoView)
+                            .onFocusEvent { focus ->
+                                if (focus.isFocused) {
+                                    scope.launch { notesBringIntoView.bringIntoView() }
+                                }
+                            },
                         input = state.notes ?: "",
                         placeholder = "Anything else worth noting",
                         inputSize = 15.sp,
                         maxLines = 4,
                         isTakeFocus = false,
-                        inputLength = 500
+                        inputLength = 500,
+                        focusRequester = notesFocusRequester,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
                     ) { value ->
                         onUpdateNotes(value.take(500).ifEmpty { null })
                     }

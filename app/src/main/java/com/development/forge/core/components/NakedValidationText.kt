@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,10 +37,21 @@ fun ForgeNakedValidationText(
     maxLines: Int = 3,
     isTakeFocus: Boolean = false,
     inputLength: Int = 120,
+    focusRequester: FocusRequester = remember { FocusRequester() },
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     onValueChange: (String) -> Unit = { }
 ) {
-    val focusRequester = remember { FocusRequester() }
+    // The requester is always attached, and defaults to a private one, so a caller
+    // that wants to drive focus here (to chain ImeAction.Next from a field above)
+    // can pass its own without this component knowing anything about the chain.
+    //
+    // [isTakeFocus] previously attached a requester that nothing ever called
+    // requestFocus() on, so the flag silently did nothing. Requesting it here is
+    // what makes it mean what its name says.
+    LaunchedEffect(isTakeFocus) {
+        if (isTakeFocus) focusRequester.requestFocus()
+    }
 
     val style = TextStyle(
         fontFamily = spaceGrotesk,
@@ -66,12 +79,11 @@ fun ForgeNakedValidationText(
                 innerTextField()
             },
             maxLines = maxLines,
+            keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
             modifier = Modifier
                 .fillMaxWidth()
-                .then(
-                    if (isTakeFocus) Modifier.focusRequester(focusRequester) else Modifier
-                )
+                .focusRequester(focusRequester)
         )
         if (input.length > (inputLength - 18)) {
             Spacer(modifier = Modifier.height(8.dp))

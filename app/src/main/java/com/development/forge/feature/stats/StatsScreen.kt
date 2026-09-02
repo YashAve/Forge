@@ -170,16 +170,25 @@ fun ForgeProgressRing(
 @Composable
 fun StatsScreen(
     modifier: Modifier = Modifier,
-    tasks: List<Task> = emptyList()
+    tasks: List<Task> = emptyList(),
+    doneThisWeek: Int = 0,
+    weekCompletions: List<Int> = List(7) { 0 },
+    currentStreak: Int = 0,
+    longestStreak: Int = 0
 ) {
     val total = tasks.size
     val done = tasks.filter { it.done }.size
     val percentage = if (total > 0) (done * 100 / total) else 0
-    val data = listOf(
-        "M" to 3, "T" to 5, "W" to 2,
-        "T" to 6, "F" to 4, "S" to 1, "S" to done
-    )
+
+    // Labels are Monday-first and [weekCompletions] is built to match, so the two
+    // zip positionally. The last bar used to be `"S" to done` — the all-time done
+    // count standing in for Sunday — which is why it always dwarfed the rest.
+    val data = WEEKDAY_LABELS.zip(weekCompletions)
     val peak = data.maxOf { it.second }.coerceAtLeast(1)
+
+    // Only claim a best day when something was actually completed this week.
+    val bestDayIndex = weekCompletions.indices.maxByOrNull { weekCompletions[it] }
+    val bestDay = bestDayIndex?.takeIf { weekCompletions[it] > 0 }?.let { WEEKDAY_NAMES[it] }
 
     // peak bar pulse — drives the glow alpha
     val peakTransition = rememberInfiniteTransition(label = "peak")
@@ -273,7 +282,7 @@ fun StatsScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
-                            text = "9",
+                            text = "$currentStreak",
                             style = TextStyle(
                                 fontFamily = ForgeFonts.jetbrainsMono,
                                 fontSize = 44.sp,
@@ -286,7 +295,7 @@ fun StatsScreen(
                         )
                         Spacer(Modifier.width(7.dp))
                         Text(
-                            text = "days",
+                            text = if (currentStreak == 1) "day" else "days",
                             style = TextStyle(
                                 fontFamily = ForgeFonts.jetbrainsMono,
                                 fontSize = 15.sp,
@@ -301,8 +310,13 @@ fun StatsScreen(
                             withStyle(SpanStyle(color = ForgeTheme.colors.fgSecondary)) {
                                 append("Current streak")
                             }
-                            withStyle(SpanStyle(color = ForgeTheme.colors.fgTertiary)) {
-                                append(" · personal best")
+                            // Only an honest claim when the current run has actually
+                            // reached the all-time longest, so it disappears rather
+                            // than asserting something the data does not support.
+                            if (currentStreak > 0 && currentStreak >= longestStreak) {
+                                withStyle(SpanStyle(color = ForgeTheme.colors.fgTertiary)) {
+                                    append(" · personal best")
+                                }
                             }
                         },
                         style = TextStyle(
@@ -369,7 +383,7 @@ fun StatsScreen(
                     )
                     Spacer(Modifier.height(14.dp))
                     Text(
-                        text = "1",
+                        text = "$doneThisWeek",
                         style = TextStyle(
                             fontFamily = ForgeFonts.jetbrainsMono,
                             fontSize = 28.sp,
@@ -479,47 +493,52 @@ fun StatsScreen(
                     }
                 }
 
-                // footer — best day
-                Spacer(Modifier.height(14.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(ForgeTheme.colors.borderSubtle)
-                )
-                Spacer(Modifier.height(14.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Best day",
-                        style = TextStyle(
-                            fontFamily = ForgeFonts.spaceGrotesk,
-                            fontSize = 13.sp,
-                            color = ForgeTheme.colors.fgSecondary
-                        )
+                // footer — best day. The whole row goes away when nothing has been
+                // completed this week: a "best day" with zero completions would be a
+                // fabricated answer, and the divider above it would be decorating
+                // nothing.
+                if (bestDay != null) {
+                    Spacer(Modifier.height(14.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(ForgeTheme.colors.borderSubtle)
                     )
+                    Spacer(Modifier.height(14.dp))
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Filled.EmojiEvents,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = ForgeTheme.colors.amberA300
-                        )
                         Text(
-                            text = "Thursday",
+                            text = "Best day",
                             style = TextStyle(
                                 fontFamily = ForgeFonts.spaceGrotesk,
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.W600,
-                                color = ForgeTheme.colors.amberA300
+                                color = ForgeTheme.colors.fgSecondary
                             )
                         )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Filled.EmojiEvents,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = ForgeTheme.colors.amberA300
+                            )
+                            Text(
+                                text = bestDay,
+                                style = TextStyle(
+                                    fontFamily = ForgeFonts.spaceGrotesk,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.W600,
+                                    color = ForgeTheme.colors.amberA300
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -527,3 +546,11 @@ fun StatsScreen(
         Spacer(modifier = Modifier.height(32.dp))
     }
 }
+
+/** Chart labels, Monday first. Index matches the `weekCompletions` parameter. */
+private val WEEKDAY_LABELS = listOf("M", "T", "W", "T", "F", "S", "S")
+
+/** Full names for the same seven slots, used by the "Best day" footer. */
+private val WEEKDAY_NAMES = listOf(
+    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+)

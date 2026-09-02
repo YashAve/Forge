@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.development.forge.BuildConfig
 import com.development.forge.core.datastore.ForgePreferences
-import com.development.forge.core.mvi.MviViewModel
 import com.development.forge.feature.splash.contract.SplashEffect
 import com.development.forge.feature.splash.contract.SplashIntent
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,8 +14,16 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Splash ViewModel. Structure-only stub: it wires the feature into [MviViewModel]
- * with an initial state and an empty intent reducer. Logic arrives in a later phase.
+ * Decides where the app opens: onboarding, login, or straight to Home.
+ *
+ * Reads the stored onboarding flag and auth token once, then emits a
+ * [SplashEffect] telling the nav host where to go — the splash screen itself makes
+ * no routing decision.
+ *
+ * [SKIP_AUTH_FOR_TESTING] short-circuits all of that to Home so the task screens
+ * can be iterated on without signing in every run. It is deliberately `false`:
+ * left on, every debug build silently skips the entire auth flow, which is easy to
+ * forget and makes the login path untestable on the only variant anyone runs.
  */
 
 @HiltViewModel
@@ -25,7 +32,7 @@ class SplashViewModel @Inject constructor(
 ) : ViewModel() {
 
     companion object {
-        private const val SKIP_AUTH_FOR_TESTING = true
+        private const val SKIP_AUTH_FOR_TESTING = false
     }
 
     private val _effect = Channel<SplashEffect>()

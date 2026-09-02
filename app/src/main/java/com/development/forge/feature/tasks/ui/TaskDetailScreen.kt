@@ -37,14 +37,14 @@ import com.development.forge.core.components.ForgeSectionLabel
 import com.development.forge.core.components.PriorityChip
 import com.development.forge.core.designsystem.ForgeFonts
 import com.development.forge.core.designsystem.ForgeTheme
+import com.development.forge.domain.model.Priority
+import com.development.forge.domain.model.Subtask
 import com.development.forge.domain.model.Task
-import com.development.forge.domain.model.tasks
 
-@Preview
 @Composable
 fun TaskDetailScreen(
     modifier: Modifier = Modifier,
-    task: Task = tasks[0],
+    task: Task,
     onToggle: (String) -> Unit = { },
     onComplete: (String) -> Unit = { },
     onToggleSub: (String) -> Unit = { },
@@ -195,5 +195,25 @@ fun TaskDetailScreen(
                 onClick = { onComplete(task.id) }
             )
         }
+    }
+}
+
+@Preview
+@Composable
+private fun TaskDetailScreenPreview() {
+    ForgeTheme {
+        TaskDetailScreen(
+            task = Task(
+                id = "preview",
+                title = "Draft the Q3 proposal",
+                priority = Priority.HIGH,
+                project = "Work",
+                notes = "Include the revised budget breakdown.",
+                subtasks = listOf(
+                    Subtask("preview-a", "Outline the executive summary"),
+                    Subtask("preview-b", "Add the revenue forecast", isDone = true)
+                )
+            )
+        )
     }
 }

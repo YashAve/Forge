@@ -30,6 +30,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
@@ -45,6 +47,7 @@ import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.feature.auth.contract.AuthEffect
 import com.development.forge.feature.auth.contract.AuthError
 import com.development.forge.feature.auth.contract.AuthIntent
+import com.development.forge.BuildConfig
 import com.development.forge.feature.auth.ui.EmailSentScreen
 import com.development.forge.feature.auth.ui.ForgotPasswordScreen
 import com.development.forge.feature.auth.ui.LoginScreen
@@ -106,8 +109,6 @@ fun ForgeNavHost(
     val authState = authViewModel.authState.collectAsStateWithLifecycle()
     val taskState = taskViewModel.taskState.collectAsStateWithLifecycle()
 
-    val clearToHome = setOf(Login, Registration, ForgeNavKey.Home)
-    val resetToHome = setOf(ForgeNavKey.Statistics, ForgeNavKey.Settings)
 
     LaunchedEffect(Unit) {
         authViewModel.effect.collect { effect ->
@@ -136,6 +137,12 @@ fun ForgeNavHost(
         }
     }
 
+    // App start: push anything that accumulated while the server was unreachable.
+    // Keyed on Unit so it runs once per nav host, not on every recomposition.
+    LaunchedEffect(Unit) {
+        taskViewModel.onIntent(TaskIntent.Sync)
+    }
+
     LaunchedEffect(Unit) {
         taskViewModel.effect.collect { effect ->
             when (effect) {
@@ -151,22 +158,7 @@ fun ForgeNavHost(
         }
     }
 
-    BackHandler {
-        when (currentDestination) {
-            in clearToHome -> backStack.clear()
-            in resetToHome -> {
-                backStack.clear()
-                backStack.add(ForgeNavKey.Home)
-            }
-
-            ForgeNavKey.AddOrEditTask -> {
-                taskViewModel.onIntent(TaskIntent.ClearForm)
-                backStack.removeLastOrNull()
-            }
-
-            else -> backStack.removeLastOrNull()
-        }
-    }
+    BackHandler { navigateBack(currentDestination, backStack, taskViewModel) }
 
     DisposableEffect(Unit) {
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -200,72 +192,10 @@ fun ForgeNavHost(
             containerColor = Color.Transparent,
             snackbarHost = snackBarHost,
             topBar = {
-                when (currentDestination) {
-                    is Splash,
-                    is Success,
-                    is ForgeNavKey.OnboardingFlow,
-                    is ForgeNavKey.Home,
-                    is ForgeNavKey.Statistics,
-                    is ForgeNavKey.Settings,
-                    is ForgeNavKey.AddOrEditTask -> {
-                    }
-
-                    is Login,
-                    is Registration -> ForgeTopBar()
-
-                    is ForgeNavKey.TaskList -> ForgeTaskTopBar(
-                        label = "All tasks",
-                        onStart = { OnForgeOnBack { backStack.removeLastOrNull() } },
-                        onEnd = {
-                            OnForgeOnAdd {
-                                // ClearForm first: TaskViewModel is scoped to the nav host, so
-                                // without it the form still holds the last task that was edited.
-                                taskViewModel.onIntent(TaskIntent.ClearForm)
-                                backStack.add(ForgeNavKey.AddOrEditTask)
-                            }
-                        }
-                    )
-
-                    is ForgeNavKey.TaskDetail -> ForgeTaskTopBar(
-                        label = "Task",
-                        onStart = { OnForgeOnBack { backStack.removeLastOrNull() } },
-                        onEnd = {
-                            OnForgeOnEdit {
-                                // StartEdit sets editingTaskId, which is what makes saveTask()
-                                // update instead of create. Without it this opened a blank form.
-                                taskViewModel.onIntent(
-                                    TaskIntent.StartEdit(currentDestination.taskId)
-                                )
-                                backStack.add(ForgeNavKey.AddOrEditTask)
-                            }
-                        }
-                    )
-
-                    else -> ForgeTopBar(
-                        onStart = { OnForgeOnBack { backStack.removeLastOrNull() } }
-                    )
-                }
+                ForgeNavTopBar(currentDestination, backStack, taskViewModel)
             },
             bottomBar = {
-                when (currentDestination) {
-                    is ForgeNavKey.Home,
-                    is ForgeNavKey.Statistics,
-                    is ForgeNavKey.Settings -> {
-                        ForgeBottomNavigationBar(
-                            current = currentDestination,
-                            onSelect = { key ->
-                                backStack.clear()
-                                backStack.add(key)
-                            },
-                            onAddClick = {
-                                taskViewModel.onIntent(TaskIntent.ClearForm)
-                                backStack.add(ForgeNavKey.AddOrEditTask)
-                            }
-                        )
-                    }
-
-                    else -> {}
-                }
+                ForgeNavBottomBar(currentDestination, backStack, taskViewModel)
             }
         ) { padding ->
             val basicModifier = Modifier
@@ -445,7 +375,11 @@ fun ForgeNavHost(
                     entry<ForgeNavKey.Statistics> {
                         StatsScreen(
                             basicModifier,
-                            tasks = taskState.value.tasks
+                            tasks = taskState.value.tasks,
+                            doneThisWeek = taskState.value.doneThisWeek,
+                            weekCompletions = taskState.value.weekCompletions,
+                            currentStreak = taskState.value.currentStreak,
+                            longestStreak = taskState.value.longestStreak
                         )
                     }
 
@@ -469,6 +403,10 @@ fun ForgeNavHost(
                             onToggleTheme = onToggleTheme,
                             onSignOut = {
                                 viewModel.onIntent(SettingsIntent.Logout)
+                            },
+                            showDebugTools = BuildConfig.DEBUG,
+                            onSeedData = {
+                                taskViewModel.onIntent(TaskIntent.SeedDebugData)
                             }
                         )
                     }
@@ -538,5 +476,137 @@ fun ForgeNavHostPreview() {
     }
     CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides mockDispatcherOwner) {
         ForgeNavHost(initialDestination = ForgeNavKey.Home) // Bypasses Splash ViewModel execution
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHROME — the three `when`s that decide what wraps the current screen
+// ═══════════════════════════════════════════════════════════════
+// Pulled out of [ForgeNavHost] so the Scaffold reads as a shape rather than as
+// three nested dispatch tables. They stay in this file, and keep taking the
+// back stack and the ViewModel directly, because they are nav-host internals
+// rather than screens — the "screens never touch a ViewModel" rule is about the
+// composables under `feature/`, which these are not.
+//
+// The entry table itself is deliberately NOT extracted: it is long because the
+// app has many screens, and scattering it across functions would hide the
+// navigation graph rather than reveal it.
+
+// Typed Set<NavKey> rather than left to inference: the back stack is
+// NavBackStack<NavKey>, so `currentDestination` is NavKey?, and `in` against an
+// inferred Set<ForgeNavKey> cannot resolve its type parameter.
+/** Destinations where back exits the app rather than going anywhere. */
+private val CLEAR_TO_HOME: Set<NavKey> = setOf(Login, Registration, ForgeNavKey.Home)
+
+/** Bottom-nav destinations where back returns to Home rather than popping. */
+private val RESET_TO_HOME: Set<NavKey> = setOf(ForgeNavKey.Statistics, ForgeNavKey.Settings)
+
+/** The top bar for [currentDestination] — nothing at all on the full-bleed screens. */
+@Composable
+private fun ForgeNavTopBar(
+    currentDestination: NavKey?,
+    backStack: NavBackStack<NavKey>,
+    taskViewModel: TaskViewModel
+) {
+            when (currentDestination) {
+                is Splash,
+                is Success,
+                is ForgeNavKey.OnboardingFlow,
+                is ForgeNavKey.Home,
+                is ForgeNavKey.Statistics,
+                is ForgeNavKey.Settings,
+                is ForgeNavKey.AddOrEditTask -> {
+                }
+
+                is Login,
+                is Registration -> ForgeTopBar()
+
+                is ForgeNavKey.TaskList -> ForgeTaskTopBar(
+                    label = "All tasks",
+                    onStart = { OnForgeOnBack { backStack.removeLastOrNull() } },
+                    onEnd = {
+                        OnForgeOnAdd {
+                            // ClearForm first: TaskViewModel is scoped to the nav host, so
+                            // without it the form still holds the last task that was edited.
+                            taskViewModel.onIntent(TaskIntent.ClearForm)
+                            backStack.add(ForgeNavKey.AddOrEditTask)
+                        }
+                    }
+                )
+
+                is ForgeNavKey.TaskDetail -> ForgeTaskTopBar(
+                    label = "Task",
+                    onStart = { OnForgeOnBack { backStack.removeLastOrNull() } },
+                    onEnd = {
+                        OnForgeOnEdit {
+                            // StartEdit sets editingTaskId, which is what makes saveTask()
+                            // update instead of create. Without it this opened a blank form.
+                            taskViewModel.onIntent(
+                                TaskIntent.StartEdit(currentDestination.taskId)
+                            )
+                            backStack.add(ForgeNavKey.AddOrEditTask)
+                        }
+                    }
+                )
+
+                else -> ForgeTopBar(
+                    onStart = { OnForgeOnBack { backStack.removeLastOrNull() } }
+                )
+            }
+}
+
+/** The bottom nav, shown only on the three tabbed destinations. */
+@Composable
+private fun ForgeNavBottomBar(
+    currentDestination: NavKey?,
+    backStack: NavBackStack<NavKey>,
+    taskViewModel: TaskViewModel
+) {
+            when (currentDestination) {
+                is ForgeNavKey.Home,
+                is ForgeNavKey.Statistics,
+                is ForgeNavKey.Settings -> {
+                    ForgeBottomNavigationBar(
+                        current = currentDestination,
+                        onSelect = { key ->
+                            backStack.clear()
+                            backStack.add(key)
+                        },
+                        onAddClick = {
+                            taskViewModel.onIntent(TaskIntent.ClearForm)
+                            backStack.add(ForgeNavKey.AddOrEditTask)
+                        }
+                    )
+                }
+
+                else -> {}
+            }
+}
+
+/** System-back handling. Not composable — it runs in response to an event, not a recomposition. */
+private fun navigateBack(
+    currentDestination: NavKey?,
+    backStack: NavBackStack<NavKey>,
+    taskViewModel: TaskViewModel
+) {
+    // The null branch is first so the rest smart-casts to non-null NavKey, which is
+    // what lets `in` resolve against Set<NavKey>. An empty back stack cannot happen
+    // in practice; clearing is the harmless reading of "nowhere to go back to".
+    when {
+        currentDestination == null -> backStack.clear()
+
+        currentDestination in CLEAR_TO_HOME -> backStack.clear()
+
+        currentDestination in RESET_TO_HOME -> {
+            backStack.clear()
+            backStack.add(ForgeNavKey.Home)
+        }
+
+        currentDestination == ForgeNavKey.AddOrEditTask -> {
+            taskViewModel.onIntent(TaskIntent.ClearForm)
+            backStack.removeLastOrNull()
+        }
+
+        else -> backStack.removeLastOrNull()
     }
 }
