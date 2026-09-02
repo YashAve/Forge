@@ -220,16 +220,23 @@ fun StatsScreen(
                 color = ForgeTheme.colors.fgPrimary
             )
         )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = "KEPT THE FIRE LIT FOR 9 DAYS",
-            style = TextStyle(
-                fontFamily = ForgeFonts.jetbrainsMono,
-                fontSize = 12.sp,
-                letterSpacing = (0.1).em,
-                color = ForgeTheme.colors.fgTertiary
+        // Hidden at zero rather than reading "KEPT THE FIRE LIT FOR 0 DAYS", which is
+        // true but says the opposite of what it claims. Same rule as the "personal
+        // best" suffix and the "Best day" row: an element that has nothing to report
+        // goes away instead of reporting nothing.
+        if (currentStreak > 0) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "KEPT THE FIRE LIT FOR $currentStreak " +
+                    if (currentStreak == 1) "DAY" else "DAYS",
+                style = TextStyle(
+                    fontFamily = ForgeFonts.jetbrainsMono,
+                    fontSize = 12.sp,
+                    letterSpacing = (0.1).em,
+                    color = ForgeTheme.colors.fgTertiary
+                )
             )
-        )
+        }
 
         Spacer(Modifier.height(40.dp))
 
