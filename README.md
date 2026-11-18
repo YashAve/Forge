@@ -12,6 +12,23 @@ by default.
 
 ---
 
+## Demo
+
+<p align="center">
+  <a href="docs/media/forge-demo.mp4">
+    <img src="docs/media/forge-demo-preview.webp" width="300"
+         alt="Forge on Android: onboarding, the home screen's single focus task, the all-tasks list, and the progress screen">
+  </a>
+</p>
+
+<p align="center">
+  <a href="docs/media/forge-demo.mp4"><b>Full walkthrough (5 min, MP4)</b></a><br>
+  Onboarding, sign-up and sign-in, adding tasks with due dates, priority, projects,
+  subtasks and reminders, completing and editing tasks, progress stats, and light and dark themes.
+</p>
+
+---
+
 ## Highlights
 
 - **Single source of truth, everywhere.** UI state lives in one place per feature and
