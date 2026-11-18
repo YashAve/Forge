@@ -2,10 +2,10 @@ package com.development.forge.feature.splash.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.development.forge.BuildConfig
 import com.development.forge.core.datastore.ForgePreferences
 import com.development.forge.feature.splash.contract.SplashEffect
 import com.development.forge.feature.splash.contract.SplashIntent
+import com.development.forge.feature.splash.viewmodel.SplashViewModel.Companion.SKIP_AUTH_FOR_TESTING
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.first
@@ -49,10 +49,10 @@ class SplashViewModel @Inject constructor(
 
     private fun checkAuthStatus() {
         viewModelScope.launch {
-            if (BuildConfig.DEBUG && SKIP_AUTH_FOR_TESTING) {
+            /*if (BuildConfig.DEBUG && SKIP_AUTH_FOR_TESTING) {
                 pendingDestination = SplashEffect.NavigateToHome
                 return@launch
-            }
+            }*/
 
             val onboardingDone = preferences.isOnboardingDone().first()
             val authToken = preferences.authToken().first()

@@ -20,9 +20,9 @@ import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,6 +50,7 @@ import com.development.forge.core.components.ForgeToggle
 import com.development.forge.core.designsystem.ForgeFonts
 import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.feature.settings.components.SettingRow
+import com.development.forge.feature.settings.contract.SettingsState
 
 /**
  * DESIGN SPECIFICATION — Settings / "You" screen
@@ -135,7 +136,7 @@ import com.development.forge.feature.settings.components.SettingRow
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
-    email: String = "karishma.kapoor@cosmiq.co.in",
+    state: SettingsState = SettingsState(),
     isDark: Boolean = true,
     onToggleTheme: () -> Unit = { },
     onSignOut: () -> Unit = { },
@@ -143,7 +144,7 @@ fun SettingsScreen(
     showDebugTools: Boolean = false,
     onSeedData: () -> Unit = { }
 ) {
-    val name = email.substringBefore(".")
+    val name = state.email.substringBefore(".")
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -190,7 +191,9 @@ fun SettingsScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = email.first().uppercase(), style = TextStyle(
+                        // firstOrNull: email is "" before the DataStore emits and after sign-out
+                        // clears it, while this screen is still composed.
+                        text = state.email.firstOrNull()?.uppercase() ?: "", style = TextStyle(
                             fontFamily = ForgeFonts.spaceGrotesk,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.W700,
@@ -209,7 +212,7 @@ fun SettingsScreen(
                         )
                     )
                     Text(
-                        text = email, style = TextStyle(
+                        text = state.email, style = TextStyle(
                             fontFamily = ForgeFonts.jetbrainsMono,
                             fontSize = (12.5).sp,
                             color = ForgeTheme.colors.fgTertiary
@@ -276,7 +279,9 @@ fun SettingsScreen(
                 icon = Icons.Outlined.Science,
                 title = "Seed sample tasks",
                 value = "debug",
-                onClick = onSeedData
+                onClick = {
+                    onSeedData()
+                }
             )
         }
 
@@ -285,7 +290,9 @@ fun SettingsScreen(
             icon = Icons.AutoMirrored.Filled.Logout,
             title = "Sign out",
             danger = true,
-            onClick = onSignOut
+            onClick = {
+                onSignOut()
+            }
         )
 
         Spacer(modifier = Modifier.height(28.dp))

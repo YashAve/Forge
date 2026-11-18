@@ -29,15 +29,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.navigationevent.NavigationEventDispatcher
 import androidx.navigationevent.NavigationEventDispatcherOwner
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import com.development.forge.BuildConfig
 import com.development.forge.core.components.ForgeTaskTopBar
 import com.development.forge.core.components.ForgeTopBar
 import com.development.forge.core.components.OnForgeOnAdd
@@ -47,7 +48,6 @@ import com.development.forge.core.designsystem.ForgeTheme
 import com.development.forge.feature.auth.contract.AuthEffect
 import com.development.forge.feature.auth.contract.AuthError
 import com.development.forge.feature.auth.contract.AuthIntent
-import com.development.forge.BuildConfig
 import com.development.forge.feature.auth.ui.EmailSentScreen
 import com.development.forge.feature.auth.ui.ForgotPasswordScreen
 import com.development.forge.feature.auth.ui.LoginScreen
@@ -106,8 +106,10 @@ fun ForgeNavHost(
 
     val authViewModel: AuthViewModel = hiltViewModel()
     val taskViewModel: TaskViewModel = hiltViewModel()
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
     val authState = authViewModel.authState.collectAsStateWithLifecycle()
     val taskState = taskViewModel.taskState.collectAsStateWithLifecycle()
+    val settingsState = settingsViewModel.state.collectAsStateWithLifecycle()
 
 
     LaunchedEffect(Unit) {
@@ -384,10 +386,8 @@ fun ForgeNavHost(
                     }
 
                     entry<ForgeNavKey.Settings> {
-                        val viewModel: SettingsViewModel = hiltViewModel()
-
                         LaunchedEffect(Unit) {
-                            viewModel.effect.collect { effect ->
+                            settingsViewModel.effect.collect { effect ->
                                 when (effect) {
                                     is SettingsEffect.NavigateToLogin -> {
                                         backStack.clear()
@@ -399,10 +399,11 @@ fun ForgeNavHost(
 
                         SettingsScreen(
                             modifier = basicModifier,
+                            state = settingsState.value,
                             isDark = isDark,
                             onToggleTheme = onToggleTheme,
                             onSignOut = {
-                                viewModel.onIntent(SettingsIntent.Logout)
+                                settingsViewModel.onIntent(SettingsIntent.Logout)
                             },
                             showDebugTools = BuildConfig.DEBUG,
                             onSeedData = {
@@ -475,7 +476,7 @@ fun ForgeNavHostPreview() {
         override val navigationEventDispatcher = NavigationEventDispatcher()
     }
     CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides mockDispatcherOwner) {
-        ForgeNavHost(initialDestination = ForgeNavKey.Home) // Bypasses Splash ViewModel execution
+        ForgeNavHost(initialDestination = Splash) // Bypasses Splash ViewModel execution
     }
 }
 
